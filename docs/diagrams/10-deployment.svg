@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="640" viewBox="0 0 1200 640"><defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#64748b"/></marker><marker id="g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#10b981"/></marker><marker id="r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#ef4444"/></marker><marker id="y" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#f59e0b"/></marker><marker id="v" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#8b5cf6"/></marker></defs>
+<rect width="1200" height="640" rx="16" fill="#ffffff" stroke="#e2e8f0"/>
+<text x="32" y="44" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="22" font-weight="700" fill="#0f172a" text-anchor="start">Deployment on Nebius AI Cloud + CI/CD</text>
+<text x="32" y="68" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="400" fill="#64748b" text-anchor="start">All model inference and code execution run on Nebius; GitHub Actions builds and ships.</text>
+<rect x="40" y="96" width="120" height="74" rx="10" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+<text x="100.0" y="129.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#ffffff" text-anchor="middle">Developer</text>
+<text x="100.0" y="147.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#cbd5e1" text-anchor="middle">push / tag</text>
+<rect x="190" y="96" width="160" height="74" rx="10" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="270.0" y="129.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">GitHub</text>
+<text x="270.0" y="147.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">RootTrace-AI repo</text>
+<rect x="380" y="96" width="280" height="74" rx="10" fill="#eff6ff" stroke="#60a5fa" stroke-width="1.5"/>
+<text x="520.0" y="121.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#1e3a8a" text-anchor="middle">GitHub Actions — CI</text>
+<text x="520.0" y="139.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#334155" text-anchor="middle">ruff · mypy · pytest (+Postgres)</text>
+<text x="520.0" y="155.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#334155" text-anchor="middle">eslint · tsc · vitest · docker build</text>
+<rect x="690" y="96" width="150" height="74" rx="10" fill="#eff6ff" stroke="#60a5fa" stroke-width="1.5"/>
+<text x="765.0" y="129.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#1e3a8a" text-anchor="middle">Build &amp; push</text>
+<text x="765.0" y="147.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#334155" text-anchor="middle">on tag</text>
+<rect x="870" y="96" width="290" height="74" rx="10" fill="#fffbeb" stroke="#f59e0b" stroke-width="1.5"/>
+<text x="1015.0" y="129.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#92400e" text-anchor="middle">Nebius Container Registry</text>
+<text x="1015.0" y="147.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#78350f" text-anchor="middle">backend · frontend images</text>
+<path d="M160,133 L190,133" fill="none" stroke="#64748b" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M350,133 L380,133" fill="none" stroke="#64748b" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M660,133 L690,133" fill="none" stroke="#64748b" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M840,133 L870,133" fill="none" stroke="#64748b" stroke-width="1.8" marker-end="url(#a)"/>
+<rect x="280" y="220" width="880" height="340" rx="14" fill="#fffbeb" stroke="#f59e0b" stroke-width="1.5"/>
+<text x="298" y="244" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#92400e" text-anchor="start">NEBIUS AI CLOUD</text>
+<path d="M1015,170 L1015,196 L540,196 L540,262" fill="none" stroke="#64748b" stroke-width="1.8" marker-end="url(#a)"/>
+<text x="760" y="190" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="500" fill="#475569" text-anchor="middle" font-style="italic">SSH: docker compose pull &amp;&amp; up -d</text>
+<rect x="300" y="262" width="480" height="280" rx="14" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="318" y="286" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#0f172a" text-anchor="start">Compute VM (CPU) — docker-compose.prod.yml</text>
+<rect x="320" y="306" width="440" height="60" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="540.0" y="332.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">Caddy</text>
+<text x="540.0" y="350.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">automatic TLS · serves React build · reverse proxy /api</text>
+<rect x="320" y="384" width="440" height="60" rx="10" fill="#eff6ff" stroke="#60a5fa" stroke-width="1.5"/>
+<text x="540.0" y="410.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#1e3a8a" text-anchor="middle">FastAPI backend</text>
+<text x="540.0" y="428.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#334155" text-anchor="middle">LangGraph agent · MCP servers · SSE · seed on first boot</text>
+<rect x="320" y="462" width="440" height="60" rx="10" fill="#f5f3ff" stroke="#a78bfa" stroke-width="1.5"/>
+<text x="540.0" y="488.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#4c1d95" text-anchor="middle">PostgreSQL 16 + pgvector</text>
+<text x="540.0" y="506.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#4c1d95" text-anchor="middle">persistent volume · app data · vectors · traces</text>
+<path d="M540,366 L540,384" fill="none" stroke="#64748b" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M540,444 L540,462" fill="none" stroke="#64748b" stroke-width="1.8" marker-end="url(#a)"/>
+<rect x="820" y="290" width="320" height="110" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="980.0" y="326.0" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#0f172a" text-anchor="middle">Nebius Token Factory</text>
+<text x="980.0" y="344.0" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">Nemotron 3 Ultra · Super · Nano</text>
+<text x="980.0" y="360.0" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">embedding model</text>
+<text x="980.0" y="376.0" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">OpenAI-compatible /v1</text>
+<rect x="820" y="420" width="320" height="110" rx="10" fill="#ecfdf5" stroke="#10b981" stroke-width="1.5"/>
+<text x="980.0" y="456.0" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#065f46" text-anchor="middle">Nebius Sandboxes</text>
+<text x="980.0" y="474.0" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#064e3b" text-anchor="middle">ConTree SDK</text>
+<text x="980.0" y="490.0" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#064e3b" text-anchor="middle">baseline + patched pytest runs</text>
+<text x="980.0" y="506.0" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#064e3b" text-anchor="middle">cached deps image per sha</text>
+<path d="M760,404 L790,404 L790,345 L820,345" fill="none" stroke="#f59e0b" stroke-width="1.8" marker-end="url(#y)"/>
+<path d="M760,424 L790,424 L790,475 L820,475" fill="none" stroke="#10b981" stroke-width="1.8" marker-end="url(#g)"/>
+<rect x="40" y="360" width="200" height="90" rx="10" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+<text x="140.0" y="394.0" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#ffffff" text-anchor="middle">Judge / engineer</text>
+<text x="140.0" y="412.0" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#cbd5e1" text-anchor="middle">browser</text>
+<text x="140.0" y="428.0" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#cbd5e1" text-anchor="middle">&quot;Try demo&quot; button</text>
+<path d="M240,405 L262,405 L262,336 L320,336" fill="none" stroke="#64748b" stroke-width="1.8" marker-end="url(#a)"/>
+<text x="268" y="328" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="500" fill="#475569" text-anchor="start" font-style="italic">HTTPS</text>
+<rect x="300" y="580" width="480" height="46" rx="10" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="540.0" y="599.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">GitHub API — PayStream demo repo</text>
+<text x="540.0" y="617.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">clone · issues · draft PRs (after approval)</text>
+<path d="M540,542 L540,580" fill="none" stroke="#64748b" stroke-width="1.8" marker-end="url(#a)" marker-start="url(#a)"/>
+</svg>

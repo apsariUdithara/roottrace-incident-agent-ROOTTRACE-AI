@@ -1,0 +1,172 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="840" viewBox="0 0 1200 840"><defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#64748b"/></marker><marker id="g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#10b981"/></marker><marker id="r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#ef4444"/></marker><marker id="y" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#f59e0b"/></marker><marker id="v" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#8b5cf6"/></marker></defs>
+<rect width="1200" height="840" rx="16" fill="#ffffff" stroke="#e2e8f0"/>
+<text x="32" y="44" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="22" font-weight="700" fill="#0f172a" text-anchor="start">Data model — PostgreSQL + pgvector</text>
+<text x="32" y="68" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="400" fill="#64748b" text-anchor="start">One database for app data, vectors, memory, traces and LangGraph checkpoints. Every table below projects carries project_id.</text>
+<rect x="40" y="96" width="250" height="106" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<path d="M40,104 a8,8 0 0 1 8,-8 h234 a8,8 0 0 1 8,8 v20 h-250 z" fill="#3b82f6"/>
+<text x="52" y="115" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="12.5" font-weight="700" fill="#ffffff" text-anchor="start">users</text>
+<text x="52" y="142" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="600" fill="#334155" text-anchor="start">id PK</text>
+<text x="52" y="159" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">email</text>
+<text x="52" y="176" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">password_hash (argon2)</text>
+<text x="52" y="193" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">created_at</text>
+<rect x="40" y="218" width="250" height="106" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<path d="M40,226 a8,8 0 0 1 8,-8 h234 a8,8 0 0 1 8,8 v20 h-250 z" fill="#3b82f6"/>
+<text x="52" y="237" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="12.5" font-weight="700" fill="#ffffff" text-anchor="start">projects</text>
+<text x="52" y="264" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="600" fill="#334155" text-anchor="start">id PK</text>
+<text x="52" y="281" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">owner_id → users</text>
+<text x="52" y="298" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">name</text>
+<text x="52" y="315" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">description</text>
+<rect x="40" y="340" width="250" height="123" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<path d="M40,348 a8,8 0 0 1 8,-8 h234 a8,8 0 0 1 8,8 v20 h-250 z" fill="#3b82f6"/>
+<text x="52" y="359" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="12.5" font-weight="700" fill="#ffffff" text-anchor="start">repositories</text>
+<text x="52" y="386" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="600" fill="#334155" text-anchor="start">id PK</text>
+<text x="52" y="403" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">project_id</text>
+<text x="52" y="420" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">url · default_branch</text>
+<text x="52" y="437" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">encrypted_token</text>
+<text x="52" y="454" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">last_indexed_sha</text>
+<rect x="40" y="479" width="250" height="123" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<path d="M40,487 a8,8 0 0 1 8,-8 h234 a8,8 0 0 1 8,8 v20 h-250 z" fill="#8b5cf6"/>
+<text x="52" y="498" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="12.5" font-weight="700" fill="#ffffff" text-anchor="start">documents</text>
+<text x="52" y="525" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="600" fill="#334155" text-anchor="start">id PK</text>
+<text x="52" y="542" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">project_id</text>
+<text x="52" y="559" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">source_type</text>
+<text x="52" y="576" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">path · title</text>
+<text x="52" y="593" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">commit_sha · hash</text>
+<rect x="40" y="618" width="250" height="140" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<path d="M40,626 a8,8 0 0 1 8,-8 h234 a8,8 0 0 1 8,8 v20 h-250 z" fill="#8b5cf6"/>
+<text x="52" y="637" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="12.5" font-weight="700" fill="#ffffff" text-anchor="start">document_chunks</text>
+<text x="52" y="664" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="600" fill="#334155" text-anchor="start">id PK</text>
+<text x="52" y="681" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">document_id</text>
+<text x="52" y="698" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">content · section_path</text>
+<text x="52" y="715" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">start_line · end_line</text>
+<text x="52" y="732" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">embedding vector(N)</text>
+<text x="52" y="749" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">tsv tsvector</text>
+<rect x="330" y="130" width="250" height="123" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<path d="M330,138 a8,8 0 0 1 8,-8 h234 a8,8 0 0 1 8,8 v20 h-250 z" fill="#8b5cf6"/>
+<text x="342" y="149" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="12.5" font-weight="700" fill="#ffffff" text-anchor="start">incidents</text>
+<text x="342" y="176" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="600" fill="#334155" text-anchor="start">id PK</text>
+<text x="342" y="193" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">project_id</text>
+<text x="342" y="210" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">key (INC-017)</text>
+<text x="342" y="227" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">symptoms · root_cause</text>
+<text x="342" y="244" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">fix · commit_sha</text>
+<rect x="330" y="269" width="250" height="123" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<path d="M330,277 a8,8 0 0 1 8,-8 h234 a8,8 0 0 1 8,8 v20 h-250 z" fill="#8b5cf6"/>
+<text x="342" y="288" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="12.5" font-weight="700" fill="#ffffff" text-anchor="start">log_entries</text>
+<text x="342" y="315" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="600" fill="#334155" text-anchor="start">id PK</text>
+<text x="342" y="332" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">project_id</text>
+<text x="342" y="349" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">ts · level · service</text>
+<text x="342" y="366" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">route · status</text>
+<text x="342" y="383" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">error_type · trace_id</text>
+<rect x="330" y="408" width="250" height="140" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<path d="M330,416 a8,8 0 0 1 8,-8 h234 a8,8 0 0 1 8,8 v20 h-250 z" fill="#8b5cf6"/>
+<text x="342" y="427" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="12.5" font-weight="700" fill="#ffffff" text-anchor="start">memories</text>
+<text x="342" y="454" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="600" fill="#334155" text-anchor="start">id PK</text>
+<text x="342" y="471" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">project_id</text>
+<text x="342" y="488" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">category</text>
+<text x="342" y="505" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">content · source_ref</text>
+<text x="342" y="522" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">embedding</text>
+<text x="342" y="539" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">created_by · status</text>
+<rect x="330" y="564" width="250" height="106" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<path d="M330,572 a8,8 0 0 1 8,-8 h234 a8,8 0 0 1 8,8 v20 h-250 z" fill="#f59e0b"/>
+<text x="342" y="583" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="12.5" font-weight="700" fill="#ffffff" text-anchor="start">evaluation_runs</text>
+<text x="342" y="610" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="600" fill="#334155" text-anchor="start">id PK</text>
+<text x="342" y="627" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">git_sha</text>
+<text x="342" y="644" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">metrics jsonb</text>
+<text x="342" y="661" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">cases jsonb</text>
+<rect x="620" y="96" width="250" height="157" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<path d="M620,104 a8,8 0 0 1 8,-8 h234 a8,8 0 0 1 8,8 v20 h-250 z" fill="#475569"/>
+<text x="632" y="115" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="12.5" font-weight="700" fill="#ffffff" text-anchor="start">investigations</text>
+<text x="632" y="142" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="600" fill="#334155" text-anchor="start">id PK</text>
+<text x="632" y="159" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">project_id · user_id</text>
+<text x="632" y="176" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">question · status</text>
+<text x="632" y="193" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">root_cause</text>
+<text x="632" y="210" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">confidence · breakdown</text>
+<text x="632" y="227" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">report jsonb</text>
+<text x="632" y="244" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">tokens · cost_usd</text>
+<rect x="620" y="269" width="250" height="89" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<path d="M620,277 a8,8 0 0 1 8,-8 h234 a8,8 0 0 1 8,8 v20 h-250 z" fill="#475569"/>
+<text x="632" y="288" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="12.5" font-weight="700" fill="#ffffff" text-anchor="start">messages</text>
+<text x="632" y="315" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="600" fill="#334155" text-anchor="start">id PK</text>
+<text x="632" y="332" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">investigation_id</text>
+<text x="632" y="349" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">role · content</text>
+<rect x="620" y="374" width="250" height="106" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<path d="M620,382 a8,8 0 0 1 8,-8 h234 a8,8 0 0 1 8,8 v20 h-250 z" fill="#475569"/>
+<text x="632" y="393" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="12.5" font-weight="700" fill="#ffffff" text-anchor="start">investigation_events</text>
+<text x="632" y="420" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="600" fill="#334155" text-anchor="start">id PK</text>
+<text x="632" y="437" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">investigation_id</text>
+<text x="632" y="454" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">seq · type</text>
+<text x="632" y="471" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">payload jsonb (SSE log)</text>
+<rect x="620" y="496" width="250" height="106" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<path d="M620,504 a8,8 0 0 1 8,-8 h234 a8,8 0 0 1 8,8 v20 h-250 z" fill="#475569"/>
+<text x="632" y="515" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="12.5" font-weight="700" fill="#ffffff" text-anchor="start">hypotheses</text>
+<text x="632" y="542" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="600" fill="#334155" text-anchor="start">id PK</text>
+<text x="632" y="559" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">investigation_id</text>
+<text x="632" y="576" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">statement · rank</text>
+<text x="632" y="593" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">verdict</text>
+<rect x="910" y="96" width="250" height="140" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<path d="M910,104 a8,8 0 0 1 8,-8 h234 a8,8 0 0 1 8,8 v20 h-250 z" fill="#475569"/>
+<text x="922" y="115" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="12.5" font-weight="700" fill="#ffffff" text-anchor="start">evidence</text>
+<text x="922" y="142" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="600" fill="#334155" text-anchor="start">id PK</text>
+<text x="922" y="159" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">investigation_id</text>
+<text x="922" y="176" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">kind (fact|inference)</text>
+<text x="922" y="193" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">source_type · source_ref</text>
+<text x="922" y="210" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">excerpt</text>
+<text x="922" y="227" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">stance · weight</text>
+<rect x="910" y="252" width="250" height="123" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<path d="M910,260 a8,8 0 0 1 8,-8 h234 a8,8 0 0 1 8,8 v20 h-250 z" fill="#10b981"/>
+<text x="922" y="271" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="12.5" font-weight="700" fill="#ffffff" text-anchor="start">patches</text>
+<text x="922" y="298" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="600" fill="#334155" text-anchor="start">id PK</text>
+<text x="922" y="315" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">investigation_id</text>
+<text x="922" y="332" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">attempt · status</text>
+<text x="922" y="349" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">diff · explanation</text>
+<text x="922" y="366" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">pr_title · pr_url</text>
+<rect x="910" y="391" width="250" height="123" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<path d="M910,399 a8,8 0 0 1 8,-8 h234 a8,8 0 0 1 8,8 v20 h-250 z" fill="#10b981"/>
+<text x="922" y="410" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="12.5" font-weight="700" fill="#ffffff" text-anchor="start">test_runs</text>
+<text x="922" y="437" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="600" fill="#334155" text-anchor="start">id PK</text>
+<text x="922" y="454" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">patch_id</text>
+<text x="922" y="471" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">phase (baseline|patched)</text>
+<text x="922" y="488" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">exit_code · passed</text>
+<text x="922" y="505" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">stdout · sandbox_image_id</text>
+<rect x="910" y="530" width="250" height="106" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<path d="M910,538 a8,8 0 0 1 8,-8 h234 a8,8 0 0 1 8,8 v20 h-250 z" fill="#475569"/>
+<text x="922" y="549" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="12.5" font-weight="700" fill="#ffffff" text-anchor="start">trace_spans</text>
+<text x="922" y="576" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="600" fill="#334155" text-anchor="start">id PK</text>
+<text x="922" y="593" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">investigation_id · parent_id</text>
+<text x="922" y="610" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">kind · name · model</text>
+<text x="922" y="627" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11" font-weight="400" fill="#334155" text-anchor="start">tokens · cost · latency_ms</text>
+<path d="M165,202 L165,218" fill="none" stroke="#64748b" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M165,324 L165,340" fill="none" stroke="#64748b" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M165,602 L165,618" fill="none" stroke="#64748b" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M1035,375 L1035,391" fill="none" stroke="#64748b" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M290,258 H310 V424" fill="none" stroke="#64748b" stroke-width="1.8"/>
+<path d="M310,146 L330,146" fill="none" stroke="#64748b" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M310,285 L330,285" fill="none" stroke="#64748b" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M310,424 L330,424" fill="none" stroke="#64748b" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M310,258 L310,114 L620,114" fill="none" stroke="#64748b" stroke-width="1.8" marker-end="url(#a)"/>
+<text x="470" y="108" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="500" fill="#475569" text-anchor="middle" font-style="italic">project_id</text>
+<path d="M870,136 H890 V546 M600,156 V512" fill="none" stroke="#64748b" stroke-width="1.8"/>
+<path d="M620,156 H600" fill="none" stroke="#64748b" stroke-width="1.8"/>
+<path d="M890,112 L910,112" fill="none" stroke="#64748b" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M890,268 L910,268" fill="none" stroke="#64748b" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M890,546 L910,546" fill="none" stroke="#64748b" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M600,285 L620,285" fill="none" stroke="#64748b" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M600,390 L620,390" fill="none" stroke="#64748b" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M600,512 L620,512" fill="none" stroke="#64748b" stroke-width="1.8" marker-end="url(#a)"/>
+<rect x="620" y="700" width="250" height="52" rx="10" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="745.0" y="722.0" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle">LangGraph checkpoints</text>
+<text x="745.0" y="740.0" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">AsyncPostgresSaver.setup()</text>
+<rect x="330" y="700" width="250" height="52" rx="10" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="455.0" y="722.0" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle">demo_app schema</text>
+<text x="455.0" y="740.0" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">SELECT-only role for query_database</text>
+<rect x="40" y="800" width="16" height="16" rx="4" fill="#eff6ff" stroke="#60a5fa" stroke-width="1.5"/>
+<text x="64" y="813" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#334155" text-anchor="start">Identity</text>
+<rect x="142.8" y="800" width="16" height="16" rx="4" fill="#f5f3ff" stroke="#a78bfa" stroke-width="1.5"/>
+<text x="166.8" y="813" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#334155" text-anchor="start">Knowledge &amp; memory</text>
+<rect x="311.6" y="800" width="16" height="16" rx="4" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="335.6" y="813" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#334155" text-anchor="start">Investigation</text>
+<rect x="447.40000000000003" y="800" width="16" height="16" rx="4" fill="#ecfdf5" stroke="#10b981" stroke-width="1.5"/>
+<text x="471.40000000000003" y="813" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#334155" text-anchor="start">Fix / sandbox</text>
+<rect x="583.2" y="800" width="16" height="16" rx="4" fill="#fffbeb" stroke="#f59e0b" stroke-width="1.5"/>
+<text x="607.2" y="813" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#334155" text-anchor="start">Evaluation</text>
+</svg>

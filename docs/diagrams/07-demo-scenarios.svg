@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720"><defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#64748b"/></marker><marker id="g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#10b981"/></marker><marker id="r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#ef4444"/></marker><marker id="y" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#f59e0b"/></marker><marker id="v" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#8b5cf6"/></marker></defs>
+<rect width="1200" height="720" rx="16" fill="#ffffff" stroke="#e2e8f0"/>
+<text x="32" y="44" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="22" font-weight="700" fill="#0f172a" text-anchor="start">PayStream demo target — 8 seeded incidents</text>
+<text x="32" y="68" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="400" fill="#64748b" text-anchor="start">Each scenario = one plausible &quot;bad&quot; commit + logs + docs + past incident/issue + a hidden regression test (used by the demo and evaluate.py).</text>
+<rect x="40" y="96" width="268" height="280" rx="12" fill="#fffbeb" stroke="#f59e0b" stroke-width="2"/>
+<circle cx="66" cy="124" r="14" fill="#0f172a"/>
+<text x="66" y="129" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#ffffff" text-anchor="middle">1</text>
+<rect x="219.8" y="112" width="74" height="22" rx="11.0" fill="#fffbeb" stroke="#f59e0b"/>
+<text x="256.9" y="126.6" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="600" fill="#92400e" text-anchor="middle">HERO DEMO</text>
+<text x="58" y="162" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" font-weight="700" fill="#0f172a" text-anchor="start">Payment API 500s after</text>
+<text x="58" y="181" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" font-weight="700" fill="#0f172a" text-anchor="start">deploy</text>
+<text x="58" y="216" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="700" fill="#991b1b" text-anchor="start">SEEDED BUG</text>
+<text x="58" y="234" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#334155" text-anchor="start">DB_POOL_SIZE 20 → 100 exceeds</text>
+<text x="58" y="251" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#334155" text-anchor="start">Postgres max_connections</text>
+<text x="58" y="280" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="700" fill="#1e3a8a" text-anchor="start">EVIDENCE TO FIND</text>
+<text x="58" y="298" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#334155" text-anchor="start">logs · commit · database.md · INC-017</text>
+<text x="58" y="327" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="700" fill="#065f46" text-anchor="start">FIX</text>
+<text x="58" y="345" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#334155" text-anchor="start">restore limit + validation</text>
+<text x="58" y="362" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="10.5" font-weight="500" fill="#64748b" text-anchor="start">hidden test: eval/hidden_tests/</text>
+<rect x="324" y="96" width="268" height="280" rx="12" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<circle cx="350" cy="124" r="14" fill="#0f172a"/>
+<text x="350" y="129" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#ffffff" text-anchor="middle">2</text>
+<text x="342" y="162" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" font-weight="700" fill="#0f172a" text-anchor="start">Wrong totals on multi-item</text>
+<text x="342" y="181" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" font-weight="700" fill="#0f172a" text-anchor="start">orders</text>
+<text x="342" y="216" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="700" fill="#991b1b" text-anchor="start">SEEDED BUG</text>
+<text x="342" y="234" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#334155" text-anchor="start">float replaced Decimal in</text>
+<text x="342" y="251" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#334155" text-anchor="start">calculate_total</text>
+<text x="342" y="280" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="700" fill="#1e3a8a" text-anchor="start">EVIDENCE TO FIND</text>
+<text x="342" y="298" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#334155" text-anchor="start">logs · commit · payments.md</text>
+<text x="342" y="327" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="700" fill="#065f46" text-anchor="start">FIX</text>
+<text x="342" y="345" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#334155" text-anchor="start">Decimal + quantize</text>
+<text x="342" y="362" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="10.5" font-weight="500" fill="#64748b" text-anchor="start">hidden test: eval/hidden_tests/</text>
+<rect x="608" y="96" width="268" height="280" rx="12" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<circle cx="634" cy="124" r="14" fill="#0f172a"/>
+<text x="634" y="129" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#ffffff" text-anchor="middle">3</text>
+<text x="626" y="162" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" font-weight="700" fill="#0f172a" text-anchor="start">Early logouts / 401 spike</text>
+<text x="626" y="216" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="700" fill="#991b1b" text-anchor="start">SEEDED BUG</text>
+<text x="626" y="234" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#334155" text-anchor="start">naive vs aware datetime in</text>
+<text x="626" y="251" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#334155" text-anchor="start">token expiry check</text>
+<text x="626" y="280" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="700" fill="#1e3a8a" text-anchor="start">EVIDENCE TO FIND</text>
+<text x="626" y="298" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#334155" text-anchor="start">logs · commit · authentication.md</text>
+<text x="626" y="327" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="700" fill="#065f46" text-anchor="start">FIX</text>
+<text x="626" y="345" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#334155" text-anchor="start">timezone-aware compare</text>
+<text x="626" y="362" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="10.5" font-weight="500" fill="#64748b" text-anchor="start">hidden test: eval/hidden_tests/</text>
+<rect x="892" y="96" width="268" height="280" rx="12" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<circle cx="918" cy="124" r="14" fill="#0f172a"/>
+<text x="918" y="129" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#ffffff" text-anchor="middle">4</text>
+<text x="910" y="162" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" font-weight="700" fill="#0f172a" text-anchor="start">Duplicate charges</text>
+<text x="910" y="216" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="700" fill="#991b1b" text-anchor="start">SEEDED BUG</text>
+<text x="910" y="234" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#334155" text-anchor="start">idempotency-key check</text>
+<text x="910" y="251" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#334155" text-anchor="start">removed</text>
+<text x="910" y="280" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="700" fill="#1e3a8a" text-anchor="start">EVIDENCE TO FIND</text>
+<text x="910" y="298" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#334155" text-anchor="start">logs · GitHub issue · INC-009</text>
+<text x="910" y="327" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="700" fill="#065f46" text-anchor="start">FIX</text>
+<text x="910" y="345" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#334155" text-anchor="start">restore the check</text>
+<text x="910" y="362" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="10.5" font-weight="500" fill="#64748b" text-anchor="start">hidden test: eval/hidden_tests/</text>
+<rect x="40" y="392" width="268" height="280" rx="12" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<circle cx="66" cy="420" r="14" fill="#0f172a"/>
+<text x="66" y="425" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#ffffff" text-anchor="middle">5</text>
+<text x="58" y="458" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" font-weight="700" fill="#0f172a" text-anchor="start">Webhook handler 500s</text>
+<text x="58" y="512" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="700" fill="#991b1b" text-anchor="start">SEEDED BUG</text>
+<text x="58" y="530" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#334155" text-anchor="start">None access on an</text>
+<text x="58" y="547" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#334155" text-anchor="start">optional payload field</text>
+<text x="58" y="576" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="700" fill="#1e3a8a" text-anchor="start">EVIDENCE TO FIND</text>
+<text x="58" y="594" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#334155" text-anchor="start">stack trace in logs · code</text>
+<text x="58" y="623" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="700" fill="#065f46" text-anchor="start">FIX</text>
+<text x="58" y="641" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#334155" text-anchor="start">null guard</text>
+<text x="58" y="658" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="10.5" font-weight="500" fill="#64748b" text-anchor="start">hidden test: eval/hidden_tests/</text>
+<rect x="324" y="392" width="268" height="280" rx="12" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<circle cx="350" cy="420" r="14" fill="#0f172a"/>
+<text x="350" y="425" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#ffffff" text-anchor="middle">6</text>
+<text x="342" y="458" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" font-weight="700" fill="#0f172a" text-anchor="start">Gateway retry storm</text>
+<text x="342" y="512" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="700" fill="#991b1b" text-anchor="start">SEEDED BUG</text>
+<text x="342" y="530" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#334155" text-anchor="start">exponential backoff</text>
+<text x="342" y="547" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#334155" text-anchor="start">removed from client</text>
+<text x="342" y="576" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="700" fill="#1e3a8a" text-anchor="start">EVIDENCE TO FIND</text>
+<text x="342" y="594" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#334155" text-anchor="start">burst logs · commit</text>
+<text x="342" y="623" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="700" fill="#065f46" text-anchor="start">FIX</text>
+<text x="342" y="641" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#334155" text-anchor="start">restore backoff</text>
+<text x="342" y="658" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="10.5" font-weight="500" fill="#64748b" text-anchor="start">hidden test: eval/hidden_tests/</text>
+<rect x="608" y="392" width="268" height="280" rx="12" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<circle cx="634" cy="420" r="14" fill="#0f172a"/>
+<text x="634" y="425" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#ffffff" text-anchor="middle">7</text>
+<text x="626" y="458" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" font-weight="700" fill="#0f172a" text-anchor="start">Config not loaded after</text>
+<text x="626" y="477" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" font-weight="700" fill="#0f172a" text-anchor="start">rename</text>
+<text x="626" y="512" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="700" fill="#991b1b" text-anchor="start">SEEDED BUG</text>
+<text x="626" y="530" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#334155" text-anchor="start">env var renamed in code,</text>
+<text x="626" y="547" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#334155" text-anchor="start">not in deploy config</text>
+<text x="626" y="576" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="700" fill="#1e3a8a" text-anchor="start">EVIDENCE TO FIND</text>
+<text x="626" y="594" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#334155" text-anchor="start">KeyError logs · deployment.md</text>
+<text x="626" y="623" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="700" fill="#065f46" text-anchor="start">FIX</text>
+<text x="626" y="641" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#334155" text-anchor="start">fix the variable name</text>
+<text x="626" y="658" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="10.5" font-weight="500" fill="#64748b" text-anchor="start">hidden test: eval/hidden_tests/</text>
+<rect x="892" y="392" width="268" height="280" rx="12" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<circle cx="918" cy="420" r="14" fill="#0f172a"/>
+<text x="918" y="425" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#ffffff" text-anchor="middle">8</text>
+<text x="910" y="458" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" font-weight="700" fill="#0f172a" text-anchor="start">Slow user search /</text>
+<text x="910" y="477" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" font-weight="700" fill="#0f172a" text-anchor="start">timeouts</text>
+<text x="910" y="512" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="700" fill="#991b1b" text-anchor="start">SEEDED BUG</text>
+<text x="910" y="530" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#334155" text-anchor="start">index dropped in a</text>
+<text x="910" y="547" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#334155" text-anchor="start">migration</text>
+<text x="910" y="576" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="700" fill="#1e3a8a" text-anchor="start">EVIDENCE TO FIND</text>
+<text x="910" y="594" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#334155" text-anchor="start">slow-query logs · migration</text>
+<text x="910" y="623" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="700" fill="#065f46" text-anchor="start">FIX</text>
+<text x="910" y="641" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#334155" text-anchor="start">re-add the index</text>
+<text x="910" y="658" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="10.5" font-weight="500" fill="#64748b" text-anchor="start">hidden test: eval/hidden_tests/</text>
+</svg>

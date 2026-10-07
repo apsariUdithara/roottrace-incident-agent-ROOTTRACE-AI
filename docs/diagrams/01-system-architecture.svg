@@ -1,0 +1,196 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1110" viewBox="0 0 1200 1110"><defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#64748b"/></marker><marker id="g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#10b981"/></marker><marker id="r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#ef4444"/></marker><marker id="y" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#f59e0b"/></marker><marker id="v" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#8b5cf6"/></marker></defs>
+<rect width="1200" height="1110" rx="16" fill="#ffffff" stroke="#e2e8f0"/>
+<text x="32" y="44" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="22" font-weight="700" fill="#0f172a" text-anchor="start">RootTrace AI — System Architecture</text>
+<text x="32" y="68" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="400" fill="#64748b" text-anchor="start">Six layers top to bottom; cross-cutting concerns on the right apply to every layer.</text>
+<rect x="392" y="82" width="316" height="30" rx="15.0" fill="#1e293b" stroke="#334155"/>
+<text x="550.03" y="101.68" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="600" fill="#ffffff" text-anchor="middle">Engineer / On-call  ·  Judge (Try demo)</text>
+<rect x="32" y="130" width="880" height="92" rx="14" fill="#eff6ff" stroke="#60a5fa" stroke-width="1.5"/>
+<text x="50" y="154" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#1e3a8a" text-anchor="start">LAYER 1 · PRESENTATION</text>
+<rect x="711.9200000000001" y="139" width="182" height="24" rx="12.0" fill="#eff6ff" stroke="#60a5fa"/>
+<text x="802.96" y="155.32" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="600" fill="#1e3a8a" text-anchor="middle">React + Vite + Tailwind</text>
+<rect x="52" y="172" width="85" height="28" rx="14.0" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="94.32" y="190.32" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="600" fill="#0f172a" text-anchor="middle">Dashboard</text>
+<rect x="146.64" y="172" width="161" height="28" rx="14.0" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="227.23999999999998" y="190.32" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="600" fill="#0f172a" text-anchor="middle">Investigation (live)</text>
+<rect x="317.84" y="172" width="126" height="28" rx="14.0" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="381.03999999999996" y="190.32" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="600" fill="#0f172a" text-anchor="middle">Evidence viewer</text>
+<rect x="454.23999999999995" y="172" width="147" height="28" rx="14.0" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="527.8799999999999" y="190.32" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="600" fill="#0f172a" text-anchor="middle">Patch diff + Tests</text>
+<rect x="611.52" y="172" width="85" height="28" rx="14.0" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="653.8399999999999" y="190.32" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="600" fill="#0f172a" text-anchor="middle">Knowledge</text>
+<rect x="706.16" y="172" width="92" height="28" rx="14.0" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="751.9599999999999" y="190.32" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="600" fill="#0f172a" text-anchor="middle">Evaluation</text>
+<rect x="807.76" y="172" width="57" height="28" rx="14.0" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="836.16" y="190.32" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="600" fill="#0f172a" text-anchor="middle">Trace</text>
+<path d="M472,222 L472,256" fill="none" stroke="#64748b" stroke-width="1.8" marker-end="url(#a)" marker-start="url(#a)"/>
+<text x="484" y="244" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="500" fill="#475569" text-anchor="start" font-style="italic">REST  +  SSE live events</text>
+<rect x="32" y="256" width="880" height="92" rx="14" fill="#eff6ff" stroke="#60a5fa" stroke-width="1.5"/>
+<text x="50" y="280" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#1e3a8a" text-anchor="start">LAYER 2 · API</text>
+<rect x="823.28" y="265" width="71" height="24" rx="12.0" fill="#eff6ff" stroke="#60a5fa"/>
+<text x="858.64" y="281.32" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="600" fill="#1e3a8a" text-anchor="middle">FastAPI</text>
+<rect x="52" y="298" width="92" height="28" rx="14.0" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="97.8" y="316.32" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="600" fill="#0f172a" text-anchor="middle">Auth (JWT)</text>
+<rect x="153.6" y="298" width="78" height="28" rx="14.0" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="192.44" y="316.32" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="600" fill="#0f172a" text-anchor="middle">Projects</text>
+<rect x="241.27999999999997" y="298" width="147" height="28" rx="14.0" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="314.91999999999996" y="316.32" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="600" fill="#0f172a" text-anchor="middle">Ingest / Knowledge</text>
+<rect x="398.55999999999995" y="298" width="119" height="28" rx="14.0" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="458.28" y="316.32" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="600" fill="#0f172a" text-anchor="middle">Investigations</text>
+<rect x="528.0" y="298" width="92" height="28" rx="14.0" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="573.8" y="316.32" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="600" fill="#0f172a" text-anchor="middle">SSE stream</text>
+<rect x="629.6" y="298" width="119" height="28" rx="14.0" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="689.32" y="316.32" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="600" fill="#0f172a" text-anchor="middle">Follow-up chat</text>
+<rect x="759.04" y="298" width="119" height="28" rx="14.0" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="818.76" y="316.32" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="600" fill="#0f172a" text-anchor="middle">/mcp/* servers</text>
+<path d="M472,348 L472,382" fill="none" stroke="#64748b" stroke-width="1.8" marker-end="url(#a)"/>
+<rect x="32" y="382" width="880" height="176" rx="14" fill="#eff6ff" stroke="#60a5fa" stroke-width="1.5"/>
+<text x="50" y="406" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#1e3a8a" text-anchor="start">LAYER 3 · AGENT ORCHESTRATION</text>
+<rect x="732.8" y="391" width="161" height="24" rx="12.0" fill="#eff6ff" stroke="#60a5fa"/>
+<text x="813.4" y="407.32" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="600" fill="#1e3a8a" text-anchor="middle">LangGraph StateGraph</text>
+<rect x="52" y="420" width="106" height="84" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="105.0" y="450.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">Triage</text>
+<text x="105.0" y="468.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#b45309" text-anchor="middle">Nano</text>
+<text x="105.0" y="484.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">classify &amp; scope</text>
+<path d="M158,462 L174,462" fill="none" stroke="#64748b" stroke-width="1.8" marker-end="url(#a)"/>
+<rect x="174" y="420" width="106" height="84" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="227.0" y="450.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">Planner</text>
+<text x="227.0" y="468.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#b45309" text-anchor="middle">Super</text>
+<text x="227.0" y="484.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">break into steps</text>
+<path d="M280,462 L296,462" fill="none" stroke="#64748b" stroke-width="1.8" marker-end="url(#a)"/>
+<rect x="296" y="420" width="106" height="84" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="349.0" y="450.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">Investigator</text>
+<text x="349.0" y="468.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#b45309" text-anchor="middle">Super</text>
+<text x="349.0" y="484.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">tool calls → facts</text>
+<path d="M402,462 L418,462" fill="none" stroke="#64748b" stroke-width="1.8" marker-end="url(#a)"/>
+<rect x="418" y="420" width="106" height="84" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="471.0" y="450.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">Hypothesis</text>
+<text x="471.0" y="468.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#b45309" text-anchor="middle">Ultra</text>
+<text x="471.0" y="484.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">rank root causes</text>
+<path d="M524,462 L540,462" fill="none" stroke="#64748b" stroke-width="1.8" marker-end="url(#a)"/>
+<rect x="540" y="420" width="106" height="84" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="593.0" y="450.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">Verifier</text>
+<text x="593.0" y="468.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#b45309" text-anchor="middle">Ultra</text>
+<text x="593.0" y="484.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">seek disproof</text>
+<path d="M646,462 L662,462" fill="none" stroke="#64748b" stroke-width="1.8" marker-end="url(#a)"/>
+<rect x="662" y="420" width="106" height="84" rx="10" fill="#ecfdf5" stroke="#10b981" stroke-width="1.5"/>
+<text x="715.0" y="450.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#065f46" text-anchor="middle">Fix Generator</text>
+<text x="715.0" y="468.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#b45309" text-anchor="middle">Super → Ultra</text>
+<text x="715.0" y="484.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#064e3b" text-anchor="middle">patch + sandbox</text>
+<path d="M768,462 L784,462" fill="none" stroke="#64748b" stroke-width="1.8" marker-end="url(#a)"/>
+<rect x="784" y="420" width="106" height="84" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="837.0" y="450.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">Report Writer</text>
+<text x="837.0" y="468.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#b45309" text-anchor="middle">Ultra</text>
+<text x="837.0" y="484.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">report + PR draft</text>
+<rect x="52" y="516" width="840" height="30" rx="15" fill="#eff6ff" stroke="#60a5fa" stroke-width="1.5"/>
+<text x="472" y="536" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="600" fill="#1e3a8a" text-anchor="middle">↻  Verifier → Investigator when evidence is weak  ·  Fix Generator revises once if tests fail  ·  human approves before any PR</text>
+<path d="M472,558 L472,592" fill="none" stroke="#64748b" stroke-width="1.8" marker-end="url(#a)"/>
+<text x="484" y="580" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="500" fill="#475569" text-anchor="start" font-style="italic">uses</text>
+<rect x="32" y="592" width="880" height="148" rx="14" fill="#eff6ff" stroke="#60a5fa" stroke-width="1.5"/>
+<text x="50" y="616" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#1e3a8a" text-anchor="start">LAYER 4 · INTELLIGENCE</text>
+<rect x="691.04" y="601" width="203" height="24" rx="12.0" fill="#eff6ff" stroke="#60a5fa"/>
+<text x="792.52" y="617.32" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="600" fill="#1e3a8a" text-anchor="middle">RAG · Tools · MCP · Memory</text>
+<rect x="52" y="628" width="198" height="100" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="151.0" y="650.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">RAG</text>
+<text x="151.0" y="668.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">markdown + Python AST chunks</text>
+<text x="151.0" y="684.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">pgvector + full-text search</text>
+<text x="151.0" y="700.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">RRF fusion → Nano rerank</text>
+<text x="151.0" y="716.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">citation on every chunk</text>
+<rect x="266" y="628" width="198" height="100" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="365.0" y="650.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">Tool registry</text>
+<text x="365.0" y="668.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">12 typed tools (Pydantic I/O)</text>
+<text x="365.0" y="684.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">docs · code · commits · issues</text>
+<text x="365.0" y="700.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">logs · incidents · safe SQL</text>
+<text x="365.0" y="716.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">patch · tests · verify</text>
+<rect x="480" y="628" width="198" height="100" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="579.0" y="650.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">MCP servers</text>
+<text x="579.0" y="668.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">GitHub MCP</text>
+<text x="579.0" y="684.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">Docs MCP</text>
+<text x="579.0" y="700.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">Incident MCP</text>
+<text x="579.0" y="716.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">FastMCP · streamable HTTP</text>
+<rect x="694" y="628" width="198" height="100" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="793.0" y="650.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">Memory</text>
+<text x="793.0" y="668.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">Short-term: LangGraph</text>
+<text x="793.0" y="684.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">Postgres checkpointer</text>
+<text x="793.0" y="700.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">Long-term: curated, cited</text>
+<text x="793.0" y="716.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">memories (5 categories)</text>
+<path d="M472,740 L472,774" fill="none" stroke="#64748b" stroke-width="1.8" marker-end="url(#a)"/>
+<text x="484" y="762" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="500" fill="#475569" text-anchor="start" font-style="italic">all reasoning via</text>
+<rect x="32" y="774" width="880" height="132" rx="14" fill="#fffbeb" stroke="#f59e0b" stroke-width="1.5"/>
+<text x="50" y="798" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#92400e" text-anchor="start">LAYER 5 · MODEL LAYER — NEBIUS TOKEN FACTORY + NVIDIA NEMOTRON</text>
+<rect x="774.56" y="783" width="119" height="24" rx="12.0" fill="#fffbeb" stroke="#f59e0b"/>
+<text x="834.28" y="799.32" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="600" fill="#92400e" text-anchor="middle">Mandatory rule</text>
+<rect x="52" y="810" width="198" height="80" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="151.0" y="838.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">Nemotron 3 Ultra</text>
+<text x="151.0" y="856.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">hypothesis · verify</text>
+<text x="151.0" y="872.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">verify_fix · report</text>
+<rect x="266" y="810" width="198" height="80" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="365.0" y="838.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">Nemotron 3 Super</text>
+<text x="365.0" y="856.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">plan · tool loop</text>
+<text x="365.0" y="872.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">patch · PR · chat</text>
+<rect x="480" y="810" width="198" height="80" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="579.0" y="838.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">Nemotron 3 Nano</text>
+<text x="579.0" y="856.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">triage · rerank</text>
+<text x="579.0" y="872.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">summaries · memory</text>
+<rect x="694" y="810" width="198" height="80" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="793.0" y="838.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">Embedding model</text>
+<text x="793.0" y="856.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">chunks · memories</text>
+<text x="793.0" y="872.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">queries</text>
+<path d="M472,906 L472,940" fill="none" stroke="#64748b" stroke-width="1.8" marker-end="url(#a)"/>
+<text x="484" y="928" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="500" fill="#475569" text-anchor="start" font-style="italic">reads / writes</text>
+<rect x="32" y="940" width="880" height="124" rx="14" fill="#f5f3ff" stroke="#a78bfa" stroke-width="1.5"/>
+<text x="50" y="964" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#4c1d95" text-anchor="start">LAYER 6 · DATA &amp; EXTERNAL SYSTEMS</text>
+<rect x="725.84" y="949" width="168" height="24" rx="12.0" fill="#f5f3ff" stroke="#a78bfa"/>
+<text x="809.9200000000001" y="965.32" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="600" fill="#4c1d95" text-anchor="middle">PostgreSQL + pgvector</text>
+<rect x="52" y="976" width="198" height="74" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="151.0" y="1001.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">PostgreSQL 16 + pgvector</text>
+<text x="151.0" y="1019.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">app data · vectors · traces</text>
+<text x="151.0" y="1035.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">checkpoints · memories</text>
+<rect x="266" y="976" width="198" height="74" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="365.0" y="1001.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">GitHub</text>
+<text x="365.0" y="1019.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">PayStream demo repo</text>
+<text x="365.0" y="1035.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">commits · issues · draft PRs</text>
+<rect x="480" y="976" width="198" height="74" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="579.0" y="1001.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">Logs &amp; incidents</text>
+<text x="579.0" y="1019.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">structured JSONL logs</text>
+<text x="579.0" y="1035.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#475569" text-anchor="middle">INC-0xx history</text>
+<rect x="694" y="976" width="198" height="74" rx="10" fill="#ecfdf5" stroke="#10b981" stroke-width="1.5"/>
+<text x="793.0" y="1001.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#065f46" text-anchor="middle">Nebius Sandboxes</text>
+<text x="793.0" y="1019.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#064e3b" text-anchor="middle">isolated pytest runs</text>
+<text x="793.0" y="1035.5" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#064e3b" text-anchor="middle">baseline red → patched green</text>
+<rect x="932" y="130" width="236" height="934" rx="14" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+<text x="950" y="156" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#6ee7b7" text-anchor="start">CROSS-CUTTING</text>
+<rect x="948" y="176" width="204" height="196" rx="10" fill="#334155"/>
+<text x="964" y="206" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#ffffff" text-anchor="start">Observability</text>
+<text x="964" y="234" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#cbd5e1" text-anchor="start">trace_spans for every LLM,</text>
+<text x="964" y="256" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#cbd5e1" text-anchor="start">tool, retrieval, MCP and</text>
+<text x="964" y="278" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#cbd5e1" text-anchor="start">sandbox call</text>
+<text x="964" y="300" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#cbd5e1" text-anchor="start">tokens · latency · cost</text>
+<rect x="948" y="394" width="204" height="196" rx="10" fill="#334155"/>
+<text x="964" y="424" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#ffffff" text-anchor="start">Evaluation</text>
+<text x="964" y="452" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#cbd5e1" text-anchor="start">python eval/evaluate.py</text>
+<text x="964" y="474" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#cbd5e1" text-anchor="start">retrieval · grounding · answer</text>
+<text x="964" y="496" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#cbd5e1" text-anchor="start">tools · patch · cost</text>
+<text x="964" y="518" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#cbd5e1" text-anchor="start">→ README + Eval page</text>
+<rect x="948" y="612" width="204" height="196" rx="10" fill="#334155"/>
+<text x="964" y="642" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#ffffff" text-anchor="start">Auth &amp; Security</text>
+<text x="964" y="670" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#cbd5e1" text-anchor="start">JWT + per-user scoping</text>
+<text x="964" y="692" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#cbd5e1" text-anchor="start">Fernet-encrypted secrets</text>
+<text x="964" y="714" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#cbd5e1" text-anchor="start">read-only SQL role</text>
+<text x="964" y="736" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#cbd5e1" text-anchor="start">rate-limited demo</text>
+<rect x="948" y="830" width="204" height="196" rx="10" fill="#334155"/>
+<text x="964" y="860" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#ffffff" text-anchor="start">Deployment</text>
+<text x="964" y="888" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#cbd5e1" text-anchor="start">Docker Compose on a</text>
+<text x="964" y="910" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#cbd5e1" text-anchor="start">Nebius AI Cloud VM</text>
+<text x="964" y="932" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#cbd5e1" text-anchor="start">GitHub Actions CI/CD</text>
+<text x="964" y="954" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#cbd5e1" text-anchor="start">Nebius Container Registry</text>
+<rect x="40" y="1080" width="16" height="16" rx="4" fill="#eff6ff" stroke="#60a5fa" stroke-width="1.5"/>
+<text x="64" y="1093" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#334155" text-anchor="start">Core agent &amp; UI</text>
+<rect x="189.0" y="1080" width="16" height="16" rx="4" fill="#fffbeb" stroke="#f59e0b" stroke-width="1.5"/>
+<text x="213.0" y="1093" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#334155" text-anchor="start">Nebius + Nemotron</text>
+<rect x="351.2" y="1080" width="16" height="16" rx="4" fill="#ecfdf5" stroke="#10b981" stroke-width="1.5"/>
+<text x="375.2" y="1093" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#334155" text-anchor="start">Fix Generator / Sandbox</text>
+<rect x="553.0" y="1080" width="16" height="16" rx="4" fill="#f5f3ff" stroke="#a78bfa" stroke-width="1.5"/>
+<text x="577.0" y="1093" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#334155" text-anchor="start">Data</text>
+<rect x="629.4" y="1080" width="16" height="16" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+<text x="653.4" y="1093" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#334155" text-anchor="start">Cross-cutting</text>
+</svg>
