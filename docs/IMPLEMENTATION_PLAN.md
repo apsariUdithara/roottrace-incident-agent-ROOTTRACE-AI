@@ -108,6 +108,8 @@ The rest of the fixtures:
 - **Issues:** `fixtures/issues/*.json`, also created as real issues on the public GitHub repo.
 - **Regression tests:** each scenario has one. The agent **never sees** these tests (they live in `eval/hidden_tests/`). Visible tests stay in the repo.
 
+**Second demo project (generalization):** pick one small, real open-source Python repo with a clean `pip install` and a fast pytest suite. Find a real past bug-fix commit in it, check out the parent commit, and write the incident from the original issue. The agent investigates it with no special handling. It is used for 2–4 eval cases and a short segment of the video. A cited root cause is the goal there, and a tested patch is a bonus.
+
 ---
 
 ## 4. Database schema (PostgreSQL + pgvector, Alembic)
@@ -116,11 +118,11 @@ Every row below `projects` carries a `project_id`. All queries are scoped throug
 
 - `users`: id, email, password_hash (argon2), created_at
 - `projects`: id, owner_id, name, description
-- `repositories`: id, project_id, provider, url, default_branch, local_path, encrypted_token, last_indexed_sha
+- `repositories`: id, project_id, provider, url, default_branch, local_path, encrypted_token, last_indexed_sha, `setup_command` (default: auto-detected `pip install -r requirements.txt` or `pip install -e .`), `test_command` (default: `pytest -q`), `sandbox_status` (unknown|ready|untestable)
 - `documents`: id, project_id, source_type (doc|code|issue|incident), path, title, commit_sha, hash
 - `document_chunks`: id, document_id, project_id, content, section_path, start_line, end_line, symbol, `embedding vector(N)`, `tsv tsvector` (GIN index), metadata jsonb
 - `incidents`: id, project_id, key (INC-017), title, symptoms, root_cause, fix, commit_sha, status, occurred_at
-- `log_entries`: id, project_id, ts, level, service, route, status, message, error_type, trace_id, attrs jsonb. Indexed on (project_id, ts) and error_type.
+- `log_entries`: id, project_id, ts, level, service, route, status, message, error_type, trace_id, attrs jsonb. Indexed on (project_id, ts) and error_type. Filled from the PayStream fixtures or from user uploads (section 6).
 - `investigations`: id, project_id, incident_id, user_id, question, status, root_cause, confidence, confidence_breakdown jsonb, report jsonb, started_at, finished_at, total_tokens, total_cost_usd
 - `messages`: id, investigation_id, role, content, created_at (follow-up chat)
 - `investigation_events`: id, investigation_id, seq, type, payload jsonb, ts. This is the SSE log, so a page reload replays everything.
@@ -164,6 +166,7 @@ A separate **read-only Postgres role** `roottrace_readonly` has SELECT on a `dem
 3. Embed in batches via the Nebius embeddings API. Fill `tsv`.
 4. Re-index incrementally by file hash and `last_indexed_sha`.
 5. Logs are **not embedded**. They load into `log_entries` and are queried structurally.
+6. **Bring your own data:** `POST /projects/{id}/uploads` accepts logs (JSONL/CSV, with a column-mapping step in the UI) and incident history (YAML/JSON/CSV). Uploads go into the same `log_entries` and `incidents` tables, so the agent behaves the same on any project. Live integrations (Sentry, Datadog, Loki, PagerDuty) are roadmap items, not hackathon scope.
 
 **Retrieval** (`rag/retrieve.py`):
 1. Nano rewrites the query into 2–3 variants.
@@ -216,6 +219,8 @@ triage(Nano) → recall_memory → plan(Super) → investigate(Super, ReAct tool
 ```
 
 - **The Fix Generator only runs if the hypothesis verdict is `supported`.** Otherwise the report says plainly that no safe automated fix was found.
+- **Investigation-only mode:** if the repo's `sandbox_status` is `untestable` (dependencies won't install, or tests need external services), the agent still returns the cited root cause and a proposed patch. The patch is clearly marked **"untested"**, and `verify_fix` checks it against the evidence only. This keeps RootTrace useful on any connected repo.
+- **Repo-agnostic by rule:** no PayStream names, paths or hints in prompts, tools or agent code. A CI grep check fails the build if `paystream` appears under `backend/app/`.
 - **Facts vs inferences:** the investigator records tool-observed items as `fact` (they must carry a `source_ref` and a verbatim excerpt). Compare/hypothesize nodes produce `inference` items that link to fact IDs. Any claim in the report must cite evidence IDs, and the UI renders those as clickable chips.
 - **Confidence** (`agent/confidence.py`) is deterministic and explainable. It is not invented by the model. Let `w` be the weighted count of supporting facts.
 
@@ -242,9 +247,9 @@ triage(Nano) → recall_memory → plan(Super) → investigate(Super, ReAct tool
 `SandboxRunner` protocol: `async prepare_base(repo) -> image_ref` and `async run(image_ref, files, cmd, timeout) -> RunResult(stdout, stderr, exit_code, duration)`.
 
 **`NebiusSandboxRunner`** (ConTree SDK):
-1. **Base image once per repo sha:** `images.use("python:3.12-slim")` (or an imported custom image built from `infra/sandbox.Dockerfile` with PayStream's deps pre-installed). Then `run(shell="pip install -r requirements.txt", disposable=False)` and cache the resulting image ref in the DB. This uses ConTree **branching**, so dependencies install once.
+1. **Base image once per repo sha:** `images.use("python:3.12-slim")` (or an imported custom image built from `infra/sandbox.Dockerfile`). Then `run(shell=<repositories.setup_command>, disposable=False)` and cache the resulting image ref in the DB. This uses ConTree **branching**, so dependencies install once. If setup fails, or the baseline suite can't even be collected, set `sandbox_status=untestable` and switch to investigation-only mode (section 7).
 2. **Baseline run:** upload a repo snapshot (tarball via `FilesManager.upload`) and run the target test. **We expect it to FAIL**, which proves we reproduced the bug.
-3. **Patched run:** branch from the same base, upload snapshot + `fix.patch`, then run `git apply fix.patch && pytest -q <targets> && pytest -q`. **We expect a PASS.**
+3. **Patched run:** branch from the same base, upload snapshot + `fix.patch`, then run `git apply fix.patch && <test_command> <targets> && <test_command>`. **We expect a PASS.**
 4. Stream stdout to the UI. Store both runs in `test_runs`. **Red → green is the demo's money shot.**
 5. Secrets are never uploaded. Commands have a timeout, and network is disabled if the API supports it.
 6. Optional: also register the official **Sandboxes MCP server** (`uvx contree-mcp`) as an MCP source to show interop.
@@ -282,7 +287,7 @@ There is an agent config flag, `TOOL_TRANSPORT=direct|mcp`. In `mcp` mode the in
 ## 11. Backend API surface (FastAPI)
 
 - `POST /auth/register`, `/auth/login` (JWT access + refresh), `/auth/logout`, `GET /auth/me`, and `POST /auth/demo`. The demo endpoint issues a session for a seeded read-mostly demo project and is rate-limited with `slowapi` to protect credits.
-- `CRUD /projects`, `/projects/{id}/repositories` (with an encrypted GitHub token), `POST /projects/{id}/ingest`, `GET /projects/{id}/knowledge?type=`
+- `CRUD /projects`, `/projects/{id}/repositories` (with an encrypted GitHub token), `POST /projects/{id}/ingest`, `POST /projects/{id}/uploads` (logs/incidents), `GET /projects/{id}/knowledge?type=`
 - `CRUD /projects/{id}/incidents`
 - `POST /investigations`, `GET /investigations/{id}`, `GET /investigations/{id}/stream` (SSE), `POST /investigations/{id}/messages`, `POST /investigations/{id}/patches/{pid}/rerun`, `POST /investigations/{id}/pr` (approval)
 - `GET /investigations/{id}/trace`, `GET/PATCH/DELETE /projects/{id}/memories`
@@ -309,7 +314,7 @@ The visual style is dark, and the Nebius/NVIDIA green accent is used sparingly. 
 
 ## 13. Evaluation (`eval/evaluate.py`)
 
-`eval/cases.yaml` has about 16 cases (8 scenarios × 2 phrasings, plus 2 "no-fix-should-be-proposed" negative cases). Each case has: question, expected_evidence refs, expected_root_cause, expected_files, hidden_test, expected_tools.
+`eval/cases.yaml` has about 16 PayStream cases (8 scenarios × 2 phrasings, plus 2 "no-fix-should-be-proposed" negative cases), plus **2–4 generalization cases on a real open-source Python repo** (section 3). Results for the two sets are reported separately so the PayStream scores can't hide weaker real-world ones. Each case has: question, expected_evidence refs, expected_root_cause, expected_files, hidden_test, expected_tools.
 
 `python evaluate.py [--cases …] [--concurrency 2] [--transport direct|mcp]` runs the real pipeline against the deployed stack config and computes:
 
@@ -390,12 +395,13 @@ Results go to `eval/results/<ts>.json`, a markdown table that is auto-inserted i
 - cases.yaml, evaluate.py, README injection.
 - *B:* Evaluation page.
 - Iterate on prompts and retrieval until the hero scenario passes 5/5 runs.
+- Add the real-repo generalization cases and report them separately.
 
 **Phase 10 — Production**
 - Trace tab, dashboard stats, rate limits, CI/CD, Nebius VM deploy, demo seed, "Try demo".
 
 **Phase 11 — Submission**
-- README with Nemotron tiers, Token Factory + Sandboxes usage, architecture diagram, setup, eval results.
+- README with Nemotron tiers, Token Factory + Sandboxes usage, architecture diagram, setup, eval results, and an honest **Limitations & roadmap** section.
 - `docs/FEEDBACK.md`.
 - 3-minute video.
 - Devpost write-up.
@@ -408,12 +414,13 @@ Results go to `eval/results/<ts>.json`, a markdown table that is auto-inserted i
 **Demo video (≤3 min) outline:**
 1. Problem (15 s).
 2. "Try demo" → type the incident (10 s).
-3. Live steps with Nano/Super/Ultra badges and evidence chips filling in (50 s).
+3. Live steps with Nano/Super/Ultra badges and evidence chips filling in (45 s).
 4. Hypothesis → verifier loop → confidence 87% with breakdown (25 s).
 5. Patch diff → Nebius Sandbox red → green (35 s).
 6. PR draft → follow-up question "Was this seen before?" → INC-017 (20 s).
-7. Trace + Eval page (15 s).
-8. Architecture slide naming Nebius Token Factory + Sandboxes + Nemotron (10 s).
+7. Second project: the real open-source repo, with a cited root cause (10 s).
+8. Trace + Eval page (10 s).
+9. Architecture slide naming Nebius Token Factory + Sandboxes + Nemotron (10 s).
 
 ---
 
@@ -426,6 +433,8 @@ Results go to `eval/results/<ts>.json`, a markdown table that is auto-inserted i
 | Sandbox SDK unknowns | Phase 0 spike; `SandboxRunner` interface; Docker runner only as a dev fallback |
 | Nondeterministic live demo | Seeded scenario tuned to pass 5/5 runs; investigations are persisted and replayable from `investigation_events` (backup recording for the video) |
 | Credit burn on public demo | Demo rate limit, per-investigation cost cap, cached base sandbox image |
+| Judges think the demo is rigged / doesn't generalize | Repo-agnostic code (CI grep check), hidden tests, separate real-repo eval cases, real-repo segment in the video, honest Limitations section |
+| Connected repo can't run its tests | Investigation-only mode with patches marked "untested" |
 | Embedding dims > pgvector index limit | Use `dimensions` (MRL) or exact scan (small corpus) |
 
 ---
