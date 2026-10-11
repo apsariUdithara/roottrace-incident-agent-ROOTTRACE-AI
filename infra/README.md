@@ -8,3 +8,15 @@ Everything needed to run the stack, locally and on the Nebius AI Cloud VM. See [
 - `sandbox.Dockerfile`: optional custom base image for Nebius Sandboxes.
 
 Owner: Person B.
+
+## Local database
+
+From the repo root:
+
+```bash
+docker compose -f infra/docker-compose.yml up -d --wait   # start and wait until healthy
+docker compose -f infra/docker-compose.yml down           # stop (data is kept)
+docker compose -f infra/docker-compose.yml down -v        # stop and wipe the data volume
+```
+
+The defaults match `DATABASE_URL` in `backend/.env.example`. If port 5432 is taken, run it with `POSTGRES_PORT=5433` and change `DATABASE_URL` to match.
