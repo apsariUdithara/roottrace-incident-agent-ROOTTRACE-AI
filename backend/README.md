@@ -12,7 +12,7 @@ No PayStream names, paths or hints anywhere under `app/`. CI enforces this.
 
 ## Run locally
 
-From `backend/`:
+Start the database first (from the repo root): `docker compose -f infra/docker-compose.yml up -d --wait`. Then, from `backend/`:
 
 ```bash
 uv sync                                   # installs Python 3.12 and dependencies
