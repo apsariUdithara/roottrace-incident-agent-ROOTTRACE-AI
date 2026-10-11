@@ -42,11 +42,11 @@ The full run should take **under about 2 minutes**.
 | Deploy | Docker Compose on a **Nebius AI Cloud** Compute VM (Caddy for TLS) + Nebius Container Registry. GitHub Actions CI/CD | Everything on Nebius |
 | License | **Apache-2.0** | Required |
 
-**Model IDs.** Keep these in env vars. Verify them on day 1 with `GET /v1/models?verbose=true`.
-- `NEMOTRON_ULTRA=nvidia/nemotron-3-ultra-550b-a55b`
-- `NEMOTRON_SUPER=nvidia/nemotron-3-super-120b-a12b` (confirmed)
-- `NEMOTRON_NANO=nvidia/nemotron-3-nano-30b-a3b`
-- `EMBED_MODEL=<pick from /v1/models, e.g. Qwen3-Embedding or BGE>`
+**Model IDs.** Keep these in env vars. Confirmed against `GET /v1/models` on 2026-10-11; IDs are case-sensitive.
+- `NEMOTRON_ULTRA=nvidia/Nemotron-3-Ultra-550b-a55b`
+- `NEMOTRON_SUPER=nvidia/nemotron-3-super-120b-a12b` 
+- `NEMOTRON_NANO=nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B`
+- `EMBED_MODEL=Qwen/Qwen3-Embedding-8B` with `dimensions=1024` (confirmed: default is 4096, and the API honours a 1024 request). Column type is `vector(1024)`, which fits the HNSW index.
 
 **Embedding size limit.** pgvector's HNSW index supports at most 2000 dims (`vector`) or 4000 dims (`halfvec`). If the embedding model is larger, either request a smaller `dimensions` value (MRL) or skip the index. The demo corpus is small, so an exact scan is fine.
 
