@@ -1,0 +1,26 @@
+# Local development: PostgreSQL 16 + pgvector.
+# The backend runs on the host with `uv run` and connects via DATABASE_URL.
+#   docker compose -f infra/docker-compose.yml up -d --wait
+name: roottrace
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-roottrace}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-roottrace}
+      POSTGRES_DB: ${POSTGRES_DB:-roottrace}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  pgdata:

@@ -132,6 +132,7 @@ frontend/           React app: Dashboard, Investigation, Knowledge, Evaluation
 demo-target/        PayStream service + scripts that build its seeded git history
 eval/               cases.yaml, hidden_tests/, evaluate.py, results/
 infra/              docker-compose files, Caddyfile, sandbox image
+.github/workflows/  CI and deploy pipelines
 docs/               concept PDF, implementation plan, diagrams/
 ```
 
@@ -186,4 +187,4 @@ Patch quality on unfamiliar codebases will be lower than on the seeded demo, whi
 
 ## License
 
-Apache-2.0 (to be added as `LICENSE`).
+Licensed under the [Apache License 2.0](LICENSE).

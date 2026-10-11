@@ -1,7 +1,37 @@
 .env
 .env.*
 !.env.example
-__pycache__/
-.venv/
-node_modules/
+
 .claude/skills/roottrace-mentor/SKILL.md
+
+# Local data: cloned repos, uploads
+/data/
+/backend/data/
+
+# Python
+.venv
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Node / frontend
+node_modules/
+dist/
+*.tsbuildinfo
+npm-debug.log*
+
+# OS and editors
+.DS_Store
+Thumbs.db
+.idea/
+
+# Logs
+*.log
+
+# Local notes of person B
+docs/pb
