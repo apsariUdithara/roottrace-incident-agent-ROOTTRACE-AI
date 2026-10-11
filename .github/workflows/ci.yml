@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  repo-agnostic:
+    name: No PayStream in backend/app
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # The agent must work on any repo, so the demo target's name never appears in app code.
+      - name: Fail if backend/app mentions PayStream
+        run: |
+          if grep -rniI "paystream" backend/app; then
+            echo "::error::backend/app must stay repo-agnostic. Remove the PayStream references listed above."
+            exit 1
+          fi
+
+  backend:
+    name: Backend (ruff, pytest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10.3.0
+        with:
+          working-directory: backend
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Check formatting
+        run: uv run ruff format --check .
+
+      - name: Test
+        run: uv run pytest
+
+  frontend:
+    name: Frontend (eslint, tsc, build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type-check and build
+        run: npm run build
