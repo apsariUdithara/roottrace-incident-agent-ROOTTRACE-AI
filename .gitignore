@@ -1,6 +1,36 @@
+# Secrets (keep the example file)
+.env
+.env.*
+!.env.example
+
+# Local data: cloned repos, uploads
+/data/
+/backend/data/
+
+# Python
 .venv
-.env*
-data/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Node / frontend
 node_modules/
 dist/
+*.tsbuildinfo
+npm-debug.log*
+
+# OS and editors
+.DS_Store
+Thumbs.db
+.idea/
+
+# Logs
+*.log
+
+# Local notes
 docs/pb
