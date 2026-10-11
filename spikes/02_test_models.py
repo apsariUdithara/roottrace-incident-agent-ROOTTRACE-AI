@@ -13,6 +13,7 @@ BASE_URL = "https://api.tokenfactory.nebius.com/v1"
 MODELS = {
     "nano": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
     "super": "nvidia/nemotron-3-super-120b-a12b",
+    "lightning": "nvidia/Nemotron-3_5-Lightning",
 }
 EMBED_MODEL = "Qwen/Qwen3-Embedding-8B"
 
