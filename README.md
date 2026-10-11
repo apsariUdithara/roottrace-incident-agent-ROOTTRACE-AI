@@ -186,4 +186,4 @@ Patch quality on unfamiliar codebases will be lower than on the seeded demo, whi
 
 ## License
 
-Apache-2.0 (to be added as `LICENSE`).
+Licensed under the [Apache License 2.0](LICENSE).
