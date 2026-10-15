@@ -34,4 +34,5 @@ Thumbs.db
 *.log
 
 # Local notes of person B
-docs/pbdemo-target/build/
+docs/pb
+demo-target/build/
