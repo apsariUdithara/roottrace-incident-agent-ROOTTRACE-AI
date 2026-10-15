@@ -8,6 +8,8 @@ Used by verify_scenarios.py now and by build_history.py later.
 SCENARIOS = [
     {
         "id": 1,
+        "deploy_at": "2026-10-06T14:20:00",
+        "release": "v1.4.8",
         "title": "Payment API 500s after deploy",
         "commit": "perf: raise DB pool size for peak traffic",
         "hidden_test": "test_scenario_1_pool.py",
@@ -17,6 +19,8 @@ SCENARIOS = [
     },
     {
         "id": 2,
+        "deploy_at": "2026-09-08T10:05:00",
+        "release": "v1.4.1",
         "title": "Wrong totals on multi-item orders",
         "commit": "perf: simplify order total calculation",
         "hidden_test": "test_scenario_2_totals.py",
@@ -27,6 +31,8 @@ SCENARIOS = [
     },
     {
         "id": 3,
+        "deploy_at": "2026-09-15T09:40:00",
+        "release": "v1.4.2",
         "title": "Users logged out early / 401 spike",
         "commit": "refactor: use utcnow for token expiry check",
         "hidden_test": "test_scenario_3_tokens.py",
@@ -36,6 +42,8 @@ SCENARIOS = [
     },
     {
         "id": 4,
+        "deploy_at": "2026-09-22T16:10:00",
+        "release": "v1.4.3",
         "title": "Duplicate charges",
         "commit": "refactor: drop redundant lookup in create_charge",
         "hidden_test": "test_scenario_4_idempotency.py",
@@ -46,6 +54,8 @@ SCENARIOS = [
     },
     {
         "id": 5,
+        "deploy_at": "2026-09-25T11:30:00",
+        "release": "v1.4.4",
         "title": "Webhook handler 500s",
         "commit": "refactor: tidy webhook metadata access",
         "hidden_test": "test_scenario_5_webhooks.py",
@@ -55,6 +65,8 @@ SCENARIOS = [
     },
     {
         "id": 6,
+        "deploy_at": "2026-09-29T13:00:00",
+        "release": "v1.4.5",
         "title": "Gateway retry storm",
         "commit": "perf: retry gateway calls immediately to cut checkout latency",
         "hidden_test": "test_scenario_6_backoff.py",
@@ -64,6 +76,8 @@ SCENARIOS = [
     },
     {
         "id": 7,
+        "deploy_at": "2026-10-01T15:45:00",
+        "release": "v1.4.6",
         "title": "Config not loaded after rename",
         "commit": "chore: rename gateway key setting for consistency",
         "hidden_test": "test_scenario_7_settings.py",
@@ -73,6 +87,8 @@ SCENARIOS = [
     },
     {
         "id": 8,
+        "deploy_at": "2026-10-03T08:50:00",
+        "release": "v1.4.7",
         "title": "Slow user search / timeouts",
         "commit": "chore: drop duplicate indexes",
         "hidden_test": "test_scenario_8_index.py",
