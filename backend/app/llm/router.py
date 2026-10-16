@@ -8,24 +8,31 @@ Every LLM call in RootTrace goes through LLMRouter.complete(), which:
   4. records a span for every call: model, tokens, latency, cost,
   5. in development only, caches validated answers on disk.
 """
+
 import asyncio
 import hashlib
 import json
 import time
 from dataclasses import asdict, dataclass, field
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Literal
 
 import openai
 from pydantic import BaseModel, ValidationError
 
-from app.core.config import Settings
+from app.core.config import Settings, get_settings
 from app.llm.pricing import cost_usd
 
 Tier = Literal["ultra", "super", "nano"]
 
 # Errors worth retrying: the request may succeed if sent again.
-RETRYABLE = (openai.APIConnectionError, openai.APITimeoutError, openai.RateLimitError, openai.InternalServerError)
+RETRYABLE = (
+    openai.APIConnectionError,
+    openai.APITimeoutError,
+    openai.RateLimitError,
+    openai.InternalServerError,
+)
 MAX_ATTEMPTS = 3
 
 
@@ -57,7 +64,8 @@ class LLMRouter:
         if self.client is None:
             key = self.settings.nebius_api_key
             self.client = openai.AsyncOpenAI(
-                base_url=self.settings.nebius_base_url, api_key=key.get_secret_value() if key else None
+                base_url=self.settings.nebius_base_url,
+                api_key=key.get_secret_value() if key else None,
             )
         if self.settings.app_env != "development":
             self.cache_dir = None  # never serve saved answers in evaluation or production
@@ -77,7 +85,11 @@ class LLMRouter:
         temperature: float = 0.2,
         name: str = "llm",
     ) -> LLMResult:
-        request: dict[str, Any] = {"messages": messages, "max_tokens": max_tokens, "temperature": temperature}
+        request: dict[str, Any] = {
+            "messages": messages,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+        }
         if tools:
             request["tools"] = tools
         if schema:
@@ -91,8 +103,16 @@ class LLMRouter:
             result = await self._validate(tier, request, schema, result)
 
         self._save_to_cache(tier, request, result)
-        self.spans.append({"name": name, **{k: v for k, v in asdict(result).items()
-                                            if k not in ("content", "tool_calls", "parsed")}})
+        self.spans.append(
+            {
+                "name": name,
+                **{
+                    k: v
+                    for k, v in asdict(result).items()
+                    if k not in ("content", "tool_calls", "parsed")
+                },
+            }
+        )
         return result
 
     async def _with_fallback(self, tier: Tier, request: dict) -> LLMResult:
@@ -137,7 +157,9 @@ class LLMRouter:
             latency_ms=round((time.perf_counter() - start) * 1000),
         )
 
-    async def _validate(self, tier: Tier, request: dict, schema: type[BaseModel], result: LLMResult) -> LLMResult:
+    async def _validate(
+        self, tier: Tier, request: dict, schema: type[BaseModel], result: LLMResult
+    ) -> LLMResult:
         try:
             result.parsed = schema.model_validate_json(result.content or "")
             return result
@@ -146,17 +168,22 @@ class LLMRouter:
             retry["messages"] = [
                 *request["messages"],
                 {"role": "assistant", "content": result.content or ""},
-                {"role": "user", "content": f"That answer was not valid: {err}. "
-                                            "Reply again with only JSON matching the schema."},
+                {
+                    "role": "user",
+                    "content": f"That answer was not valid: {err}. "
+                    "Reply again with only JSON matching the schema.",
+                },
             ]
             second = await self._with_fallback(tier, retry)
-            second.parsed = schema.model_validate_json(second.content or "")  # raises if still invalid
+            second.parsed = schema.model_validate_json(
+                second.content or ""
+            )  # raises if still invalid
             second.prompt_tokens += result.prompt_tokens
             second.completion_tokens += result.completion_tokens
             second.cost_usd += result.cost_usd
             return second
 
-    # --- development cache: only validated answers, keyed on everything that can change the answer ---
+    # --- dev cache: validated answers only, keyed on everything that can change the answer ---
 
     def _cache_path(self, tier: Tier, request: dict) -> Path | None:
         if not self.cache_dir:
@@ -179,3 +206,9 @@ class LLMRouter:
         path.parent.mkdir(parents=True, exist_ok=True)
         data = {k: v for k, v in asdict(result).items() if k != "parsed"}
         path.write_text(json.dumps(data), encoding="utf-8")
+
+
+@lru_cache
+def get_router() -> LLMRouter:
+    """The app's single router. Its dev cache lives in backend/.cache/llm (ignored by git)."""
+    return LLMRouter(get_settings(), cache_dir=Path(".cache/llm"))

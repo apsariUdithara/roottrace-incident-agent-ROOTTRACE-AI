@@ -2,6 +2,7 @@
 
 Run from backend/: uv run python scripts/llm_smoke.py
 """
+
 import asyncio
 import sys
 from pathlib import Path
@@ -21,24 +22,40 @@ class RootCause(BaseModel):
 
 
 async def main() -> None:
-    router = LLMRouter(Settings(app_env="test"))  # "test" switches the cache off: we want real calls
+    # app_env="test" switches the cache off: we want real calls.
+    router = LLMRouter(Settings(app_env="test"))
 
     plain = await router.complete(
-        "nano", [{"role": "user", "content": "In one sentence: what does a database connection pool do?"}],
-        max_tokens=300, name="smoke-plain")
+        "nano",
+        [{"role": "user", "content": "In one sentence: what does a database connection pool do?"}],
+        max_tokens=300,
+        name="smoke-plain",
+    )
     print("1. Plain answer:\n  ", plain.content, "\n")
 
     structured = await router.complete(
-        "nano", [{"role": "user", "content":
-                  "Logs show 'too many connections' right after DB_POOL_SIZE went from 20 to 100 "
-                  "on 5 instances, with max_connections = 100. Give the root cause and a confidence from 0 to 1."}],
-        schema=RootCause, max_tokens=600, name="smoke-json")
+        "nano",
+        [
+            {
+                "role": "user",
+                "content": "Logs show 'too many connections' right after DB_POOL_SIZE went "
+                "from 20 to 100 on 5 instances, with max_connections = 100. "
+                "Give the root cause and a confidence from 0 to 1.",
+            }
+        ],
+        schema=RootCause,
+        max_tokens=600,
+        name="smoke-json",
+    )
     print("2. Parsed JSON:\n  ", structured.parsed, "\n")
 
     print("Spans:")
     for s in router.spans:
-        print(f"   {s['name']:<12} {s['model']:<40} {s['prompt_tokens']:>5} in {s['completion_tokens']:>5} out"
-              f"  ${s['cost_usd']:.6f}  {s['latency_ms']} ms")
+        print(
+            f"   {s['name']:<12} {s['model']:<40} "
+            f"{s['prompt_tokens']:>5} in {s['completion_tokens']:>5} out"
+            f"  ${s['cost_usd']:.6f}  {s['latency_ms']} ms"
+        )
     print(f"Total cost: ${sum(s['cost_usd'] for s in router.spans):.6f}")
 
 

@@ -17,7 +17,8 @@ class Settings(BaseSettings):
 
     app_env: Literal["development", "test", "production"] = "development"
 
-    # Nebius Token Factory (OpenAI-compatible). IDs confirmed with GET /v1/models on 2026-10-11 (case-sensitive).
+    # Nebius Token Factory (OpenAI-compatible).
+    # IDs confirmed with GET /v1/models on 2026-10-11; they are case-sensitive.
     nebius_api_key: SecretStr | None = None
     nebius_base_url: str = "https://api.tokenfactory.nebius.com/v1/"
     nemotron_ultra: str = "nvidia/Nemotron-3-Ultra-550b-a55b"

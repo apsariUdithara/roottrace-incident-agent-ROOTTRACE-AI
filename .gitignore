@@ -37,3 +37,4 @@ Thumbs.db
 docs/pb
 demo-target/build/
 docs/learning-log.md
+.cache/

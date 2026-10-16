@@ -1,11 +1,12 @@
 """Router tests with a fake Nebius client: no network, no credits."""
+
 import json
 from types import SimpleNamespace
 
 import httpx2
 import openai
 import pytest
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from app.core.config import Settings
 from app.llm.router import LLMRouter
@@ -24,11 +25,15 @@ class RootCause(BaseModel):
 
 
 def reply(content=None, tool_calls=(), prompt_tokens=10, completion_tokens=5):
-    calls = [SimpleNamespace(id=f"call_{i}", function=SimpleNamespace(name=n, arguments=json.dumps(a)))
-             for i, (n, a) in enumerate(tool_calls)]
+    calls = [
+        SimpleNamespace(id=f"call_{i}", function=SimpleNamespace(name=n, arguments=json.dumps(a)))
+        for i, (n, a) in enumerate(tool_calls)
+    ]
     message = SimpleNamespace(content=content, tool_calls=calls or None)
-    return SimpleNamespace(choices=[SimpleNamespace(message=message)],
-                           usage=SimpleNamespace(prompt_tokens=prompt_tokens, completion_tokens=completion_tokens))
+    return SimpleNamespace(
+        choices=[SimpleNamespace(message=message)],
+        usage=SimpleNamespace(prompt_tokens=prompt_tokens, completion_tokens=completion_tokens),
+    )
 
 
 def connection_error():
@@ -55,7 +60,9 @@ async def no_sleep(_):
 
 
 def make_router(fake, env="development", cache_dir=None):
-    return LLMRouter(Settings(_env_file=None, app_env=env), client=fake, cache_dir=cache_dir, sleep=no_sleep)
+    return LLMRouter(
+        Settings(_env_file=None, app_env=env), client=fake, cache_dir=cache_dir, sleep=no_sleep
+    )
 
 
 async def test_tier_is_mapped_to_its_model():
@@ -80,13 +87,19 @@ async def test_tool_calls_are_returned():
 
 async def test_valid_json_is_parsed():
     fake = FakeNebius(reply('{"root_cause": "pool too big", "confidence": 0.8}'))
-    result = await make_router(fake).complete("super", [{"role": "user", "content": "why?"}], schema=RootCause)
+    result = await make_router(fake).complete(
+        "super", [{"role": "user", "content": "why?"}], schema=RootCause
+    )
     assert result.parsed == RootCause(root_cause="pool too big", confidence=0.8)
 
 
 async def test_invalid_json_is_retried_once_with_the_error():
-    fake = FakeNebius(reply("Here's my thinking..."), reply('{"root_cause": "pool", "confidence": 0.7}'))
-    result = await make_router(fake).complete("super", [{"role": "user", "content": "why?"}], schema=RootCause)
+    fake = FakeNebius(
+        reply("Here's my thinking..."), reply('{"root_cause": "pool", "confidence": 0.7}')
+    )
+    result = await make_router(fake).complete(
+        "super", [{"role": "user", "content": "why?"}], schema=RootCause
+    )
     assert result.parsed.root_cause == "pool"
     assert "not valid" in fake.requests[1]["messages"][-1]["content"]
 
@@ -103,7 +116,7 @@ async def test_second_identical_call_comes_from_cache(tmp_path):
 async def test_invalid_answers_are_never_cached(tmp_path):
     fake = FakeNebius(reply("not json"), reply("still not json"))
     router = make_router(fake, cache_dir=tmp_path)
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         await router.complete("super", [{"role": "user", "content": "why?"}], schema=RootCause)
     assert list(tmp_path.iterdir()) == []
 

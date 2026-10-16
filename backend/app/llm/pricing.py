@@ -10,6 +10,6 @@ PRICES_PER_MILLION = {
 
 
 def cost_usd(model: str, prompt_tokens: int, completion_tokens: int) -> float:
-    """Dollar cost of one call: tokens sent times the input price, plus tokens received times the output price."""
+    """Dollar cost of one call: tokens sent x input price + tokens received x output price."""
     price_in, price_out = PRICES_PER_MILLION[model]
     return prompt_tokens * price_in / 1_000_000 + completion_tokens * price_out / 1_000_000
