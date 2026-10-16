@@ -36,3 +36,5 @@ Thumbs.db
 # Local notes of person B
 docs/pb
 demo-target/build/
+docs/learning-log.md
+.cache/
