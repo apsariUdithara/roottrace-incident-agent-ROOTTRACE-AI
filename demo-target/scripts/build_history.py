@@ -34,7 +34,7 @@ CONFIG = "src/paystream/database/config.py"
 # (date, author, message, files to copy from the healthy service) or
 # (date, author, message, [(file, old, new)]) for edits to files already in the repo.
 MAIN = [
-    ("2026-06-01T10:12", MAYA, "chore: project skeleton", ["pyproject.toml", "requirements.txt", "src/paystream/__init__.py"]),
+    ("2026-06-01T10:12", MAYA, "chore: project skeleton", ["README.md", "pyproject.toml", "requirements.txt", "src/paystream/__init__.py"]),
     ("2026-06-01T15:40", MAYA, "feat: settings loaded from environment", ["src/paystream/settings.py"]),
     ("2026-06-02T09:55", TOM, "feat: database connection settings", ["src/paystream/database/__init__.py", CONFIG]),
     ("2026-06-02T14:20", TOM, "feat: users and payments schema migrations", ["src/paystream/database/migrations.py"]),
@@ -109,9 +109,13 @@ def check_release(tag: str, hidden_test: str) -> list[str]:
 
 
 if __name__ == "__main__":
-    if OUT.exists():
-        shutil.rmtree(OUT, onerror=lambda f, p, _: (os.chmod(p, 0o700), f(p)))
-    OUT.mkdir(parents=True)
+    # Empty the folder but keep it: Windows can't delete a folder a terminal is open in.
+    OUT.mkdir(parents=True, exist_ok=True)
+    for child in OUT.iterdir():
+        if child.is_dir():
+            shutil.rmtree(child, onerror=lambda f, p, _: (os.chmod(p, 0o700), f(p)))
+        else:
+            child.unlink()
     git("init", "-q", "-b", "main")
     for step in MAIN:
         commit(*step)
