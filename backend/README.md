@@ -29,6 +29,22 @@ uv run ruff check . && uv run ruff format --check .
 
 Routes get a session with the `SessionDep` dependency from `app/core/db.py`. There's one session per request, and it doesn't auto-commit: call `await session.commit()` yourself, and anything uncommitted is rolled back when the request ends.
 
+## Auth
+
+| Route | Does |
+|---|---|
+| `POST /auth/register` | Creates the account (email stored lowercased, password ≥ 8 chars), then logs in. 409 if the email exists. |
+| `POST /auth/login` | Returns `{access_token, token_type, expires_in, user}` and sets the refresh cookie. |
+| `POST /auth/refresh` | Uses the refresh cookie to return a new access token, and replaces the cookie (rotation). |
+| `POST /auth/logout` | Clears the refresh cookie (204). |
+| `GET /auth/me` | The current user. |
+
+- The access token (15 min) goes in `Authorization: Bearer ...`. The frontend keeps it in memory, and on a 401 or a page reload calls `/auth/refresh`.
+- The refresh token (7 days) is the `roottrace_refresh` cookie: httpOnly, `SameSite=Strict`, and `Secure` in production. JavaScript never sees it.
+- To require a logged-in user in a route, add a `user: CurrentUser` parameter (from `app/api/deps.py`). It returns 401 with `WWW-Authenticate: Bearer` otherwise.
+- Wrong password and unknown email give the same 401 in the same time (argon2 runs either way).
+- Not yet done: rate limiting on login (planned with the demo endpoint), and server-side token revocation. Logout clears the cookie, and an access token already issued stays valid until it expires.
+
 ## Security helpers
 
 `app/core/security.py`:

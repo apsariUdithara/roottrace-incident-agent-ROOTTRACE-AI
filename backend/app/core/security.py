@@ -28,6 +28,13 @@ _DEV_FERNET_KEY = base64.urlsafe_b64encode(hashlib.sha256(b"roottrace-developmen
 
 _hasher = PasswordHasher()  # argon2id with the RFC 9106 low-memory parameters
 
+# Hash of a random, discarded password, with the same parameters as _hasher. Login verifies
+# against it when the email is unknown, so "no such user" takes as long as "wrong password".
+DUMMY_PASSWORD_HASH = (
+    "$argon2id$v=19$m=65536,t=3,p=4$QP9oINSLE9Ygsx0Be0iQsg"
+    "$OhNZkScfdjLvt663vMkM9gqVz8cze9vbyS1kLkuBoR8"
+)
+
 
 async def hash_password(password: str) -> str:
     # argon2 is slow on purpose (tens of ms), so keep it off the event loop.

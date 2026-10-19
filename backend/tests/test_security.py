@@ -8,6 +8,7 @@ import pytest
 from app.core import security
 from app.core.config import get_settings
 from app.core.security import (
+    DUMMY_PASSWORD_HASH,
     DecryptionError,
     InvalidTokenError,
     TokenType,
@@ -52,6 +53,11 @@ async def test_same_password_hashes_differently() -> None:
 
 async def test_verify_rejects_a_malformed_hash() -> None:
     assert not await verify_password("not-an-argon2-hash", "anything")
+
+
+def test_dummy_hash_costs_the_same_as_a_real_one() -> None:
+    # If argon2 defaults change, regenerate DUMMY_PASSWORD_HASH, or unknown emails get faster.
+    assert not password_needs_rehash(DUMMY_PASSWORD_HASH)
 
 
 # --- JWT ---
