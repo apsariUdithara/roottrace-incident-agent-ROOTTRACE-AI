@@ -42,6 +42,7 @@ Routes get a session with the `SessionDep` dependency from `app/core/db.py`. The
 - The access token (15 min) goes in `Authorization: Bearer ...`. The frontend keeps it in memory, and on a 401 or a page reload calls `/auth/refresh`.
 - The refresh token (7 days) is the `roottrace_refresh` cookie: httpOnly, `SameSite=Strict`, and `Secure` in production. JavaScript never sees it.
 - To require a logged-in user in a route, add a `user: CurrentUser` parameter (from `app/api/deps.py`). It returns 401 with `WWW-Authenticate: Bearer` otherwise.
+- **Scoping (every data route):** under `/projects/{project_id}/...`, take a `project: OwnedProject` parameter. It returns the project only if the caller owns it, and gives the same 404 for "someone else's" and "doesn't exist". For other queries, start from `owned_select(Model, user)`, which works for `Project` and any table with a `project_id`. For example, `owned_select(Investigation, user).where(Investigation.id == investigation_id)`. Never query a project-scoped table without it.
 - Wrong password and unknown email give the same 401 in the same time (argon2 runs either way).
 - Not yet done: rate limiting on login (planned with the demo endpoint), and server-side token revocation. Logout clears the cookie, and an access token already issued stays valid until it expires.
 

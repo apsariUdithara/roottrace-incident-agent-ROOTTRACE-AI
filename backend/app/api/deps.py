@@ -1,13 +1,15 @@
-"""Dependencies shared by the routes."""
+"""Dependencies shared by the routes: who is calling, and which rows they may see."""
 
+import uuid
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy import Select, select
 
 from app.core.db import SessionDep
 from app.core.security import InvalidTokenError, TokenType, decode_token
-from app.models import User
+from app.models import Base, Project, User
 
 # auto_error=False: we raise our own 401 (FastAPI's default for a missing header is 403).
 _bearer = HTTPBearer(auto_error=False)
@@ -39,3 +41,35 @@ async def get_current_user(
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
+def owned_select[T: Base](model: type[T], user: User) -> Select[tuple[T]]:
+    """SELECT rows of `model` that belong to one of `user`'s projects.
+
+    The one place the scoping rule lives: every project-scoped query starts here, e.g.
+    `owned_select(Investigation, user).where(Investigation.id == investigation_id)`.
+    `model` is Project itself or any table with a `project_id` column.
+    """
+    if model is Project:
+        return select(Project).where(Project.owner_id == user.id)
+    return (
+        select(model)
+        .join(Project, model.project_id == Project.id)
+        .where(Project.owner_id == user.id)
+    )
+
+
+async def get_owned_project(
+    project_id: uuid.UUID, user: CurrentUser, session: SessionDep
+) -> Project:
+    """The `{project_id}` in the path, if the current user owns it.
+
+    Someone else's project gives the same 404 as a missing one, so ids can't be probed.
+    """
+    project = await session.scalar(owned_select(Project, user).where(Project.id == project_id))
+    if project is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Project not found")
+    return project
+
+
+OwnedProject = Annotated[Project, Depends(get_owned_project)]
