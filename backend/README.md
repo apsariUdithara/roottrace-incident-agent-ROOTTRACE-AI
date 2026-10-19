@@ -18,6 +18,12 @@ Start the database first (from the repo root): `docker compose -f infra/docker-c
 uv sync                                   # installs Python 3.12 and dependencies
 cp .env.example .env                      # then fill in the secrets
 uv run uvicorn app.main:app --reload      # http://localhost:8000/health
-uv run pytest
+uv run pytest                             # needs the database running
 uv run ruff check . && uv run ruff format --check .
 ```
+
+`GET /health` says the process is up. `GET /health/ready` also checks the database and returns 503 if it can't be reached.
+
+## Database sessions
+
+Routes get a session with the `SessionDep` dependency from `app/core/db.py`. There's one session per request, and it doesn't auto-commit: call `await session.commit()` yourself, and anything uncommitted is rolled back when the request ends.

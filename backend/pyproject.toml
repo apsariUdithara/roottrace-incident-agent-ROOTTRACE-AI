@@ -5,8 +5,10 @@ description = "RootTrace AI backend: FastAPI API, LangGraph agent, RAG, tools an
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    "asyncpg>=0.32.0",
     "fastapi>=0.143.0",
     "pydantic-settings>=2.15.0",
+    "sqlalchemy[asyncio]>=2.1.5",
     "uvicorn[standard]>=0.54.0",
 ]
 
