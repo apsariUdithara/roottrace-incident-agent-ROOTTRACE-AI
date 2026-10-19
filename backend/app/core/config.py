@@ -17,14 +17,15 @@ class Settings(BaseSettings):
 
     app_env: Literal["development", "test", "production"] = "development"
 
-    # Nebius Token Factory (OpenAI-compatible). Verify model IDs with GET /v1/models.
+    # Nebius Token Factory (OpenAI-compatible).
+    # IDs confirmed with GET /v1/models on 2026-10-11; they are case-sensitive.
     nebius_api_key: SecretStr | None = None
     nebius_base_url: str = "https://api.tokenfactory.nebius.com/v1/"
-    nemotron_ultra: str = "nvidia/nemotron-3-ultra-550b-a55b"
+    nemotron_ultra: str = "nvidia/Nemotron-3-Ultra-550b-a55b"
     nemotron_super: str = "nvidia/nemotron-3-super-120b-a12b"
-    nemotron_nano: str = "nvidia/nemotron-3-nano-30b-a3b"
-    embed_model: str | None = None
-    embed_dimensions: int | None = None
+    nemotron_nano: str = "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B"
+    embed_model: str = "Qwen/Qwen3-Embedding-8B"
+    embed_dimensions: int = 1024
 
     # PostgreSQL + pgvector
     database_url: str = "postgresql+asyncpg://roottrace:roottrace@localhost:5432/roottrace"

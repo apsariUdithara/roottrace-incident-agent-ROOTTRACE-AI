@@ -5,6 +5,7 @@ from fastapi import FastAPI, Response, status
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.api.routes import chat
 from app.core.config import get_settings
 from app.core.db import SessionDep, engine
 
@@ -18,6 +19,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="RootTrace AI", version="0.1.0", lifespan=lifespan)
+app.include_router(chat.router)
 
 
 @app.get("/health")
