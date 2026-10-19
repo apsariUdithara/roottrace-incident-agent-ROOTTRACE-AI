@@ -4,6 +4,8 @@ import asyncio
 from logging.config import fileConfig
 
 from alembic import context
+from alembic.autogenerate.api import AutogenContext
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -20,6 +22,14 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 
+def render_item(type_: str, obj: object, autogen_context: AutogenContext) -> str | bool:
+    """Write pgvector columns as `Vector(1024)` with an import, instead of an unimported path."""
+    if type_ == "type" and isinstance(obj, Vector):
+        autogen_context.imports.add("from pgvector.sqlalchemy import Vector")
+        return f"Vector({obj.dim})"
+    return False  # default rendering
+
+
 def include_name(name: str | None, type_: str, parent_names: object) -> bool:
     """Only compare tables we define. Tables created elsewhere (LangGraph's checkpoint
     tables, the demo_app schema) are left alone instead of showing up as "removed"."""
@@ -34,6 +44,7 @@ def run_migrations_offline() -> None:
         url=get_settings().database_url,
         target_metadata=target_metadata,
         include_name=include_name,
+        render_item=render_item,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
     )
@@ -42,8 +53,13 @@ def run_migrations_offline() -> None:
 
 
 def do_run_migrations(connection: Connection) -> None:
+    # Teach reflection the pgvector type, so autogenerate compares embedding columns correctly.
+    connection.dialect.ischema_names["vector"] = Vector
     context.configure(
-        connection=connection, target_metadata=target_metadata, include_name=include_name
+        connection=connection,
+        target_metadata=target_metadata,
+        include_name=include_name,
+        render_item=render_item,
     )
     with context.begin_transaction():
         context.run_migrations()

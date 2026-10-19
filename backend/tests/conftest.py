@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
 
 from app.core.config import get_settings
+from app.models import Project, User
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 DB_HINT = "Start Postgres first: docker compose -f infra/docker-compose.yml up -d --wait"
@@ -69,3 +70,15 @@ async def db_session() -> AsyncIterator[AsyncSession]:
             await session.close()
             await transaction.rollback()
     await engine.dispose()
+
+
+@pytest.fixture
+async def project(db_session: AsyncSession) -> Project:
+    """A user and their project, for tests of project-scoped tables."""
+    owner = User(email="owner@example.com", password_hash="argon2-hash")
+    db_session.add(owner)
+    await db_session.flush()
+    project = Project(owner_id=owner.id, name="Payments")
+    db_session.add(project)
+    await db_session.flush()
+    return project

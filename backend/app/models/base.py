@@ -3,8 +3,10 @@
 import uuid
 from datetime import datetime
 from enum import StrEnum
+from typing import Any
 
-from sqlalchemy import CheckConstraint, DateTime, Enum, MetaData, func
+from sqlalchemy import CheckConstraint, DateTime, Enum, MetaData, func, text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 # Stable constraint names, so Alembic migrations can drop and alter them reliably.
@@ -19,7 +21,12 @@ NAMING_CONVENTION = {
 
 class Base(DeclarativeBase):
     metadata = MetaData(naming_convention=NAMING_CONVENTION)
-    type_annotation_map = {datetime: DateTime(timezone=True)}
+    type_annotation_map = {datetime: DateTime(timezone=True), dict[str, Any]: JSONB}
+
+
+# Server defaults for JSONB columns, so raw SQL inserts get them too.
+EMPTY_JSON_OBJECT = text("'{}'::jsonb")
+EMPTY_JSON_ARRAY = text("'[]'::jsonb")
 
 
 class UUIDPrimaryKeyMixin:

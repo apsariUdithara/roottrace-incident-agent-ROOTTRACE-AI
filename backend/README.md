@@ -43,5 +43,7 @@ uv run alembic downgrade -1                                       # undo the las
 - Inherit `UUIDPrimaryKeyMixin` and `CreatedAtMixin` from `app/models/base.py` for the `id` and `created_at` columns.
 - For status-like columns, use a `StrEnum` with `enum_type()` for the column and `enum_check()` in `__table_args__`. Adding a value later needs a migration that replaces the CHECK constraint, because autogenerate doesn't detect CHECK changes.
 - Autogenerate only compares tables defined in `app/models/`, so LangGraph's checkpoint tables and the `demo_app` schema are left alone.
+- Embedding columns are `Vector(EMBEDDING_DIMENSIONS)`: 1024, which must equal `EMBED_DIMENSIONS`. Each has an HNSW cosine index. Changing the size needs a migration that alters the columns and rebuilds those indexes.
+- `document_chunks.tsv` is a generated column (Postgres fills it from symbol + heading path + content), so ingestion never writes it.
 - `tests/test_migrations.py` fails if a model changed without a migration, and checks that every migration downgrades and upgrades cleanly.
 - Tests run against `<db>_test`, which is dropped and recreated on every run. The `db_session` fixture rolls back each test's changes.
