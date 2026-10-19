@@ -46,6 +46,22 @@ Routes get a session with the `SessionDep` dependency from `app/core/db.py`. The
 - Wrong password and unknown email give the same 401 in the same time (argon2 runs either way).
 - Not yet done: rate limiting on login (planned with the demo endpoint), and server-side token revocation. Logout clears the cookie, and an access token already issued stays valid until it expires.
 
+## Errors and CORS
+
+Every error response, from any route, has this shape (`app/core/errors.py`):
+
+```json
+{"detail": "Project not found", "code": "not_found"}
+{"detail": "Request validation failed", "code": "validation_error",
+ "errors": [{"field": "body.email", "message": "value is not a valid email address: ..."}]}
+```
+
+- `detail` is always a readable string the UI can show. `code` comes from the status: `unauthorized`, `not_found`, `conflict`, `method_not_allowed`, `validation_error`, `internal_error`, and so on.
+- Raise `HTTPException(status, "message")` as usual. Its headers, such as `WWW-Authenticate`, are kept.
+- Validation errors never echo the submitted values, so a rejected password can't leak into a response.
+- Unhandled exceptions return a generic 500. The traceback goes to the server log only.
+- CORS allows only `FRONTEND_ORIGIN`, with credentials (for the refresh cookie), the methods GET, POST, PATCH and DELETE, and the headers `Authorization`, `Content-Type` and `Last-Event-ID`.
+
 ## Security helpers
 
 `app/core/security.py`:

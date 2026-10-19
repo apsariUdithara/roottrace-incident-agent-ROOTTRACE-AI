@@ -45,7 +45,11 @@ def test_another_users_project_is_invisible(client: TestClient, new_user: NewUse
         client.delete(f"/projects/{project_id}", headers=bob),
     ):
         assert response.status_code == 404
-        assert response.json() == missing.json() == {"detail": "Project not found"}
+        assert (
+            response.json()
+            == missing.json()
+            == {"detail": "Project not found", "code": "not_found"}
+        )
 
     assert client.get(f"/projects/{project_id}", headers=alice).json()["name"] == "Payments"
 
@@ -56,7 +60,10 @@ def test_names_are_unique_per_owner(client: TestClient, new_user: NewUser):
 
     duplicate = create(client, alice, "Payments")
     assert duplicate.status_code == 409
-    assert duplicate.json() == {"detail": "You already have a project with this name"}
+    assert duplicate.json() == {
+        "detail": "You already have a project with this name",
+        "code": "conflict",
+    }
     assert create(client, bob, "Payments").status_code == 201
 
 

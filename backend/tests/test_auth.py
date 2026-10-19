@@ -88,7 +88,9 @@ def test_wrong_password_and_unknown_email_look_the_same(client: TestClient):
 
     assert wrong_password.status_code == unknown_email.status_code == 401
     assert (
-        wrong_password.json() == unknown_email.json() == {"detail": "Incorrect email or password"}
+        wrong_password.json()
+        == unknown_email.json()
+        == {"detail": "Incorrect email or password", "code": "unauthorized"}
     )
 
 
