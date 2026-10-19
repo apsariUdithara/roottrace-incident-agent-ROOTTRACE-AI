@@ -46,6 +46,34 @@ Routes get a session with the `SessionDep` dependency from `app/core/db.py`. The
 - Wrong password and unknown email give the same 401 in the same time (argon2 runs either way).
 - Not yet done: rate limiting on login (planned with the demo endpoint), and server-side token revocation. Logout clears the cookie, and an access token already issued stays valid until it expires.
 
+## Investigation events (draft v1, pending Person A's review)
+
+The agent publishes payloads from `app/schemas/events.py`. `make_event()` wraps each one in an envelope `{seq, ts, type, payload}`, which is stored in `investigation_events` and streamed over SSE as `id: <seq>`, `event: <type>`, `data: <json>`. Types marked * are additions to the plan's list.
+
+| Event | Sent when | Key payload fields |
+|---|---|---|
+| `status`* | investigation status changes | `status` (queued, running, awaiting_approval, completed, failed) |
+| `step_started` | a graph node starts | `step`, `round`, `tier`, `model` |
+| `step_completed` | a node ends or is skipped | `step`, `round`, `duration_ms`, `summary`, `skipped` |
+| `tool_call` / `tool_result` | each tool call | `call_id` pairs them; `tool`, `arguments`, `transport` / `ok`, `summary`, `output_preview` |
+| `evidence_added` | a fact or inference is recorded | `evidence_id`, `label` (F1, I1), `kind`, `statement`, `source_ref`, `excerpt`, `cites` |
+| `hypothesis` | a root cause is proposed | `hypothesis_id`, `statement`, `rank`, `round` |
+| `verdict` | the verifier decides | `verdict`, `notes`, `gaps`, `reinvestigating` |
+| `confidence` | after scoring, and again after the fix is verified | `score`, `components` (name, value, weight), `contradiction_ids` |
+| `patch_proposed` | a patch is generated | `patch_id`, `attempt`, `diff`, `files` (path, explanation) |
+| `test_output` | each sandbox output line | `patch_id`, `phase` (baseline or patched), `line` |
+| `test_completed`* | a sandbox run ends | `exit_code`, `passed`, `failed`, `duration_ms`, `sandbox_image_id`, `as_expected` |
+| `patch_status`* | verify_fix decides | `status` (verified, tests_failed, untested, rejected), `notes` |
+| `pr_draft`* / `pr_opened`* | PR text is ready / the draft PR was created | `title`, `body` / `url` |
+| `report` | the final report | `root_cause`, `summary` (cites `[F1]`), `verdict`, `fact_ids`, `fix` (verified, untested, failed, none) |
+| `message_delta`* / `message`* | a follow-up chat reply streams / finishes | `message_id`, `delta` / `content`, `evidence_ids` |
+| `error` | something went wrong | `message`, `step`, `fatal` |
+| `done` | the run ends; the stream closes | `status`, `duration_ms`, `total_tokens`, `total_cost_usd` |
+
+- `step` is one of the 16 graph nodes in `Step`, in run order. The timeline shows all of them from the start.
+- Payloads reject unknown fields, and a fact without `source_type`, `source_ref` and `excerpt` is rejected at publish time.
+- `tests/test_events.py` pins the set of event types and the wire format. Changing the contract means updating that test, regenerating the frontend types, and telling the other person.
+
 ## Errors and CORS
 
 Every error response, from any route, has this shape (`app/core/errors.py`):
