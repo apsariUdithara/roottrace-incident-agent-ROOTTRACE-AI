@@ -17,8 +17,9 @@ Start the database first (from the repo root): `docker compose -f infra/docker-c
 ```bash
 uv sync                                   # installs Python 3.12 and dependencies
 cp .env.example .env                      # then fill in the secrets
+uv run alembic upgrade head               # create or update the tables
 uv run uvicorn app.main:app --reload      # http://localhost:8000/health
-uv run pytest                             # needs the database running
+uv run pytest                             # needs Postgres running; uses a separate <db>_test database
 uv run ruff check . && uv run ruff format --check .
 ```
 
@@ -27,3 +28,20 @@ uv run ruff check . && uv run ruff format --check .
 ## Database sessions
 
 Routes get a session with the `SessionDep` dependency from `app/core/db.py`. There's one session per request, and it doesn't auto-commit: call `await session.commit()` yourself, and anything uncommitted is rolled back when the request ends.
+
+## Models and migrations
+
+Tables live in `app/models/`. After changing a model:
+
+```bash
+uv run alembic revision --autogenerate -m "add evidence table"   # then read the generated file
+uv run alembic upgrade head
+uv run alembic downgrade -1                                       # undo the last migration
+```
+
+- Import every new model in `app/models/__init__.py`, or Alembic won't see it.
+- Inherit `UUIDPrimaryKeyMixin` and `CreatedAtMixin` from `app/models/base.py` for the `id` and `created_at` columns.
+- For status-like columns, use a `StrEnum` with `enum_type()` for the column and `enum_check()` in `__table_args__`. Adding a value later needs a migration that replaces the CHECK constraint, because autogenerate doesn't detect CHECK changes.
+- Autogenerate only compares tables defined in `app/models/`, so LangGraph's checkpoint tables and the `demo_app` schema are left alone.
+- `tests/test_migrations.py` fails if a model changed without a migration, and checks that every migration downgrades and upgrades cleanly.
+- Tests run against `<db>_test`, which is dropped and recreated on every run. The `db_session` fixture rolls back each test's changes.
