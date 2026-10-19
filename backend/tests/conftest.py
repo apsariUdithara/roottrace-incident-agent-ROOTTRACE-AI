@@ -5,13 +5,15 @@ Your dev data in DATABASE_URL is never touched; the test database is recreated o
 
 import asyncio
 import os
-from collections.abc import AsyncIterator
+import uuid
+from collections.abc import AsyncIterator, Callable, Iterator
 from pathlib import Path
 
 import asyncpg
 import pytest
 from alembic import command
 from alembic.config import Config
+from fastapi.testclient import TestClient
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
@@ -70,6 +72,30 @@ async def db_session() -> AsyncIterator[AsyncSession]:
             await session.close()
             await transaction.rollback()
     await engine.dispose()
+
+
+@pytest.fixture
+def client() -> Iterator[TestClient]:
+    """HTTP client for the app, with its lifespan (the engine pool is disposed afterwards)."""
+    from app.main import app  # imported here, after DATABASE_URL points at the test database
+
+    with TestClient(app) as client:
+        yield client
+
+
+@pytest.fixture
+def new_user(client: TestClient) -> Callable[[], dict[str, str]]:
+    """Register a fresh user; returns their `Authorization` header. Call it twice for two users."""
+
+    def register() -> dict[str, str]:
+        email = f"user-{uuid.uuid4().hex[:8]}@example.com"
+        response = client.post(
+            "/auth/register", json={"email": email, "password": "correct horse battery"}
+        )
+        assert response.status_code == 201, response.text
+        return {"Authorization": f"Bearer {response.json()['access_token']}"}
+
+    return register
 
 
 @pytest.fixture

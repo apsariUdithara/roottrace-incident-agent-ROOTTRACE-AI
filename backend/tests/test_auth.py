@@ -1,5 +1,4 @@
 import uuid
-from collections.abc import Iterator
 
 import pytest
 from fastapi.testclient import TestClient
@@ -8,16 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.routes.auth import REFRESH_COOKIE
 from app.core.security import create_access_token, create_refresh_token
-from app.main import app
 from app.models import User
 
 PASSWORD = "correct horse battery"
-
-
-@pytest.fixture
-def client() -> Iterator[TestClient]:
-    with TestClient(app) as client:  # runs the lifespan, so the engine pool is disposed after
-        yield client
 
 
 def new_email() -> str:
