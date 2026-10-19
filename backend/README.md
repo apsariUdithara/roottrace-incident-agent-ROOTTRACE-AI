@@ -29,6 +29,15 @@ uv run ruff check . && uv run ruff format --check .
 
 Routes get a session with the `SessionDep` dependency from `app/core/db.py`. There's one session per request, and it doesn't auto-commit: call `await session.commit()` yourself, and anything uncommitted is rolled back when the request ends.
 
+## Security helpers
+
+`app/core/security.py`:
+
+- **Passwords:** `await hash_password(pw)` and `await verify_password(hash, pw)` use argon2id (about 65 ms each, run in a worker thread). `verify_password` returns `False` rather than raising.
+- **Tokens:** `create_access_token(user_id)` and `create_refresh_token(user_id)` make HS256 JWTs. `decode_token(token, TokenType.ACCESS)` checks the signature, expiry and token type, and raises `InvalidTokenError` on any failure. A refresh token is never accepted as an access token.
+- **Secrets at rest:** `encrypt_secret(text)` and `decrypt_secret(ciphertext)` use Fernet, for GitHub tokens and similar. Decryption raises `DecryptionError` if the value was tampered with or the key changed.
+- If `JWT_SECRET` or `FERNET_KEY` is unset, development and tests use built-in dev-only values and log a warning. Production refuses to start without them, rejects a `JWT_SECRET` shorter than 32 characters, and rejects a malformed `FERNET_KEY`. Changing `FERNET_KEY` makes stored tokens unreadable.
+
 ## Models and migrations
 
 Tables live in `app/models/`. After changing a model:
