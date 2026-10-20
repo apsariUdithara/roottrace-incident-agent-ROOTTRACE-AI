@@ -34,6 +34,8 @@ RETRYABLE = (
     openai.InternalServerError,
 )
 MAX_ATTEMPTS = 3
+# ponytail: embeddings are not cached; ingestion already skips unchanged files by content hash.
+EMBED_BATCH = 64
 
 
 @dataclass
@@ -128,14 +130,43 @@ class LLMRouter:
     async def _with_retries(self, tier: Tier, request: dict) -> LLMResult:
         if cached := self._load_from_cache(tier, request):
             return cached
+        return await self._retry(lambda: self._call(tier, request))
+
+    async def _retry(self, make_call):
         for attempt in range(MAX_ATTEMPTS):
             try:
-                return await self._call(tier, request)
+                return await make_call()
             except RETRYABLE:
                 if attempt == MAX_ATTEMPTS - 1:
                     raise
                 await self.sleep(2**attempt)  # wait 1 s, then 2 s
         raise AssertionError("unreachable")
+
+    async def embed(self, texts: list[str], name: str = "embed") -> list[list[float]]:
+        """Embed texts in batches with the embedding model; one span per batch."""
+        model, vectors = self.settings.embed_model, []
+        for i in range(0, len(texts), EMBED_BATCH):
+            batch = texts[i : i + EMBED_BATCH]
+            start = time.perf_counter()
+            resp = await self._retry(
+                lambda batch=batch: self.client.embeddings.create(
+                    model=model, input=batch, dimensions=self.settings.embed_dimensions
+                )
+            )
+            vectors += [d.embedding for d in sorted(resp.data, key=lambda d: d.index)]
+            tokens = resp.usage.prompt_tokens
+            self.spans.append(
+                {
+                    "name": name,
+                    "model": model,
+                    "tier": "embed",
+                    "prompt_tokens": tokens,
+                    "completion_tokens": 0,
+                    "cost_usd": cost_usd(model, tokens, 0),
+                    "latency_ms": round((time.perf_counter() - start) * 1000),
+                }
+            )
+        return vectors
 
     async def _call(self, tier: Tier, request: dict) -> LLMResult:
         model = self.model_for(tier)

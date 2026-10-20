@@ -95,7 +95,7 @@ def chunk_python(source: str) -> list[Chunk]:
     covered: set[int] = set()
     for node in tree.body:
         if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
-            # ponytail: a large class stays one chunk; split per method if classes outgrow MAX_CHARS.
+            # ponytail: a large class stays one chunk; split per method if classes outgrow it.
             start = min([node.lineno] + [d.lineno for d in node.decorator_list])
             end = node.end_lineno or node.lineno
             chunks.append(Chunk("\n".join(lines[start - 1 : end]), start, end, symbol=node.name))
@@ -127,7 +127,9 @@ def chunk_incident(record: dict) -> Chunk:
 
 
 def chunk_issue(record: dict) -> Chunk:
-    header = f"Issue #{record['number']} ({record.get('state', 'open')}, {record.get('created_at', '')})"
+    header = (
+        f"Issue #{record['number']} ({record.get('state', 'open')}, {record.get('created_at', '')})"
+    )
     return Chunk(
         content=f"{header}\n{record['title']}\n{record.get('body', '')}",
         section_path=f"issue:{record['number']}",

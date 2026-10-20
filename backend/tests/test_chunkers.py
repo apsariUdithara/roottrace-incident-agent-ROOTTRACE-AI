@@ -55,7 +55,9 @@ def test_long_section_splits_at_paragraphs_never_mid_paragraph(monkeypatch):
     assert len(chunks) > 1
     for chunk in chunks:
         for paragraph in chunk.content.split("\n\n"):
-            assert paragraph.startswith(("# Long", "Paragraph")) and paragraph.endswith((".", "Long"))
+            assert paragraph.startswith(("# Long", "Paragraph")) and paragraph.endswith(
+                (".", "Long")
+            )
 
 
 CODE = '''"""Payments."""
@@ -98,7 +100,9 @@ def test_broken_python_falls_back_to_one_chunk():
 
 
 def test_incident_and_issue_become_one_chunk_each():
-    inc = chunk_incident({"key": "INC-017", "title": "Pool", "symptoms": "500s", "root_cause": "pool 60"})
+    inc = chunk_incident(
+        {"key": "INC-017", "title": "Pool", "symptoms": "500s", "root_cause": "pool 60"}
+    )
     assert inc.section_path == "INC-017" and "Root cause: pool 60" in inc.content
     issue = chunk_issue({"number": 57, "title": "500s", "body": "after deploy"})
     assert issue.section_path == "issue:57" and "after deploy" in issue.content
