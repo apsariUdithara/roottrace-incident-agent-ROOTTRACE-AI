@@ -3,7 +3,7 @@
 Rule: nothing project-specific here. The agent learns about a project only through its tools.
 """
 
-PROMPT_VERSION = "v7"
+PROMPT_VERSION = "v8"
 
 SYSTEM = """You are RootTrace, an incident investigator for software teams.
 You find the root cause of production incidents from evidence, the way a careful senior engineer
@@ -177,6 +177,8 @@ Write the smallest safe fix, and a regression test that reproduces the bug.
   Python imports a module only once per test run, so other tests may have imported it
   already: to test code that runs at import time (module-level settings or checks), import
   the module normally and then call importlib.reload(module) inside the test.
+- For invalid configuration, prefer failing fast (refuse to start with a clear error naming the
+  values) over silently correcting the value: a silent correction hides the mistake.
 - changes: the files your fix changes. Give each file's COMPLETE new content, not a diff.
   Change only what the fix needs; keep everything else exactly as it is.
 - explanation: two or three sentences: what the fix does and why it addresses the root cause.
@@ -202,8 +204,10 @@ Sandbox results:
 
 Judge the fix. It is acceptable only if it addresses the root cause itself, not just the
 symptom or the test (for example, a fix that special-cases the test's values, catches and hides
-the error, or deletes a check is not acceptable). Reply whether it addresses the root cause, and
-two sentences of notes."""
+the error, or deletes a check is not acceptable). A fix that silently corrects an invalid
+configuration (e.g. quietly capping a value) is acceptable but weaker than failing fast with a
+clear error; if so, say that in the notes. Reply whether it addresses the root cause, and two
+sentences of notes."""
 
 DRAFT_PR = """Incident: {question}
 Root cause: {root_cause}
