@@ -816,7 +816,8 @@ class Investigator:
                 next_steps=r.next_steps,
             )
             self.inv.root_cause = root_cause
-            self.inv.report = payload.model_dump(mode="json")
+            # deployed_ref: which version was investigated; opening the PR needs it later.
+            self.inv.report = {**payload.model_dump(mode="json"), "deployed_ref": self.ctx.ref}
             await self.bus.publish(payload)
             info["summary"] = (root_cause or "no root cause established")[:200]
         return {"report": payload.model_dump(mode="json")}
@@ -1095,9 +1096,12 @@ class Investigator:
         self.save_trace()
         tokens = sum(s["prompt_tokens"] + s["completion_tokens"] for s in self.router.spans)
         cost = sum(s["cost_usd"] for s in self.router.spans)
-        self.inv.status, self.inv.finished_at = status, datetime.now(UTC)
+        # A drafted PR waits for an engineer: the run is done, the investigation is not.
+        awaiting = state is not None and state.get("fix") == PatchStatus.VERIFIED
+        final = InvestigationStatus.AWAITING_APPROVAL if awaiting else status
+        self.inv.status, self.inv.finished_at = final, datetime.now(UTC)
         self.inv.total_tokens, self.inv.total_cost_usd = tokens, round(cost, 6)
-        await self.bus.publish(StatusChanged(status=status))
+        await self.bus.publish(StatusChanged(status=final))
         await self.bus.publish(
             Done(
                 status=status,

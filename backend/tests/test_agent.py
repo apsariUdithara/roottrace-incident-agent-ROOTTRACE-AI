@@ -215,7 +215,9 @@ async def investigate(db_session, project, repo, model, sandbox=None):  # noqa: 
 
 async def test_full_run_records_only_grounded_facts(db_session, project, repo):  # noqa: F811
     inv, state, events = await investigate(db_session, project, repo, ScriptedModel([SUPPORTED]))
-    assert inv.status == InvestigationStatus.COMPLETED
+    assert (
+        inv.status == InvestigationStatus.AWAITING_APPROVAL
+    )  # verified fix: a human approves the PR
     assert [f["label"] for f in state["facts"]] == ["F1", "F2"]  # the invented fact is gone
     facts = await db_session.scalar(
         select(func.count())
@@ -278,7 +280,7 @@ async def test_failed_fact_extraction_is_not_fatal_and_triggers_another_round(
 ):
     model = ScriptedModel([SUPPORTED], fail_on="extract_facts")
     inv, _, events = await investigate(db_session, project, repo, model)
-    assert inv.status == InvestigationStatus.COMPLETED
+    assert inv.status == InvestigationStatus.AWAITING_APPROVAL
     errors = [e.payload for e in events if e.type == "error"]
     assert errors and not any(e.fatal for e in errors)
     rounds = [
@@ -368,3 +370,11 @@ async def test_a_patch_that_edits_existing_tests_never_reaches_the_sandbox(
     assert [s.status for s in statuses] == ["rejected", "rejected"]
     assert "tests/test_existing.py" in statuses[0].notes
     assert of(events, "report")[0].fix == "failed"
+
+
+async def test_a_run_with_a_verified_fix_ends_awaiting_approval(db_session, project, repo):  # noqa: F811
+    inv, _, events = await investigate(db_session, project, repo, ScriptedModel([SUPPORTED]))
+    assert inv.status == InvestigationStatus.AWAITING_APPROVAL
+    assert inv.report["deployed_ref"] == "v2"  # needed later to open the PR
+    assert [e.payload.status for e in events if e.type == "status"][-1] == "awaiting_approval"
+    assert events[-1].type == "done" and events[-1].payload.status == "completed"  # the run is done

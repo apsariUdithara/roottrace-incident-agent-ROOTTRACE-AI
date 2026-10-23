@@ -12,6 +12,7 @@ dependencies = [
     "cryptography>=50.0.2",
     "email-validator>=2.3.0",
     "fastapi>=0.143.0",
+    "httpx2>=2.13.1",
     "langgraph>=1.2.16",
     "openai>=3.31.0",
     "pgvector>=0.5.1",

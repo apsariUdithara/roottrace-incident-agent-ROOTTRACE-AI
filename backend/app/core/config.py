@@ -39,6 +39,9 @@ class Settings(BaseSettings):
     refresh_token_days: int = 7
     fernet_key: SecretStr | None = None
     frontend_origin: str = "http://localhost:5173"
+    # Fine-grained GitHub token limited to the demo repo (Contents + Pull requests: write).
+    # Used only after an engineer approves a fix, to open a draft PR.
+    github_token: SecretStr | None = None
 
     # Agent
     tool_transport: Literal["direct", "mcp"] = "direct"
