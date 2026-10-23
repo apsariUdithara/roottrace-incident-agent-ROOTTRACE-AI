@@ -27,9 +27,8 @@ from typing import Literal, TypedDict
 
 from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
 
-from app.agent import fix, prompts
+from app.agent import fix, memory, prompts
 from app.agent.confidence import components, score
 from app.agent.events import EventBus
 from app.llm.router import LLMRouter
@@ -40,7 +39,6 @@ from app.models import (
     Hypothesis,
     Investigation,
     InvestigationStatus,
-    Memory,
     ModelTier,
     Patch,
     PatchStatus,
@@ -178,6 +176,7 @@ class AgentState(TypedDict, total=False):
     fix: str  # final PatchStatus value
     blocked: bool  # the latest patch was rejected before testing (it edited existing tests)
     fix_feedback: str | None
+    hints: str  # recalled memories, as text for the prompts
 
 
 # --- Helpers ----------------------------------------------------------------------------------
@@ -312,6 +311,7 @@ class Investigator:
             "verify_fix",
             "draft_pr",
             "write_report",
+            "save_memories",
         ):
             g.add_node(name, getattr(self, name))
         g.add_edge(START, "triage")
@@ -332,8 +332,9 @@ class Investigator:
         )
         g.add_edge("run_tests", "verify_fix")
         g.add_conditional_edges("verify_fix", self.after_fix, ["generate_patch", "write_report"])
-        g.add_conditional_edges("write_report", self.after_report, ["draft_pr", END])
-        g.add_edge("draft_pr", END)
+        g.add_conditional_edges("write_report", self.after_report, ["draft_pr", "save_memories"])
+        g.add_edge("draft_pr", "save_memories")
+        g.add_edge("save_memories", END)
         return g.compile()
 
     @staticmethod
@@ -362,7 +363,7 @@ class Investigator:
 
     @staticmethod
     def after_report(state: AgentState) -> str:
-        return "draft_pr" if state.get("fix") == PatchStatus.VERIFIED else END
+        return "draft_pr" if state.get("fix") == PatchStatus.VERIFIED else "save_memories"
 
     @staticmethod
     def after_verify(state: AgentState) -> str:
@@ -586,15 +587,11 @@ class Investigator:
         return {"triage": t.model_dump()}
 
     async def recall_memory(self, state: AgentState) -> AgentState:
-        # Long-term memory recall arrives in Phase 7; for now report what exists.
         async with self.step(Step.RECALL_MEMORY) as info:
-            count = await self.session.scalar(
-                select(func.count())
-                .select_from(Memory)
-                .where(Memory.project_id == self.inv.project_id)
-            )
-            info["summary"] = f"{count} memories recalled"
-        return {}
+            query = f"{self.inv.question} {state['triage'].get('summary', '')}"
+            recalled = await memory.recall(self.session, self.router, self.inv.project_id, query)
+            info["summary"] = f"{len(recalled)} memories recalled (used as hints, not evidence)"
+        return {"hints": memory.as_hints(recalled)}
 
     async def plan(self, state: AgentState) -> AgentState:
         async with self.step(Step.PLAN, "super") as info:
@@ -607,6 +604,7 @@ class Investigator:
                     ref=self.ctx.ref,
                     triage=json.dumps(state["triage"]),
                     tools=tools,
+                    hints=state.get("hints", ""),
                 ),
                 Plan,
                 "plan",
@@ -630,6 +628,7 @@ class Investigator:
                 ref=self.ctx.ref,
                 plan="\n".join(f"{i + 1}. {s}" for i, s in enumerate(state["plan"])),
                 focus=focus,
+                hints=state.get("hints", ""),
             )
             transcript = await self.run_tools(Step.INVESTIGATE, prompt, INVESTIGATE_BUDGET)
             new = await self.record_facts(transcript, state)
@@ -1069,6 +1068,40 @@ class Investigator:
             row.pr_title, row.pr_body = pr.title, pr.body
             await self.bus.publish(PrDrafted(patch_id=patch_id, title=pr.title, body=pr.body))
             info["summary"] = pr.title
+        return {}
+
+    async def save_memories(self, state: AgentState) -> AgentState:
+        # Only a verified root cause becomes a lesson: saving a guess would teach a mistake.
+        async with self.step(Step.SAVE_MEMORIES, "nano") as info:
+            if state["verdict"]["verdict"] != Verdict.SUPPORTED:
+                info["summary"] = "nothing saved: the root cause was not verified"
+                return {}
+            try:
+                lessons = await self.ask(
+                    "nano",
+                    memory.SAVE_PROMPT.format(
+                        question=self.inv.question,
+                        root_cause=state["report"]["root_cause"],
+                        fix=FIX_SUMMARY[state.get("fix", "none")],
+                        facts=_fact_lines(state["facts"]),
+                    ),
+                    memory.Lessons,
+                    "save_memories",
+                )
+                saved = await memory.save_lessons(
+                    self.session, self.router, self.inv.project_id, self.inv.id, lessons.lessons
+                )
+            except Exception as exc:  # noqa: BLE001 - a lost lesson must not fail the investigation
+                await self.bus.publish(
+                    ErrorRaised(
+                        message=f"saving memories failed: {exc}"[:500],
+                        step=Step.SAVE_MEMORIES,
+                        fatal=False,
+                    )
+                )
+                info["summary"] = "no memories saved"
+                return {}
+            info["summary"] = f"{len(saved)} new lesson(s) saved"
         return {}
 
     # run --------------------------------------------------------------------------------------

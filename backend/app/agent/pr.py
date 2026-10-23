@@ -17,13 +17,12 @@ import uuid
 from pathlib import Path
 
 import httpx2
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent.events import EventBus
 from app.models import (
     Investigation,
-    InvestigationEvent,
     InvestigationStatus,
     Patch,
     PatchStatus,
@@ -148,12 +147,7 @@ async def open_pr(
 
     patch.pr_url = response.json()["html_url"]
     investigation.status = InvestigationStatus.COMPLETED
-    bus = EventBus(session, investigation.id)
-    bus.seq = await session.scalar(
-        select(func.coalesce(func.max(InvestigationEvent.seq), 0)).where(
-            InvestigationEvent.investigation_id == investigation.id
-        )
-    )
+    bus = await EventBus.resume(session, investigation.id)
     await bus.publish(PrOpened(patch_id=patch.id, url=patch.pr_url))
     await bus.publish(StatusChanged(status=InvestigationStatus.COMPLETED))
     return patch.pr_url

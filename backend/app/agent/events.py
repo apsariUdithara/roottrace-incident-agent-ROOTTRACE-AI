@@ -8,6 +8,7 @@ to any listener: the SSE stream, or a terminal printer.
 import uuid
 from collections.abc import Awaitable, Callable
 
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import InvestigationEvent
@@ -22,6 +23,17 @@ class EventBus:
         self.investigation_id = investigation_id
         self.seq = 0
         self.listeners: list[Listener] = []
+
+    @classmethod
+    async def resume(cls, session: AsyncSession, investigation_id: uuid.UUID) -> "EventBus":
+        """A bus that continues an investigation's numbering after its run has ended."""
+        bus = cls(session, investigation_id)
+        bus.seq = await session.scalar(
+            select(func.coalesce(func.max(InvestigationEvent.seq), 0)).where(
+                InvestigationEvent.investigation_id == investigation_id
+            )
+        )
+        return bus
 
     async def publish(self, payload: EventPayload):
         self.seq += 1

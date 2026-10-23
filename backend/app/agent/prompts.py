@@ -3,7 +3,7 @@
 Rule: nothing project-specific here. The agent learns about a project only through its tools.
 """
 
-PROMPT_VERSION = "v9"
+PROMPT_VERSION = "v10"
 
 SYSTEM = """You are RootTrace, an incident investigator for software teams.
 You find the root cause of production incidents from evidence, the way a careful senior engineer
@@ -21,7 +21,7 @@ PLAN = """Incident: {question}
 Reported at: {reported_at}
 Deployed version under investigation: {ref}
 Triage: {triage}
-
+{hints}
 Available tools:
 {tools}
 
@@ -33,7 +33,7 @@ Reported at: {reported_at}
 Deployed version under investigation: {ref}
 Plan:
 {plan}
-{focus}
+{hints}{focus}
 Investigate with the tools. Work step by step: each result should shape your next call.
 - Logs: start the window well BEFORE the change or deploy you suspect (at least an hour
   before the problem was reported), so first_seen shows when errors really began.

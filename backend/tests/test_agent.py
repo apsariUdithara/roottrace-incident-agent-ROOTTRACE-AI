@@ -20,12 +20,14 @@ from app.agent.graph import (
     Triage,
     VerdictOut,
 )
+from app.agent.memory import Lesson, Lessons
 from app.llm.router import LLMResult
 from app.models import (
     Evidence,
     EvidenceKind,
     Investigation,
     InvestigationStatus,
+    Memory,
     TestRun,
     TraceSpan,
 )
@@ -59,6 +61,7 @@ class ScriptedModel:
     def __init__(self, verdicts, fail_on=None, fix_ok=True, test_path="tests/test_pool.py"):
         self.verdicts, self.fail_on, self.spans, self.seen = list(verdicts), fail_on, [], []
         self.fix_ok, self.test_path = fix_ok, test_path
+        self.prompts = {}  # last prompt seen per step
 
     def model_for(self, tier):
         return f"fake-{tier}"
@@ -69,6 +72,7 @@ class ScriptedModel:
     async def complete(self, tier, messages, *, tools=None, schema=None, name="", **kw):
         step = name.split(".")[0]
         self.seen.append(step)
+        self.prompts[step] = messages[-1]["content"]
         self.spans.append(
             {
                 "name": name,
@@ -154,6 +158,14 @@ class ScriptedModel:
             ),
             "verify_fix": FixJudgement(addresses_root_cause=self.fix_ok, notes="addresses it"),
             "draft_pr": PrOut(title="fix(db): restore pool size to 20", body="## Root cause"),
+            "save_memories": Lessons(
+                lessons=[
+                    Lesson(
+                        category="previous_incident",
+                        content="Raising the pool size past the limit causes 500s.",
+                    )
+                ]
+            ),
         }
         parsed = self.verdicts.pop(0) if step == "verdict" else replies[step]
         return answer(name, parsed)
@@ -378,3 +390,27 @@ async def test_a_run_with_a_verified_fix_ends_awaiting_approval(db_session, proj
     assert inv.report["deployed_ref"] == "v2"  # needed later to open the PR
     assert [e.payload.status for e in events if e.type == "status"][-1] == "awaiting_approval"
     assert events[-1].type == "done" and events[-1].payload.status == "completed"  # the run is done
+
+
+async def test_a_verified_run_saves_a_lesson_and_the_next_run_gets_it_as_a_hint(
+    db_session,
+    project,
+    repo,  # noqa: F811
+):
+    await investigate(db_session, project, repo, ScriptedModel([SUPPORTED]))
+    memories = (await db_session.scalars(select(Memory))).all()
+    assert [m.content for m in memories] == ["Raising the pool size past the limit causes 500s."]
+    assert memories[0].created_by == "agent" and memories[0].source_investigation_id
+
+    second = ScriptedModel([SUPPORTED])
+    _, _, events = await investigate(db_session, project, repo, second)
+    assert (
+        "HINTS" in second.prompts["plan"] and "pool size past the limit" in second.prompts["plan"]
+    )
+    # The same lesson is not saved twice.
+    assert len((await db_session.scalars(select(Memory))).all()) == 1
+
+
+async def test_an_unverified_root_cause_teaches_nothing(db_session, project, repo):  # noqa: F811
+    await investigate(db_session, project, repo, ScriptedModel([WEAK, REFUTED]))
+    assert (await db_session.scalars(select(Memory))).all() == []
