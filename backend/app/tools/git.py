@@ -116,7 +116,14 @@ async def _log(ctx: ToolContext, args: CommitSearchArgs, *selector: str) -> list
                 added, removed, name = line.split("\t", 2)
                 files.append(f"{name} (+{added} -{removed})")
         commits.append(
-            {"sha": sha[:10], "author": author, "date": when, "message": subject, "files": files}
+            {
+                "ref": f"commit {sha[:10]}",
+                "sha": sha[:10],
+                "author": author,
+                "date": when,
+                "message": subject,
+                "files": files,
+            }
         )
     return commits
 
