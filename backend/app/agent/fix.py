@@ -89,12 +89,18 @@ def test_files(root: Path) -> list[str]:
     return sorted(str(p.relative_to(root)).replace("\\", "/") for p in root.rglob("test_*.py"))
 
 
+def ending_newline(text: str) -> str:
+    """Files end with a newline. Without one, a diff glues the next file's header onto the
+    last line, and `git apply` rejects it."""
+    return text if not text or text.endswith("\n") else text + "\n"
+
+
 def apply(root: Path, changes: list[FileChange]) -> None:
     """Write each change into the snapshot. Paths must stay inside the repository."""
     for change in changes:
         target = root / safe_repo_path(change.path)
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(change.content, encoding="utf-8", newline="\n")
+        target.write_text(ending_newline(change.content), encoding="utf-8", newline="\n")
 
 
 def unified_diff(root: Path, changes: list[FileChange]) -> str:
@@ -105,7 +111,7 @@ def unified_diff(root: Path, changes: list[FileChange]) -> str:
         before = (root / path).read_text(encoding="utf-8") if (root / path).exists() else ""
         parts += difflib.unified_diff(
             before.splitlines(keepends=True),
-            change.content.splitlines(keepends=True),
+            ending_newline(change.content).splitlines(keepends=True),
             fromfile=f"a/{path}" if before else "/dev/null",
             tofile=f"b/{path}",
         )
