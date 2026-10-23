@@ -3,7 +3,7 @@
 Rule: nothing project-specific here. The agent learns about a project only through its tools.
 """
 
-PROMPT_VERSION = "v2"
+PROMPT_VERSION = "v3"
 
 SYSTEM = """You are RootTrace, an incident investigator for software teams.
 You find the root cause of production incidents from evidence, the way a careful senior engineer
@@ -35,7 +35,8 @@ Plan:
 {plan}
 {focus}
 Investigate with the tools. Work step by step: each result should shape your next call.
-- Logs: use a time window around when the problem started.
+- Logs: start the window well BEFORE the change or deploy you suspect (at least an hour
+  before the problem was reported), so first_seen shows when errors really began.
 - Commits: messages can be misleading; read the diff of anything suspicious.
 - Search with the words the source would use (error text, setting names), and search again
   with new words you learn from earlier results.

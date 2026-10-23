@@ -214,3 +214,21 @@ async def test_a_failure_is_reported_and_the_run_marked_failed(db_session, proje
     assert state is None and inv.status == InvestigationStatus.FAILED
     assert [e.type for e in events][-3:] == ["error", "status", "done"]
     assert "model unavailable" in events[-3].payload.message
+
+
+async def test_failed_fact_extraction_is_not_fatal_and_triggers_another_round(
+    db_session,
+    project,
+    repo,  # noqa: F811
+):
+    model = ScriptedModel([SUPPORTED], fail_on="extract_facts")
+    inv, _, events = await investigate(db_session, project, repo, model)
+    assert inv.status == InvestigationStatus.COMPLETED
+    errors = [e.payload for e in events if e.type == "error"]
+    assert errors and not any(e.fatal for e in errors)
+    rounds = [
+        e.payload.round
+        for e in events
+        if e.type == "step_started" and e.payload.step == "investigate"
+    ]
+    assert rounds == [1, 2]  # no facts after round 1, so it looked again before hypothesising

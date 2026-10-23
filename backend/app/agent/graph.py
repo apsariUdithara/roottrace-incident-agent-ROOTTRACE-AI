@@ -67,6 +67,7 @@ INVESTIGATE_BUDGET = 12  # tool calls per investigate round
 VERIFY_BUDGET = 4  # tool calls the verifier may use to look for contradictions
 FACTS_PER_ROUND = 10
 PREVIEW_CHARS = 1500
+EXTRACT_CHARS = 3500  # per tool result shown to fact extraction
 
 # Which kind of source each tool observes. Deterministic, so the model can't mislabel a fact.
 TOOL_SOURCE = {
@@ -261,13 +262,21 @@ class Investigator:
         g.add_edge("triage", "recall_memory")
         g.add_edge("recall_memory", "plan")
         g.add_edge("plan", "investigate")
-        g.add_edge("investigate", "compare_evidence")
+        g.add_conditional_edges(
+            "investigate", self.after_investigate, ["investigate", "compare_evidence"]
+        )
         g.add_edge("compare_evidence", "hypothesize")
         g.add_edge("hypothesize", "verify")
         g.add_conditional_edges("verify", self.after_verify, ["investigate", "score_confidence"])
         g.add_edge("score_confidence", "write_report")
         g.add_edge("write_report", END)
         return g.compile()
+
+    @staticmethod
+    def after_investigate(state: AgentState) -> str:
+        if not state["facts"] and state["round"] < MAX_ROUNDS:
+            return "investigate"  # nothing established yet: don't hypothesise from nothing
+        return "compare_evidence"
 
     @staticmethod
     def after_verify(state: AgentState) -> str:
@@ -392,20 +401,28 @@ class Investigator:
         if not transcript:
             return []
         text = "\n\n".join(
-            f"[call {t['n']}] {t['tool']}({t['arguments']})\n{t['output']}" for t in transcript
+            f"[call {t['n']}] {t['tool']}({t['arguments']})\n{t['output'][:EXTRACT_CHARS]}"
+            for t in transcript
         )
-        found = await self.ask(
-            "super",
-            prompts.EXTRACT_FACTS.format(
-                question=self.inv.question,
-                transcript=text,
-                limit=FACTS_PER_ROUND,
-                known=_fact_lines(state.get("facts", [])),
-            ),
-            FactList,
-            "extract_facts",
-            max_tokens=4000,
-        )
+        try:
+            # Nemotron reasons before answering; a generous limit leaves room for the answer.
+            found = await self.ask(
+                "super",
+                prompts.EXTRACT_FACTS.format(
+                    question=self.inv.question,
+                    transcript=text,
+                    limit=FACTS_PER_ROUND,
+                    known=_fact_lines(state.get("facts", [])),
+                ),
+                FactList,
+                "extract_facts",
+                max_tokens=12000,
+            )
+        except Exception as exc:  # noqa: BLE001 - lose this batch of facts, not the investigation
+            await self.bus.publish(
+                ErrorRaised(message=f"fact extraction failed: {exc}"[:500], fatal=False)
+            )
+            return []
         known = {(f["source_ref"], _norm(f["excerpt"])) for f in state.get("facts", [])}
         facts = []
         for item in found.facts:
@@ -512,10 +529,10 @@ class Investigator:
         return {"plan": p.steps}
 
     async def investigate(self, state: AgentState) -> AgentState:
-        rnd = state.get("round", 1) + (1 if "verdict" in state else 0)
+        rnd = state.get("round", 0) + 1
         async with self.step(Step.INVESTIGATE, "super", rnd) as info:
             focus = ""
-            if rnd > 1:
+            if rnd > 1 and "verdict" in state:
                 focus = prompts.ROUND_FOCUS.format(
                     round=rnd,
                     gaps="\n".join(f"- {g}" for g in state["verdict"]["gaps"]),
@@ -725,7 +742,7 @@ class Investigator:
         state = None
         try:
             state = await self.graph.ainvoke(
-                {"round": 1, "facts": [], "inferences": []}, {"recursion_limit": 30}
+                {"round": 0, "facts": [], "inferences": []}, {"recursion_limit": 30}
             )
             status = InvestigationStatus.COMPLETED
         except Exception as exc:  # noqa: BLE001 - recorded and reported, never swallowed

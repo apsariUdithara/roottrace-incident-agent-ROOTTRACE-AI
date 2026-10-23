@@ -241,3 +241,15 @@ async def test_read_only_transaction_stops_writes_even_if_the_parser_is_fooled(
 async def test_read_only_mode_ends_with_the_query(production_data):
     await call(production_data, "query_database", sql="SELECT 1 AS one FROM payments")
     await production_data.session.execute(text("INSERT INTO demo_app.payments VALUES (4, 200)"))
+
+
+async def test_commit_search_accepts_full_timestamps_and_an_end_date(ctx):
+    found = await call(ctx, "search_github_commits", since="2026-10-06T14:00:00Z")
+    assert len(found["commits"]) == 1
+    none = await call(ctx, "search_github_commits", since="2026-09-01", until="2026-09-30")
+    assert none["commits"] == []
+
+
+async def test_search_logs_matches_part_of_a_route(ctx):
+    await add_logs(ctx)
+    assert (await call(ctx, "search_logs", route="payment"))["total"] == 33

@@ -21,7 +21,7 @@ class LogSearchArgs(BaseModel):
     since: datetime | None = Field(default=None, description="Start time (ISO 8601, UTC).")
     until: datetime | None = Field(default=None, description="End time (ISO 8601, UTC).")
     level: str | None = Field(default=None, description="INFO, WARN or ERROR.")
-    route: str | None = Field(default=None, description="HTTP route, e.g. /payments.")
+    route: str | None = Field(default=None, description="HTTP route or part of it, e.g. /pay")
     error_type: str | None = Field(default=None, description="e.g. OperationalError.")
     text: str | None = Field(default=None, description="Text that must appear in the message.")
     service: str | None = Field(default=None, description="Service name.")
@@ -36,7 +36,7 @@ def _filters(ctx: ToolContext, args: LogSearchArgs) -> list:
     if args.level:
         f.append(func.upper(LogEntry.level) == args.level.upper())
     if args.route:
-        f.append(LogEntry.route == args.route)
+        f.append(LogEntry.route.ilike(f"%{args.route}%"))
     if args.error_type:
         f.append(LogEntry.error_type == args.error_type)
     if args.text:

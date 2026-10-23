@@ -8,7 +8,7 @@ import asyncio
 import re
 from datetime import date
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.tools.registry import ToolContext, ToolError, tool
 
@@ -86,6 +86,13 @@ class CommitSearchArgs(BaseModel):
         "name like DB_POOL_SIZE. Leave empty to list recent commits.",
     )
     since: date | None = Field(default=None, description="Only commits on or after this date.")
+    until: date | None = Field(default=None, description="Only commits on or before this date.")
+
+    @field_validator("since", "until", mode="before")
+    @classmethod
+    def _date_part(cls, value):
+        return value[:10] if isinstance(value, str) else value  # accept full ISO timestamps
+
     path: str | None = Field(default=None, description="Only commits that touched this path.")
 
 
@@ -103,6 +110,8 @@ async def _log(ctx: ToolContext, args: CommitSearchArgs, *selector: str) -> list
     cmd.append(f"--format={RECORD}%H{FIELD}%an{FIELD}%ad{FIELD}%s")
     if args.since:
         cmd.append(f"--since={args.since.isoformat()}")
+    if args.until:
+        cmd.append(f"--until={args.until.isoformat()}T23:59:59")
     cmd += [*selector, "--"]
     if args.path:
         cmd.append(safe_repo_path(args.path))
