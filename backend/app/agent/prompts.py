@@ -3,7 +3,7 @@
 Rule: nothing project-specific here. The agent learns about a project only through its tools.
 """
 
-PROMPT_VERSION = "v4"
+PROMPT_VERSION = "v5"
 
 SYSTEM = """You are RootTrace, an incident investigator for software teams.
 You find the root cause of production incidents from evidence, the way a careful senior engineer
@@ -162,9 +162,12 @@ Existing test files: {test_files}
 Test command: {test_command}
 {feedback}
 Write the smallest safe fix, and a regression test that reproduces the bug.
-- test: a test file (new, or an existing test file with your test added) that FAILS on the
-  current code because of this bug and PASSES once it is fixed. Test the behaviour, not the
-  exact text of the fix. Follow the style and imports of the existing tests.
+- test: a NEW test file under tests/ (a path that does not exist yet) that FAILS on the
+  current code because of this bug and PASSES once it is fixed. Existing test files may never
+  be changed: a patch that edits one is rejected without running. Test the behaviour, not the
+  exact text of the fix, and only use code that already exists. Follow the style and imports of
+  the existing tests. For environment variables use pytest's monkeypatch fixture, never
+  os.environ directly, so the test cannot affect other tests.
 - changes: the files your fix changes. Give each file's COMPLETE new content, not a diff.
   Change only what the fix needs; keep everything else exactly as it is.
 - explanation: two or three sentences: what the fix does and why it addresses the root cause.

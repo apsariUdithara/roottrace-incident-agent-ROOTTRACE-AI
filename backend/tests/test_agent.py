@@ -32,7 +32,7 @@ from app.models import (
 from app.sandbox import RunResult, SandboxError
 from app.tools import ToolContext
 from tests.test_retrieve import axis
-from tests.test_tools import repo  # noqa: F401 - pytest fixture
+from tests.test_tools import repo, run_git  # noqa: F401 - pytest fixture
 
 
 def answer(name: str, parsed=None, tool_calls=()):
@@ -56,9 +56,9 @@ def tool_call(n: int, name: str, args: dict) -> dict:
 class ScriptedModel:
     """Answers each step from a script. `verdicts` is consumed one per verify round."""
 
-    def __init__(self, verdicts, fail_on=None, fix_ok=True):
+    def __init__(self, verdicts, fail_on=None, fix_ok=True, test_path="tests/test_pool.py"):
         self.verdicts, self.fail_on, self.spans, self.seen = list(verdicts), fail_on, [], []
-        self.fix_ok = fix_ok
+        self.fix_ok, self.test_path = fix_ok, test_path
 
     def model_for(self, tier):
         return f"fake-{tier}"
@@ -146,7 +146,7 @@ class ScriptedModel:
                 next_steps=["Restore 20"],
             ),
             "generate_patch": PatchOut(
-                test=FileChange(path="tests/test_pool.py", content=POOL_TEST),
+                test=FileChange(path=self.test_path, content=POOL_TEST),
                 changes=[
                     FileChange(path="config.py", content="DB_POOL_SIZE = 20\nINSTANCES = 5\n")
                 ],
@@ -348,3 +348,23 @@ async def test_an_unverified_root_cause_gets_no_fix(db_session, project, repo): 
     _, _, events = await investigate(db_session, project, repo, model)
     assert not of(events, "patch_proposed")
     assert of(events, "report")[0].fix == "none"
+
+
+async def test_a_patch_that_edits_existing_tests_never_reaches_the_sandbox(
+    db_session,
+    project,
+    repo,  # noqa: F811
+):
+    (repo / "tests").mkdir()
+    (repo / "tests" / "test_existing.py").write_text("def test_ok():\n    assert True\n")
+    run_git(repo, "add", ".")
+    run_git(repo, "commit", "-q", "-m", "add a test")
+    run_git(repo, "tag", "-f", "v2")
+    sandbox = FakeSandbox()
+    model = ScriptedModel([SUPPORTED], test_path="tests/test_existing.py")
+    _, _, events = await investigate(db_session, project, repo, model, sandbox)
+    assert sandbox.runs == []  # rejected before testing, both attempts
+    statuses = of(events, "patch_status")
+    assert [s.status for s in statuses] == ["rejected", "rejected"]
+    assert "tests/test_existing.py" in statuses[0].notes
+    assert of(events, "report")[0].fix == "failed"

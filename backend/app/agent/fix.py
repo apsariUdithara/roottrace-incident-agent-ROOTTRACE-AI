@@ -110,3 +110,14 @@ def unified_diff(root: Path, changes: list[FileChange]) -> str:
             tofile=f"b/{path}",
         )
     return "".join(parts)
+
+
+def touches_existing_tests(base: Path, files: list[FileChange]) -> list[str]:
+    """Paths of existing test files the patch would change. Empty means the patch is allowed."""
+    blocked = []
+    for change in files:
+        exists = (base / change.path).exists()
+        is_test = change.path.startswith("tests/") or Path(change.path).name.startswith("test_")
+        if exists and is_test:
+            blocked.append(change.path)
+    return blocked

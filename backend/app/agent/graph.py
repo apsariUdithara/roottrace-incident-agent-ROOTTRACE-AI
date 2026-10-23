@@ -176,6 +176,7 @@ class AgentState(TypedDict, total=False):
     patch: dict
     tests: dict | None  # baseline and patched results; None if the sandbox was unavailable
     fix: str  # final PatchStatus value
+    blocked: bool  # the latest patch was rejected before testing (it edited existing tests)
     fix_feedback: str | None
 
 
@@ -326,7 +327,9 @@ class Investigator:
         g.add_conditional_edges(
             "score_confidence", self.after_score, ["generate_patch", "write_report"]
         )
-        g.add_edge("generate_patch", "run_tests")
+        g.add_conditional_edges(
+            "generate_patch", self.after_patch, ["run_tests", "generate_patch", "write_report"]
+        )
         g.add_edge("run_tests", "verify_fix")
         g.add_conditional_edges("verify_fix", self.after_fix, ["generate_patch", "write_report"])
         g.add_conditional_edges("write_report", self.after_report, ["draft_pr", END])
@@ -344,6 +347,11 @@ class Investigator:
         # Only a verified root cause gets a fix: patching a guess could hide the real problem.
         supported = state["verdict"]["verdict"] == Verdict.SUPPORTED
         return "generate_patch" if supported else "write_report"
+
+    @classmethod
+    def after_patch(cls, state: AgentState) -> str:
+        # A patch that edits existing tests is never run: treat it like a failed attempt.
+        return cls.after_fix(state) if state.get("blocked") else "run_tests"
 
     @staticmethod
     def after_fix(state: AgentState) -> str:
@@ -868,8 +876,31 @@ class Investigator:
                     explanation=out.explanation,
                 )
             )
-            info["summary"] = f"{len(out.changes)} file(s) changed, test {out.test.path}"
-        return {"attempt": attempt, "patch": {"id": str(row.id), **out.model_dump(), "diff": diff}}
+            update: AgentState = {
+                "attempt": attempt,
+                "patch": {"id": str(row.id), **out.model_dump(), "diff": diff},
+                "blocked": False,
+            }
+            blocked = fix.touches_existing_tests(base, files)
+            if blocked:
+                feedback = (
+                    f"Rejected before testing: the patch changes existing test file(s) "
+                    f"{', '.join(blocked)}. Existing tests may never be edited or deleted. "
+                    "Put your regression test in a NEW file under tests/."
+                )
+                row.status = PatchStatus.REJECTED
+                await self.bus.publish(
+                    PatchStatusChanged(patch_id=row.id, status=PatchStatus.REJECTED, notes=feedback)
+                )
+                update |= {
+                    "blocked": True,
+                    "fix": PatchStatus.REJECTED.value,
+                    "fix_feedback": feedback,
+                }
+                info["summary"] = f"rejected: edits existing tests {blocked}"
+            else:
+                info["summary"] = f"{len(out.changes)} file(s) changed, test {out.test.path}"
+        return update
 
     async def run_one(self, patch_id: uuid.UUID, phase: TestPhase, workdir: Path, command: str):
         result = await self.sandbox.run(self.image, workdir, command)
