@@ -40,6 +40,10 @@ Write 1-3 short lessons worth remembering for FUTURE incidents in this project, 
 sentence, specific and durable (true beyond today): e.g. a recurring failure mode and what
 causes it, a project limit or rule, where the relevant setting lives. No dates of this incident,
 no trace IDs, nothing that only matters for this one event.
+Only state what the evidence shows is true NOW:
+- A rule written in the documentation is not a rule the code enforces. Say "the docs require",
+  never "the system enforces", unless a fact shows code that checks it.
+- The fix is only a proposal until it is merged. Never describe it as done or in place.
 category: previous_incident (a failure mode that happened), project_fact (a limit, setting or
 rule of the system), or arch_decision (a design choice and its reason)."""
 
