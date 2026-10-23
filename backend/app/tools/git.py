@@ -152,7 +152,7 @@ async def search_github_commits(ctx: ToolContext, args: CommitSearchArgs) -> dic
         by_change = await _log(ctx, args, f"-G{_ere_escape(args.query)}")
         merged = {c["sha"]: c for c in by_message + by_change}
         commits = sorted(merged.values(), key=lambda c: c["date"], reverse=True)[:MAX_COMMITS]
-    return {"ref": ctx.ref, "commits": commits}
+    return {"version": ctx.ref, "commits": commits}  # each commit carries its own ref
 
 
 class CommitArgs(BaseModel):
