@@ -85,6 +85,7 @@ async def store_document(
         )
     )
     if existing and existing.hash == content_hash:
+        existing.commit_sha = commit_sha  # same content, maybe a new commit: keep citations current
         return False
     if existing:
         await session.delete(existing)  # its chunks go too (ON DELETE CASCADE)
