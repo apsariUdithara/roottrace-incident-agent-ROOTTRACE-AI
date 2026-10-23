@@ -132,3 +132,21 @@ async def test_a_github_error_is_reported_without_the_token(db_session, approved
         )
     assert "422" in str(error.value) and TOKEN not in str(error.value)
     assert patch.pr_url is None
+
+
+async def test_the_push_never_saves_the_token_as_a_git_login(db_session, approved, monkeypatch):
+    patch, _, remote = approved
+    calls = []
+    import app.agent.pr as pr
+
+    real_git = pr._git
+
+    async def spy(where, *args, **kwargs):
+        calls.append(args)
+        return await real_git(where, *args, **kwargs)
+
+    monkeypatch.setattr(pr, "_git", spy)
+    await open_pr(db_session, patch.id, TOKEN, remote_url=str(remote), http=FakeGitHub().client())
+    [push] = [c for c in calls if "push" in c]
+    assert "credential.helper=" in push  # saving switched off for this command
+    assert not any(TOKEN in part for part in push)  # and the raw token is not in the command

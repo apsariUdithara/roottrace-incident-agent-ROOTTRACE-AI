@@ -11,6 +11,7 @@ diff, title and body. It:
 """
 
 import asyncio
+import base64
 import re
 import tempfile
 import uuid
@@ -108,7 +109,11 @@ async def open_pr(
     owner, name = owner_and_name(repository.url)
     branch = f"roottrace/fix-{str(patch_id)[:8]}"
     base = await base_branch(repo, ref, repository.default_branch)
-    remote = remote_url or f"https://x-access-token:{token}@github.com/{owner}/{name}.git"
+    remote = remote_url or f"https://github.com/{owner}/{name}.git"
+    # The token goes in a header for this one push, and credential saving is switched off:
+    # otherwise git stores it as the user's GitHub login, replacing their own.
+    basic = base64.b64encode(f"x-access-token:{token}".encode()).decode()
+    no_saving = ["-c", "credential.helper=", "-c", f"http.extraHeader=Authorization: Basic {basic}"]
 
     with tempfile.TemporaryDirectory(prefix="roottrace-pr-") as tmp:
         worktree = Path(tmp) / "wt"
@@ -118,7 +123,9 @@ async def open_pr(
             await _git(worktree, "apply", str(Path(tmp) / "fix.patch"))
             await _git(worktree, "add", "-A")
             await _git(worktree, *AUTHOR, "commit", "-q", "-m", patch.pr_title or "RootTrace fix")
-            await _git(worktree, "push", remote, f"HEAD:refs/heads/{branch}", secret=token)
+            await _git(
+                worktree, *no_saving, "push", remote, f"HEAD:refs/heads/{branch}", secret=basic
+            )
         finally:
             await _git(repo, "worktree", "remove", "--force", str(worktree))
 
