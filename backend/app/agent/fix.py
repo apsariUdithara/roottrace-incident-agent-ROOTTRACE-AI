@@ -121,3 +121,17 @@ def touches_existing_tests(base: Path, files: list[FileChange]) -> list[str]:
         if exists and is_test:
             blocked.append(change.path)
     return blocked
+
+
+def example_test(root: Path, involved: list[str]) -> str:
+    """One existing test file, in full, so the model copies the project's imports and style.
+
+    Prefers a test named after a file the fix touches (config.py -> test_config.py or a test
+    file in the same area); otherwise the first test file.
+    """
+    tests = test_files(root)
+    if not tests:
+        return "(no existing tests)"
+    stems = {Path(p).stem for p in involved} | {Path(p).parent.name for p in involved}
+    chosen = next((t for t in tests if any(stem and stem in t for stem in stems)), tests[0])
+    return f"--- {chosen}\n" + (root / chosen).read_text(encoding="utf-8")[:MAX_FILE_CHARS]

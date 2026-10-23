@@ -3,7 +3,7 @@
 Rule: nothing project-specific here. The agent learns about a project only through its tools.
 """
 
-PROMPT_VERSION = "v5"
+PROMPT_VERSION = "v6"
 
 SYSTEM = """You are RootTrace, an incident investigator for software teams.
 You find the root cause of production incidents from evidence, the way a careful senior engineer
@@ -159,6 +159,9 @@ Repository files involved (at the deployed version {ref}):
 {files}
 
 Existing test files: {test_files}
+
+An existing test file, to copy its imports and style exactly:
+{example_test}
 Test command: {test_command}
 {feedback}
 Write the smallest safe fix, and a regression test that reproduces the bug.
@@ -168,6 +171,9 @@ Write the smallest safe fix, and a regression test that reproduces the bug.
   exact text of the fix, and only use code that already exists. Follow the style and imports of
   the existing tests. For environment variables use pytest's monkeypatch fixture, never
   os.environ directly, so the test cannot affect other tests.
+  Python imports a module only once per test run, so other tests may have imported it
+  already: to test code that runs at import time (module-level settings or checks), import
+  the module normally and then call importlib.reload(module) inside the test.
 - changes: the files your fix changes. Give each file's COMPLETE new content, not a diff.
   Change only what the fix needs; keep everything else exactly as it is.
 - explanation: two or three sentences: what the fix does and why it addresses the root cause.

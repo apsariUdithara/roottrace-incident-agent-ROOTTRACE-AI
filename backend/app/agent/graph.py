@@ -852,6 +852,7 @@ class Investigator:
                 ref=self.ctx.ref,
                 files=fix.read_files(base, paths),
                 test_files=", ".join(fix.test_files(base)) or "(none)",
+                example_test=fix.example_test(base, paths),
                 test_command=self.test_command,
                 feedback=prompts.PATCH_FEEDBACK.format(feedback=feedback) if feedback else "",
             )
