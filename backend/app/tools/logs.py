@@ -5,7 +5,7 @@ the tool returns what an engineer looks at first: how many of each error, where,
 started, plus a handful of real lines (errors first) to cite.
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
@@ -14,6 +14,7 @@ from app.models import LogEntry
 from app.tools.registry import ToolContext, tool
 
 SAMPLES = 8
+DEPLOY_LOOKBACK_H = 6  # also show deploys shortly before the window
 BUCKET_S = 600  # timeline resolution: 10 minutes
 
 
@@ -50,8 +51,9 @@ def _filters(ctx: ToolContext, args: LogSearchArgs) -> list:
     "search_logs",
     "Search structured application logs. Returns totals, counts per level, per error type "
     "(with first and last time seen) and per route, a 10-minute timeline of warnings and "
-    "errors, and a few sample lines with trace IDs. Narrow with a time window around the "
-    "incident; first_seen of an error type shows when a problem started.",
+    "errors, deploy events (always, whatever the filters), and a few sample lines with trace "
+    "IDs. Narrow with a time window around the incident; first_seen of an error type shows "
+    "when a problem started, and deploys show what was released when.",
     LogSearchArgs,
 )
 async def search_logs(ctx: ToolContext, args: LogSearchArgs) -> dict:
@@ -93,6 +95,18 @@ async def search_logs(ctx: ToolContext, args: LogSearchArgs) -> dict:
         .group_by(bucket)
         .order_by(bucket)
     )
+    # Deploys are context for every incident, so they are shown whatever the level filter.
+    window = [LogEntry.project_id == ctx.project_id]
+    if args.since:
+        window.append(LogEntry.ts >= args.since - timedelta(hours=DEPLOY_LOOKBACK_H))
+    if args.until:
+        window.append(LogEntry.ts <= args.until)
+    deploys = await s.execute(
+        select(LogEntry.ts, LogEntry.message)
+        .where(*window, LogEntry.message.ilike("deploy%"))
+        .order_by(LogEntry.ts)
+        .limit(10)
+    )
     severity = func.upper(LogEntry.level) == "ERROR"
     samples = await s.execute(
         select(LogEntry)
@@ -110,6 +124,10 @@ async def search_logs(ctx: ToolContext, args: LogSearchArgs) -> dict:
         ],
         "by_route": [{"route": r, "status": st, "count": n} for r, st, n in by_route.all()],
         "warn_error_timeline": [{"from": b, "count": n} for b, n in timeline.all()],
+        "deploys": [
+            {"ref": f"log deploy at {ts.isoformat()}", "ts": ts, "message": m}
+            for ts, m in deploys.all()
+        ],
         "samples": [
             {
                 "ref": f"log trace_id={e.trace_id}",

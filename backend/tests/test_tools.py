@@ -253,3 +253,21 @@ async def test_commit_search_accepts_full_timestamps_and_an_end_date(ctx):
 async def test_search_logs_matches_part_of_a_route(ctx):
     await add_logs(ctx)
     assert (await call(ctx, "search_logs", route="payment"))["total"] == 33
+
+
+async def test_search_logs_always_shows_deploys_even_when_filtering_errors(ctx):
+    await add_logs(ctx)
+    ctx.session.add(
+        LogEntry(
+            project_id=ctx.project_id,
+            ts=T0 + timedelta(minutes=20),
+            level="INFO",
+            route="-",
+            message="deploy started: release v2 (rolling, 5 instances)",
+        )
+    )
+    await ctx.session.flush()
+    result = await call(ctx, "search_logs", since=T0.isoformat(), level="ERROR")
+    assert result["total"] == 3  # only errors are counted...
+    [deploy] = result["deploys"]  # ...but the deploy is still visible
+    assert deploy["ts"].startswith("2026-10-06T14:20") and "v2" in deploy["message"]
