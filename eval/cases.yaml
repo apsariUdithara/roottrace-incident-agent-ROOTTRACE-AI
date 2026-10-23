@@ -1,0 +1,103 @@
+# RootTrace evaluation cases. Run with: python eval/evaluate.py
+#
+# Each scenario (demo-target/scripts/scenarios.py) is asked twice: as the bug report puts it,
+# and more vaguely. The scenario supplies the release, the files, the bad commit and the hidden
+# test; this file adds what a correct answer must contain.
+#
+#   root_cause   the expected cause, in words (a model judges whether the report matches it)
+#   keywords     at least one must appear in the report's root cause (a cheap code check)
+#   evidence     sources the facts should cite: file paths, doc names, incident keys, or
+#                "bad_commit" (resolved to the scenario's commit at run time)
+#   tools        tools a good investigation of this case uses
+#
+# Healthy cases ask about a version with no bug: the right answer is no root cause and no fix.
+
+scenarios:
+  1:
+    questions:
+      - "Payment API returning 500s after today's deploy"
+      - "Customers can't pay and we're seeing errors since this afternoon. Find out why."
+    root_cause: >-
+      A commit raised the default DB_POOL_SIZE from 20 to 100; with 5 instances that is 500
+      connections against Postgres max_connections of 100, so connections are refused.
+    keywords: [DB_POOL_SIZE, pool]
+    evidence: [bad_commit, src/paystream/database/config.py, docs/database.md, INC-017]
+    tools: [search_logs, get_commit_diff]
+  2:
+    questions:
+      - "Receipt shows total of 0.30000000000000004"
+      - "Finance says order totals don't reconcile with the gateway. Find out why."
+    root_cause: >-
+      calculate_total was changed to use float instead of Decimal and dropped rounding to cents,
+      so money totals have floating-point errors.
+    keywords: [float, Decimal]
+    evidence: [bad_commit, src/paystream/payments/service.py, docs/payments.md]
+    tools: [search_logs, get_commit_diff]
+  3:
+    questions:
+      - "Everyone keeps getting logged out"
+      - "Lots of 401s since this morning's release. Find out why."
+    root_cause: >-
+      Token expiry now uses naive datetime.utcnow() compared with timezone-aware expiry times, so
+      the comparison fails and every token is rejected.
+    keywords: [utcnow, naive, timezone]
+    evidence: [bad_commit, src/paystream/auth/tokens.py, docs/authentication.md]
+    tools: [search_logs, get_commit_diff]
+  4:
+    questions:
+      - "Customer charged twice for one order"
+      - "Support reports duplicate payments today. Find out why."
+    root_cause: >-
+      The idempotency-key lookup was removed from create_charge, so retried requests with the
+      same key create a second charge.
+    keywords: [idempotency]
+    evidence: [bad_commit, src/paystream/payments/service.py, docs/payments.md, INC-009]
+    tools: [search_logs, get_commit_diff]
+  5:
+    questions:
+      - "Refunds made in the gateway dashboard don't show up"
+      - "The webhook endpoint is returning 500s for some gateway events. Find out why."
+    root_cause: >-
+      The webhook handler now uses data.get("metadata", {}), which returns None when metadata is
+      present but null, so accessing it raises AttributeError on events without metadata.
+    keywords: [metadata, None]
+    evidence: [bad_commit, src/paystream/payments/webhooks.py, docs/architecture.md]
+    tools: [search_logs, get_commit_diff]
+  6:
+    questions:
+      - "Checkout failing with gateway errors"
+      - "The card gateway is rate limiting us since lunchtime. Find out why."
+    root_cause: >-
+      Gateway retries lost their exponential backoff (all waits are 0 seconds), so failed calls
+      are retried immediately and the burst triggers the gateway's rate limit.
+    keywords: [backoff, retry, retries]
+    evidence: [bad_commit, src/paystream/payments/gateway.py, docs/architecture.md]
+    tools: [search_logs, get_commit_diff]
+  7:
+    questions:
+      - "All payments failing after v1.4.6"
+      - "Every payment request errors since the last release. Find out why."
+    root_cause: >-
+      The gateway key setting was renamed in code to PAYSTREAM_GATEWAY_KEY but the deploy config
+      still sets PAYSTREAM_GATEWAY_API_KEY, so the required setting is missing at runtime.
+    keywords: [PAYSTREAM_GATEWAY_KEY, rename, renamed]
+    evidence: [bad_commit, src/paystream/settings.py, deploy/production.env, docs/deployment.md]
+    tools: [search_logs, get_commit_diff]
+  8:
+    questions:
+      - "Support console user search times out"
+      - "Searching for users is very slow since this morning. Find out why."
+    root_cause: >-
+      A migration dropped the ix_users_name index, so user search by name does a full table scan
+      and times out.
+    keywords: [ix_users_name, index]
+    evidence: [bad_commit, src/paystream/database/migrations.py, docs/database.md]
+    tools: [search_logs, get_commit_diff]
+
+healthy:
+  - question: "Is anything wrong with payments right now? Please check."
+    ref: main
+    reported_at: "2026-09-01T12:00:00+00:00"
+  - question: "A customer says checkout felt slow earlier. Find out if there is a problem."
+    ref: main
+    reported_at: "2026-09-02T09:30:00+00:00"

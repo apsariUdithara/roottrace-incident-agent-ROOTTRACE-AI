@@ -112,3 +112,33 @@ async def test_logs_load_and_reload_without_duplicates(db_session, project):
     assert await ingest_logs(db_session, project.id, rows) == 2
     await ingest_logs(db_session, project.id, rows)
     assert await count(db_session, LogEntry, project) == 2
+
+
+async def test_identical_text_reuses_the_stored_embedding(db_session, project):
+    from app.models import DocumentSourceType, Project
+    from app.rag.chunkers import Chunk
+    from app.rag.ingest import store_document
+
+    class CountingRouter:
+        calls = 0
+
+        async def embed(self, texts, name="embed"):
+            CountingRouter.calls += len(texts)
+            return [[0.5] * 1024 for _ in texts]
+
+    other = Project(owner_id=project.owner_id, name="Another release")
+    db_session.add(other)
+    await db_session.flush()
+    chunks = [Chunk("DB_POOL_SIZE = 20", start_line=1, end_line=1, symbol="<module>")]
+    for p in (project, other):  # the same file, indexed for two releases
+        await store_document(
+            db_session,
+            CountingRouter(),
+            p.id,
+            DocumentSourceType.CODE,
+            "config.py",
+            None,
+            "h",
+            chunks,
+        )
+    assert CountingRouter.calls == 1  # embedded once, reused the second time

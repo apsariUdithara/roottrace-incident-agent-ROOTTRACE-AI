@@ -33,7 +33,7 @@ FIXTURES = DEMO / "fixtures"
 OWNER_EMAIL = "demo@roottrace.dev"
 
 
-async def get_or_create_project(session) -> Project:
+async def get_or_create_project(session, name: str = "PayStream") -> Project:
     owner = await session.scalar(select(User).where(User.email == OWNER_EMAIL))
     if owner is None:
         # Nobody knows this password; the demo login is set up separately.
@@ -41,10 +41,10 @@ async def get_or_create_project(session) -> Project:
         session.add(owner)
         await session.flush()
     project = await session.scalar(
-        select(Project).where(Project.owner_id == owner.id, Project.name == "PayStream")
+        select(Project).where(Project.owner_id == owner.id, Project.name == name)
     )
     if project is None:
-        project = Project(owner_id=owner.id, name="PayStream", description="Demo payments API")
+        project = Project(owner_id=owner.id, name=name, description=f"Demo payments API ({name})")
         session.add(project)
         await session.flush()
     return project
@@ -79,40 +79,52 @@ async def load_production_snapshot(session, project: Project) -> int:
     return await session.scalar(text("SELECT count(*) FROM demo_app.payments"))
 
 
-async def main(ref: str) -> None:
+async def load(session, router, ref: str, name: str = "PayStream") -> tuple[Project, dict]:
+    """Index PayStream at `ref` into project `name`. Re-runs only embed what changed."""
     if not REPO.exists():
-        sys.exit(f"{REPO} not found: run python demo-target/scripts/build_history.py first")
+        raise SystemExit(f"{REPO} not found: run python demo-target/scripts/build_history.py")
     git = ["git", "-C", str(REPO)]
     subprocess.run([*git, "checkout", "-q", ref], check=True)
     sha = subprocess.run([*git, "rev-parse", "HEAD"], check=True, capture_output=True, text=True)
+    project = await get_or_create_project(session, name)
+    await record_repository(session, project)
+    repo = await ingest_repo(session, router, project.id, REPO, sha.stdout.strip())
+    incidents = json.loads((FIXTURES / "incidents.json").read_text(encoding="utf-8"))
+    issues = json.loads((FIXTURES / "issues.json").read_text(encoding="utf-8"))
+    stats = {
+        "sha": sha.stdout.strip(),
+        "repo": repo,
+        "incidents": (
+            await ingest_incidents(session, router, project.id, incidents),
+            len(incidents),
+        ),
+        "issues": (await ingest_issues(session, router, project.id, issues), len(issues)),
+        "logs": 0,
+    }
+    for file in sorted((FIXTURES / "logs").glob("*.jsonl")):
+        rows = [json.loads(line) for line in file.read_text(encoding="utf-8").splitlines()]
+        stats["logs"] += await ingest_logs(session, project.id, rows)
+    stats["payments"] = await load_production_snapshot(session, project)
+    await session.commit()
+    return project, stats
 
+
+async def main(ref: str) -> None:
     router = get_router()
     async with SessionLocal() as session:
-        project = await get_or_create_project(session)
-        await record_repository(session, project)
-        repo = await ingest_repo(session, router, project.id, REPO, sha.stdout.strip())
-        incidents = json.loads((FIXTURES / "incidents.json").read_text(encoding="utf-8"))
-        issues = json.loads((FIXTURES / "issues.json").read_text(encoding="utf-8"))
-        n_incidents = await ingest_incidents(session, router, project.id, incidents)
-        n_issues = await ingest_issues(session, router, project.id, issues)
-        n_logs = 0
-        for file in sorted((FIXTURES / "logs").glob("*.jsonl")):
-            rows = [json.loads(line) for line in file.read_text(encoding="utf-8").splitlines()]
-            n_logs += await ingest_logs(session, project.id, rows)
-        n_payments = await load_production_snapshot(session, project)
-        await session.commit()
-
+        project, stats = await load(session, router, ref)
+    repo = stats["repo"]
     tokens = sum(s["prompt_tokens"] for s in router.spans)
     cost = sum(s["cost_usd"] for s in router.spans)
-    print(f"project {project.id} (PayStream at {ref}, {sha.stdout.strip()[:7]})")
+    print(f"project {project.id} (PayStream at {ref}, {stats['sha'][:7]})")
     print(
         f"  repo files:  {repo['indexed']} indexed, {repo['unchanged']} unchanged, "
         f"{repo['removed']} removed"
     )
-    print(f"  incidents:   {n_incidents} indexed of {len(incidents)}")
-    print(f"  issues:      {n_issues} indexed of {len(issues)}")
-    print(f"  log lines:   {n_logs}")
-    print(f"  payments:    {n_payments} rows in demo_app.payments (for query_database)")
+    print(f"  incidents:   {stats['incidents'][0]} indexed of {stats['incidents'][1]}")
+    print(f"  issues:      {stats['issues'][0]} indexed of {stats['issues'][1]}")
+    print(f"  log lines:   {stats['logs']}")
+    print(f"  payments:    {stats['payments']} rows in demo_app.payments (for query_database)")
     print(f"  embeddings:  {len(router.spans)} calls, {tokens} tokens, ${cost:.6f}")
 
 
