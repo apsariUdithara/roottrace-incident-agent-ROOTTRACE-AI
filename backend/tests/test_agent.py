@@ -6,6 +6,7 @@ import pytest
 from sqlalchemy import func, select
 
 from app.agent.events import EventBus
+from app.agent.fix import FileChange, FixJudgement, PatchOut, PrOut
 from app.agent.graph import (
     Comparison,
     FactItem,
@@ -20,7 +21,15 @@ from app.agent.graph import (
     VerdictOut,
 )
 from app.llm.router import LLMResult
-from app.models import Evidence, EvidenceKind, Investigation, InvestigationStatus, TraceSpan
+from app.models import (
+    Evidence,
+    EvidenceKind,
+    Investigation,
+    InvestigationStatus,
+    TestRun,
+    TraceSpan,
+)
+from app.sandbox import RunResult, SandboxError
 from app.tools import ToolContext
 from tests.test_retrieve import axis
 from tests.test_tools import repo  # noqa: F401 - pytest fixture
@@ -47,8 +56,9 @@ def tool_call(n: int, name: str, args: dict) -> dict:
 class ScriptedModel:
     """Answers each step from a script. `verdicts` is consumed one per verify round."""
 
-    def __init__(self, verdicts, fail_on=None):
+    def __init__(self, verdicts, fail_on=None, fix_ok=True):
         self.verdicts, self.fail_on, self.spans, self.seen = list(verdicts), fail_on, [], []
+        self.fix_ok = fix_ok
 
     def model_for(self, tier):
         return f"fake-{tier}"
@@ -135,6 +145,15 @@ class ScriptedModel:
                 summary="Pool rose [F1].",
                 next_steps=["Restore 20"],
             ),
+            "generate_patch": PatchOut(
+                test=FileChange(path="tests/test_pool.py", content=POOL_TEST),
+                changes=[
+                    FileChange(path="config.py", content="DB_POOL_SIZE = 20\nINSTANCES = 5\n")
+                ],
+                explanation="Restore the pool to 20.",
+            ),
+            "verify_fix": FixJudgement(addresses_root_cause=self.fix_ok, notes="addresses it"),
+            "draft_pr": PrOut(title="fix(db): restore pool size to 20", body="## Root cause"),
         }
         parsed = self.verdicts.pop(0) if step == "verdict" else replies[step]
         return answer(name, parsed)
@@ -144,9 +163,45 @@ WEAK = VerdictOut(
     verdict="weak", supports=["F1"], contradicts=[], gaps=["check the logs"], notes="?"
 )
 SUPPORTED = VerdictOut(verdict="supported", supports=["F1", "F2"], contradicts=[], notes="fits")
+REFUTED = VerdictOut(verdict="refuted", supports=[], contradicts=["F1"], notes="no")
+POOL_TEST = "from config import DB_POOL_SIZE\n\ndef test_pool():\n    assert DB_POOL_SIZE <= 20\n"
 
 
-async def investigate(db_session, project, repo, model):  # noqa: F811
+class FakeSandbox:
+    """Plays a Nebius sandbox: records what was uploaded and returns scripted exit codes."""
+
+    def __init__(self, baseline_exit=1, patched_exit=0, unavailable=False):
+        self.exits = [baseline_exit, patched_exit] * 2  # two attempts at most
+        self.unavailable, self.runs = unavailable, []
+
+    async def environment(self, repo_dir, setup_command):
+        if self.unavailable:
+            raise SandboxError("sandboxes are disabled")
+        return "tag:fake-env"
+
+    async def run(self, image, workdir, command):
+        self.runs.append(
+            {
+                "command": command,
+                "config": (workdir / "config.py").read_text(),
+                "has_test": (workdir / "tests" / "test_pool.py").exists(),
+            }
+        )
+        code = self.exits.pop(0)
+        return RunResult(
+            command=command,
+            exit_code=code,
+            stdout=f"exit {code}",
+            stderr="",
+            duration_ms=5,
+            operation_id="op-123",
+            image=image,
+            passed=0 if code else 3,
+            failed=1 if code else 0,
+        )
+
+
+async def investigate(db_session, project, repo, model, sandbox=None):  # noqa: F811
     inv = Investigation(project_id=project.id, user_id=project.owner_id, question="Why 500s?")
     db_session.add(inv)
     await db_session.flush()
@@ -154,7 +209,7 @@ async def investigate(db_session, project, repo, model):  # noqa: F811
     events = []
     bus.listeners.append(events.append)
     ctx = ToolContext(db_session, model, project.id, repo, ref="v2")
-    state = await Investigator(inv, ctx, bus).run()
+    state = await Investigator(inv, ctx, bus, sandbox=sandbox or FakeSandbox()).run()
     return inv, state, events
 
 
@@ -200,11 +255,11 @@ async def test_events_are_numbered_stored_and_end_with_done(db_session, project,
 
 async def test_confidence_comes_from_the_evidence(db_session, project, repo):  # noqa: F811
     _, state, events = await investigate(db_session, project, repo, ScriptedModel([SUPPORTED]))
-    [scored] = [e.payload for e in events if e.type == "confidence"]
+    scored = next(e.payload for e in events if e.type == "confidence")  # before the fix
     parts = {c.name: c.value for c in scored.components}
     assert parts["coverage"] == pytest.approx(2 / 4)  # code + commit
     assert parts["verifier"] == 1.0 and parts["fix"] == 0.0
-    assert scored.score == state["confidence"]
+    assert scored.score < state["confidence"]  # the verified fix raised it
 
 
 async def test_a_failure_is_reported_and_the_run_marked_failed(db_session, project, repo):  # noqa: F811
@@ -232,3 +287,64 @@ async def test_failed_fact_extraction_is_not_fatal_and_triggers_another_round(
         if e.type == "step_started" and e.payload.step == "investigate"
     ]
     assert rounds == [1, 2]  # no facts after round 1, so it looked again before hypothesising
+
+
+def of(events, kind):
+    return [e.payload for e in events if e.type == kind]
+
+
+async def test_a_verified_fix_goes_red_then_green_and_raises_confidence(db_session, project, repo):  # noqa: F811
+    sandbox = FakeSandbox()
+    inv, state, events = await investigate(
+        db_session, project, repo, ScriptedModel([SUPPORTED]), sandbox
+    )
+    baseline, patched = sandbox.runs
+    assert baseline["has_test"] and "100" in baseline["config"]  # current code + new test
+    assert baseline["command"] == "pytest -q tests/test_pool.py"
+    assert patched["has_test"] and "= 20" in patched["config"]  # fix applied, whole suite
+    assert patched["command"] == "pytest -q"
+    assert [t.as_expected for t in of(events, "test_completed")] == [True, True]
+    assert of(events, "patch_status")[-1].status == "verified"
+    before, after = of(events, "confidence")
+    assert {c.name: c.value for c in after.components}["fix"] == 1.0 and after.score > before.score
+    assert of(events, "report")[0].fix == "verified" and of(events, "pr_draft")
+    assert "-DB_POOL_SIZE = 100" in of(events, "patch_proposed")[0].diff
+    runs = await db_session.scalar(select(func.count()).select_from(TestRun))
+    assert runs == 2
+
+
+async def test_a_test_that_does_not_reproduce_the_bug_is_retried_then_reported(
+    db_session,
+    project,
+    repo,  # noqa: F811
+):  # noqa: F811
+    sandbox = FakeSandbox(baseline_exit=0)  # the new test passes on buggy code: proves nothing
+    _, state, events = await investigate(
+        db_session, project, repo, ScriptedModel([SUPPORTED]), sandbox
+    )
+    assert [p.attempt for p in of(events, "patch_proposed")] == [1, 2]
+    assert [p.status for p in of(events, "patch_status")] == ["tests_failed", "tests_failed"]
+    assert of(events, "report")[0].fix == "failed" and not of(events, "pr_draft")
+
+
+async def test_a_fix_that_only_games_the_test_is_rejected(db_session, project, repo):  # noqa: F811
+    model = ScriptedModel([SUPPORTED], fix_ok=False)
+    _, _, events = await investigate(db_session, project, repo, model)
+    assert of(events, "patch_status")[-1].status == "rejected"
+    assert of(events, "report")[0].fix == "failed"
+
+
+async def test_without_a_sandbox_the_fix_is_untested_not_fatal(db_session, project, repo):  # noqa: F811
+    inv, _, events = await investigate(
+        db_session, project, repo, ScriptedModel([SUPPORTED]), FakeSandbox(unavailable=True)
+    )
+    assert inv.status == InvestigationStatus.COMPLETED
+    assert of(events, "patch_status")[-1].status == "untested"
+    assert of(events, "report")[0].fix == "untested" and not of(events, "pr_draft")
+
+
+async def test_an_unverified_root_cause_gets_no_fix(db_session, project, repo):  # noqa: F811
+    model = ScriptedModel([WEAK, REFUTED])
+    _, _, events = await investigate(db_session, project, repo, model)
+    assert not of(events, "patch_proposed")
+    assert of(events, "report")[0].fix == "none"

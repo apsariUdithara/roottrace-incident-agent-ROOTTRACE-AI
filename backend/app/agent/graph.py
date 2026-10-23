@@ -16,17 +16,20 @@ Two kinds of evidence (the product's core rule):
 """
 
 import json
+import shutil
+import tempfile
 import time
 import uuid
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Literal, TypedDict
 
 from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 
-from app.agent import prompts
+from app.agent import fix, prompts
 from app.agent.confidence import components, score
 from app.agent.events import EventBus
 from app.llm.router import LLMRouter
@@ -39,34 +42,48 @@ from app.models import (
     InvestigationStatus,
     Memory,
     ModelTier,
+    Patch,
+    PatchStatus,
     SpanKind,
     SpanStatus,
     Stance,
+    TestPhase,
+    TestRun,
     TraceSpan,
     Verdict,
 )
+from app.sandbox import NebiusSandbox, SandboxError
 from app.schemas.events import (
     ConfidenceScored,
     Done,
     ErrorRaised,
     EvidenceAdded,
     HypothesisProposed,
+    PatchFile,
+    PatchProposed,
+    PatchStatusChanged,
+    PrDrafted,
     ReportReady,
     StatusChanged,
     Step,
     StepCompleted,
     StepStarted,
+    TestCompleted,
+    TestOutput,
     ToolCall,
     ToolResult,
     VerdictReached,
 )
-from app.tools import TOOLS, ToolContext, call_tool, openai_schemas
+from app.tools import TOOLS, ToolContext, ToolError, call_tool, openai_schemas
 
 MAX_ROUNDS = 2  # investigate at most twice
 INVESTIGATE_BUDGET = 12  # tool calls per investigate round
 VERIFY_BUDGET = 4  # tool calls the verifier may use to look for contradictions
 FACTS_PER_ROUND = 10
 PREVIEW_CHARS = 1500
+MAX_PATCH_ATTEMPTS = 2
+TEST_OUTPUT_LINES = 60  # streamed per test run
+FEEDBACK_CHARS = 3000
 EXTRACT_CHARS = 3500  # per tool result shown to fact extraction
 
 # Which kind of source each tool observes. Deterministic, so the model can't mislabel a fact.
@@ -155,6 +172,11 @@ class AgentState(TypedDict, total=False):
     verdict: dict  # {hypothesis_id, verdict, notes, gaps}
     confidence: float
     report: dict
+    attempt: int  # patch attempt, 1 or 2
+    patch: dict
+    tests: dict | None  # baseline and patched results; None if the sandbox was unavailable
+    fix: str  # final PatchStatus value
+    fix_feedback: str | None
 
 
 # --- Helpers ----------------------------------------------------------------------------------
@@ -223,6 +245,27 @@ def _inference_lines(inferences: list[dict]) -> str:
     )
 
 
+FIX_SUMMARY = {
+    "none": "no fix was attempted (the root cause was not verified)",
+    "verified": "a fix was written; its regression test failed before and the whole suite "
+    "passed after, in a Nebius sandbox, and it was judged to address the root cause",
+    "untested": "a fix was written but could not be tested in the sandbox",
+    "tests_failed": "a fix was attempted but did not pass the tests: no safe fix found",
+    "rejected": "a fix was attempted but did not address the root cause: no safe fix found",
+}
+REPORT_FIX = {
+    "none": "none",
+    "verified": "verified",
+    "untested": "untested",
+    "tests_failed": "failed",
+    "rejected": "failed",
+}
+
+
+def _counts(result: dict) -> str:
+    return f"{result['passed'] or 0} passed, {result['failed'] or 0} failed"
+
+
 # --- The agent --------------------------------------------------------------------------------
 
 
@@ -233,6 +276,9 @@ class Investigator:
         tools: ToolContext,
         bus: EventBus,
         reported_at: datetime | None = None,
+        sandbox: NebiusSandbox | None = None,
+        test_command: str = "pytest -q",
+        setup_command: str | None = None,
     ):
         self.inv = investigation
         self.ctx = tools
@@ -240,6 +286,11 @@ class Investigator:
         self.router: LLMRouter = tools.router
         self.bus = bus
         self.reported_at = (reported_at or datetime.now(UTC)).isoformat(timespec="minutes")
+        self.sandbox = sandbox or NebiusSandbox()
+        self.test_command, self.setup_command = test_command, setup_command
+        self.base: Path | None = None  # snapshot of the deployed code
+        self.tmp: Path | None = None
+        self.image: str | None = None  # sandbox environment image
         self.graph = self._build()
 
     # graph ------------------------------------------------------------------------------------
@@ -255,6 +306,10 @@ class Investigator:
             "hypothesize",
             "verify",
             "score_confidence",
+            "generate_patch",
+            "run_tests",
+            "verify_fix",
+            "draft_pr",
             "write_report",
         ):
             g.add_node(name, getattr(self, name))
@@ -268,8 +323,14 @@ class Investigator:
         g.add_edge("compare_evidence", "hypothesize")
         g.add_edge("hypothesize", "verify")
         g.add_conditional_edges("verify", self.after_verify, ["investigate", "score_confidence"])
-        g.add_edge("score_confidence", "write_report")
-        g.add_edge("write_report", END)
+        g.add_conditional_edges(
+            "score_confidence", self.after_score, ["generate_patch", "write_report"]
+        )
+        g.add_edge("generate_patch", "run_tests")
+        g.add_edge("run_tests", "verify_fix")
+        g.add_conditional_edges("verify_fix", self.after_fix, ["generate_patch", "write_report"])
+        g.add_conditional_edges("write_report", self.after_report, ["draft_pr", END])
+        g.add_edge("draft_pr", END)
         return g.compile()
 
     @staticmethod
@@ -277,6 +338,23 @@ class Investigator:
         if not state["facts"] and state["round"] < MAX_ROUNDS:
             return "investigate"  # nothing established yet: don't hypothesise from nothing
         return "compare_evidence"
+
+    @staticmethod
+    def after_score(state: AgentState) -> str:
+        # Only a verified root cause gets a fix: patching a guess could hide the real problem.
+        supported = state["verdict"]["verdict"] == Verdict.SUPPORTED
+        return "generate_patch" if supported else "write_report"
+
+    @staticmethod
+    def after_fix(state: AgentState) -> str:
+        retry = state["fix"] in (PatchStatus.TESTS_FAILED, PatchStatus.REJECTED)
+        if retry and state["attempt"] < MAX_PATCH_ATTEMPTS:
+            return "generate_patch"
+        return "write_report"
+
+    @staticmethod
+    def after_report(state: AgentState) -> str:
+        return "draft_pr" if state.get("fix") == PatchStatus.VERIFIED else END
 
     @staticmethod
     def after_verify(state: AgentState) -> str:
@@ -706,6 +784,7 @@ class Investigator:
                     verdict=verdict["verdict"],
                     notes=verdict["notes"],
                     confidence=state["confidence"],
+                    fix=FIX_SUMMARY[state.get("fix", "none")],
                     facts=_fact_lines(state["facts"]),
                     inferences=_inference_lines(state.get("inferences", [])),
                 ),
@@ -724,7 +803,8 @@ class Investigator:
                 contradiction_ids=[
                     uuid.UUID(f["id"]) for f in state["facts"] if f["stance"] == Stance.CONTRADICTS
                 ],
-                fix="none",  # the Fix Generator (Phase 6) replaces this
+                fix=REPORT_FIX[state.get("fix", "none")],
+                patch_id=uuid.UUID(state["patch"]["id"]) if state.get("patch") else None,
                 next_steps=r.next_steps,
             )
             self.inv.root_cause = root_cause
@@ -732,6 +812,231 @@ class Investigator:
             await self.bus.publish(payload)
             info["summary"] = (root_cause or "no root cause established")[:200]
         return {"report": payload.model_dump(mode="json")}
+
+    # fix generator ----------------------------------------------------------------------------
+
+    def workspace(self) -> Path:
+        """A snapshot of the deployed code, made once per investigation."""
+        if self.base is None:
+            self.tmp = Path(tempfile.mkdtemp(prefix="roottrace-"))
+            self.base = self.tmp / "base"
+            fix.snapshot(self.ctx.repo_path, self.ctx.ref, self.base)
+        return self.base
+
+    def copy_with(self, name: str, changes: list[fix.FileChange]) -> Path:
+        target = self.tmp / name
+        shutil.rmtree(target, ignore_errors=True)
+        shutil.copytree(self.base, target)
+        fix.apply(target, changes)
+        return target
+
+    async def generate_patch(self, state: AgentState) -> AgentState:
+        attempt = state.get("attempt", 0) + 1
+        tier = "super" if attempt == 1 else "ultra"  # escalate on the second attempt
+        async with self.step(Step.GENERATE_PATCH, tier, attempt) as info:
+            base = self.workspace()
+            paths = fix.involved_files(state["facts"], self.ctx.repo_path, self.ctx.ref)
+            feedback = state.get("fix_feedback")
+            prompt = prompts.GENERATE_PATCH.format(
+                question=self.inv.question,
+                hypothesis=state["hypotheses"][0]["statement"],
+                facts=_fact_lines(state["facts"]),
+                ref=self.ctx.ref,
+                files=fix.read_files(base, paths),
+                test_files=", ".join(fix.test_files(base)) or "(none)",
+                test_command=self.test_command,
+                feedback=prompts.PATCH_FEEDBACK.format(feedback=feedback) if feedback else "",
+            )
+            out = await self.ask(tier, prompt, fix.PatchOut, "generate_patch", max_tokens=12000)
+            files = [out.test, *out.changes]
+            diff = fix.unified_diff(base, files)
+            row = Patch(
+                investigation_id=self.inv.id,
+                attempt=attempt,
+                diff=diff,
+                files_changed=[{"path": f.path, "explanation": f.explanation} for f in files],
+                explanation=out.explanation,
+            )
+            self.session.add(row)
+            await self.session.flush()
+            await self.bus.publish(
+                PatchProposed(
+                    patch_id=row.id,
+                    attempt=attempt,
+                    diff=diff,
+                    files=[PatchFile(path=f.path, explanation=f.explanation) for f in files],
+                    explanation=out.explanation,
+                )
+            )
+            info["summary"] = f"{len(out.changes)} file(s) changed, test {out.test.path}"
+        return {"attempt": attempt, "patch": {"id": str(row.id), **out.model_dump(), "diff": diff}}
+
+    async def run_one(self, patch_id: uuid.UUID, phase: TestPhase, workdir: Path, command: str):
+        result = await self.sandbox.run(self.image, workdir, command)
+        # Baseline must FAIL a test (pytest exit 1), not crash on import (exit 2).
+        expected = result.exit_code == (1 if phase == TestPhase.BASELINE else 0)
+        row = TestRun(
+            patch_id=patch_id,
+            phase=phase,
+            command=command,
+            exit_code=result.exit_code,
+            stdout=result.stdout,
+            stderr=result.stderr,
+            passed=result.passed,
+            failed=result.failed,
+            duration_ms=result.duration_ms,
+            sandbox_image_id=result.operation_id,
+        )
+        self.session.add(row)
+        await self.session.flush()
+        for line in (result.stdout + result.stderr).splitlines()[-TEST_OUTPUT_LINES:]:
+            await self.bus.publish(TestOutput(patch_id=patch_id, phase=phase, line=line))
+        await self.bus.publish(
+            TestCompleted(
+                test_run_id=row.id,
+                patch_id=patch_id,
+                phase=phase,
+                command=command,
+                exit_code=result.exit_code,
+                passed=result.passed,
+                failed=result.failed,
+                duration_ms=result.duration_ms,
+                sandbox_image_id=result.operation_id,
+                as_expected=expected,
+            )
+        )
+        return result, expected
+
+    async def run_tests(self, state: AgentState) -> AgentState:
+        patch = state["patch"]
+        patch_id = uuid.UUID(patch["id"])
+        test = fix.FileChange(**patch["test"])
+        changes = [fix.FileChange(**c) for c in patch["changes"]]
+        async with self.step(Step.RUN_TESTS, None, state["attempt"]) as info:
+            try:
+                if self.image is None:
+                    self.image = await self.sandbox.environment(
+                        self.workspace(), self.setup_command
+                    )
+                baseline, red = await self.run_one(
+                    patch_id,
+                    TestPhase.BASELINE,
+                    self.copy_with("baseline", [test]),
+                    f"{self.test_command} {test.path}",
+                )
+                patched, green = await self.run_one(
+                    patch_id,
+                    TestPhase.PATCHED,
+                    self.copy_with("patched", [test, *changes]),
+                    self.test_command,
+                )
+            except (SandboxError, ToolError, OSError) as exc:
+                # Investigation-only mode: the fix stands, but it is not tested.
+                await self.bus.publish(
+                    ErrorRaised(
+                        message=f"sandbox unavailable: {exc}"[:500],
+                        step=Step.RUN_TESTS,
+                        fatal=False,
+                    )
+                )
+                info["summary"] = "tests could not run: patch is untested"
+                return {"tests": None}
+            info["summary"] = (
+                f"baseline {'failed as expected' if red else 'did not reproduce the bug'}; "
+                f"patched {'passed' if green else 'failed'}"
+            )
+        tests = {
+            phase: {
+                "exit": r.exit_code,
+                "passed": r.passed,
+                "failed": r.failed,
+                "ok": ok,
+                "tail": (r.stdout + r.stderr)[-FEEDBACK_CHARS:],
+            }
+            for phase, r, ok in (("baseline", baseline, red), ("patched", patched, green))
+        }
+        return {"tests": tests}
+
+    async def verify_fix(self, state: AgentState) -> AgentState:
+        patch_id = uuid.UUID(state["patch"]["id"])
+        tests = state.get("tests")
+        async with self.step(Step.VERIFY_FIX, "ultra", state["attempt"]) as info:
+            feedback = None
+            if tests is None:
+                status, notes = PatchStatus.UNTESTED, "Tests could not run in the sandbox."
+            elif not tests["baseline"]["ok"]:
+                status = PatchStatus.TESTS_FAILED
+                notes = feedback = (
+                    "The new test did not fail on the current code (pytest exit "
+                    f"{tests['baseline']['exit']}; it must exit 1 with a failing assertion, not "
+                    "an import or collection error), so it does not reproduce the bug. The test "
+                    "may only use code that already exists.\n" + tests["baseline"]["tail"]
+                )
+            elif not tests["patched"]["ok"]:
+                status = PatchStatus.TESTS_FAILED
+                notes = feedback = (
+                    "The test suite failed with the fix:\n" + tests["patched"]["tail"]
+                )
+            else:
+                judgement = await self.ask(
+                    "ultra",
+                    prompts.VERIFY_FIX.format(
+                        question=self.inv.question,
+                        hypothesis=state["hypotheses"][0]["statement"],
+                        explanation=state["patch"]["explanation"],
+                        diff=state["patch"]["diff"][: FEEDBACK_CHARS * 2],
+                        baseline_exit=tests["baseline"]["exit"],
+                        baseline_summary=_counts(tests["baseline"]),
+                        patched_exit=tests["patched"]["exit"],
+                        patched_summary=_counts(tests["patched"]),
+                    ),
+                    fix.FixJudgement,
+                    "verify_fix",
+                )
+                notes = judgement.notes
+                if judgement.addresses_root_cause:
+                    status = PatchStatus.VERIFIED
+                else:
+                    status, feedback = PatchStatus.REJECTED, judgement.notes
+
+            row = await self.session.get(Patch, patch_id)
+            row.status = status
+            await self.bus.publish(
+                PatchStatusChanged(patch_id=patch_id, status=status, notes=notes)
+            )
+
+            update: AgentState = {"fix": status.value, "fix_feedback": feedback}
+            if status == PatchStatus.VERIFIED:  # the last 20% of the confidence score
+                parts = components(state["facts"], Verdict(state["verdict"]["verdict"]), True)
+                update["confidence"] = self.inv.confidence = score(parts)
+                self.inv.confidence_breakdown = {p.name: p.value for p in parts}
+                await self.bus.publish(
+                    ConfidenceScored(score=update["confidence"], components=parts)
+                )
+            info["summary"] = f"{status.value}: {notes[:160]}"
+        return update
+
+    async def draft_pr(self, state: AgentState) -> AgentState:
+        patch_id = uuid.UUID(state["patch"]["id"])
+        async with self.step(Step.DRAFT_PR, "super") as info:
+            pr = await self.ask(
+                "super",
+                prompts.DRAFT_PR.format(
+                    question=self.inv.question,
+                    root_cause=state["report"]["root_cause"],
+                    explanation=state["patch"]["explanation"],
+                    diff=state["patch"]["diff"][: FEEDBACK_CHARS * 2],
+                    passed=state["tests"]["patched"]["passed"],
+                    facts=_fact_lines(state["facts"]),
+                ),
+                fix.PrOut,
+                "draft_pr",
+            )
+            row = await self.session.get(Patch, patch_id)
+            row.pr_title, row.pr_body = pr.title, pr.body
+            await self.bus.publish(PrDrafted(patch_id=patch_id, title=pr.title, body=pr.body))
+            info["summary"] = pr.title
+        return {}
 
     # run --------------------------------------------------------------------------------------
 
@@ -751,6 +1056,9 @@ class Investigator:
                 ErrorRaised(message=f"{type(exc).__name__}: {exc}"[:2000], fatal=True)
             )
             status = InvestigationStatus.FAILED
+        finally:
+            if self.tmp:
+                shutil.rmtree(self.tmp, ignore_errors=True)
 
         self.save_trace()
         tokens = sum(s["prompt_tokens"] + s["completion_tokens"] for s in self.router.spans)

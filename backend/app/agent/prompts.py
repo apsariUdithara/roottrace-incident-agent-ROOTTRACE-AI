@@ -134,6 +134,7 @@ REPORT = """Incident: {question}
 Root-cause hypothesis: {hypothesis}
 Verifier's verdict: {verdict} ({notes})
 Confidence (computed from the evidence): {confidence:.0%}
+Fix: {fix}
 
 Facts:
 {facts}
@@ -147,3 +148,64 @@ Write the incident report for the on-call engineer.
   label in square brackets after each claim, e.g. "Pool size rose to 100 [F2]." Only cite labels
   listed above. Separate what was observed from what is inferred.
 - next_steps: 2-4 concrete actions, most urgent first."""
+
+GENERATE_PATCH = """Incident: {question}
+Verified root cause: {hypothesis}
+
+Evidence:
+{facts}
+
+Repository files involved (at the deployed version {ref}):
+{files}
+
+Existing test files: {test_files}
+Test command: {test_command}
+{feedback}
+Write the smallest safe fix, and a regression test that reproduces the bug.
+- test: a test file (new, or an existing test file with your test added) that FAILS on the
+  current code because of this bug and PASSES once it is fixed. Test the behaviour, not the
+  exact text of the fix. Follow the style and imports of the existing tests.
+- changes: the files your fix changes. Give each file's COMPLETE new content, not a diff.
+  Change only what the fix needs; keep everything else exactly as it is.
+- explanation: two or three sentences: what the fix does and why it addresses the root cause.
+Do not weaken or delete existing tests."""
+
+PATCH_FEEDBACK = """
+Your previous attempt did not pass. Fix this:
+{feedback}
+"""
+
+VERIFY_FIX = """Incident: {question}
+Root cause: {hypothesis}
+
+Proposed fix:
+{explanation}
+
+Diff:
+{diff}
+
+Sandbox results:
+- baseline (current code + new test): exit {baseline_exit}; {baseline_summary}
+- patched (fix + new test, whole suite): exit {patched_exit}; {patched_summary}
+
+Judge the fix. It is acceptable only if it addresses the root cause itself, not just the
+symptom or the test (for example, a fix that special-cases the test's values, catches and hides
+the error, or deletes a check is not acceptable). Reply whether it addresses the root cause, and
+two sentences of notes."""
+
+DRAFT_PR = """Incident: {question}
+Root cause: {root_cause}
+Fix: {explanation}
+
+Diff:
+{diff}
+
+Tests: the new regression test failed before the fix and the whole suite ({passed} tests)
+passed after it, in an isolated Nebius sandbox.
+
+Evidence (cite labels where useful):
+{facts}
+
+Write a pull request.
+- title: under 70 characters, conventional style (e.g. "fix(db): ...").
+- body: Markdown with sections ## Root cause, ## Fix, ## Evidence, ## Testing. Under 250 words."""

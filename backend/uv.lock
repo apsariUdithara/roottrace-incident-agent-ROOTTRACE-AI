@@ -189,6 +189,27 @@ wheels = [
 ]
 
 [[package]]
+name = "contree-cli"
+version = "0.9.4"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "contree-client" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ab/cc/8f083a57c8d49a4747459393d86b6c47dad3f4f11b5a61979202b44e672e/contree_cli-0.9.4.tar.gz", hash = "sha256:f521dc426460f4a5d37f004658720876f04dad38f54ba10e2bad8787c000c0ba", size = 149493, upload-time = "2026-09-03T15:38:35.864Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/de/d9/29277e9f2296fed8270cdd2c4a14fd604d4743ea5805ec6302e9d5a504a0/contree_cli-0.9.4-py3-none-any.whl", hash = "sha256:1bf33a9f70066d45623ca8fc46f33868db45107170b208c46c06dd1457f18af8", size = 185060, upload-time = "2026-09-03T15:38:33.967Z" },
+]
+
+[[package]]
+name = "contree-client"
+version = "0.4.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/2a/4b/81f5d89605c0b5b3de7b7c8eb3c9cf81eb70a8f364932f37918f9aea5044/contree_client-0.4.3.tar.gz", hash = "sha256:6316c28da25827deaec6c044def54f358bf3d7bd35581c30ba3836bc5bf48f81", size = 164794, upload-time = "2026-10-21T15:54:45.547Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/68/02/1184de8d2186047773f12d69e05c83e7434a57ee7c9c98d06ae685aae039/contree_client-0.4.3-py3-none-any.whl", hash = "sha256:5c3d3df65d93eaa7de36acd1e9dc7921efba1d73edc73b9f29fd10fa2f4a6c7c", size = 114689, upload-time = "2026-10-21T15:54:44.011Z" },
+]
+
+[[package]]
 name = "cryptography"
 version = "50.0.2"
 source = { registry = "https://pypi.org/simple" }
@@ -885,6 +906,7 @@ dependencies = [
     { name = "alembic" },
     { name = "argon2-cffi" },
     { name = "asyncpg" },
+    { name = "contree-cli" },
     { name = "cryptography" },
     { name = "email-validator" },
     { name = "fastapi" },
@@ -911,6 +933,7 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.20.0" },
     { name = "argon2-cffi", specifier = ">=25.1.0" },
     { name = "asyncpg", specifier = ">=0.32.0" },
+    { name = "contree-cli", specifier = ">=0.9.4" },
     { name = "cryptography", specifier = ">=50.0.2" },
     { name = "email-validator", specifier = ">=2.3.0" },
     { name = "fastapi", specifier = ">=0.143.0" },

@@ -58,6 +58,20 @@ def show(event) -> None:
     elif t == "confidence":
         parts = ", ".join(f"{c.name} {c.value:.2f}" for c in p.components)
         print(f"  CONFIDENCE {p.score:.0%}  ({parts})")
+    elif t == "patch_proposed":
+        print(f"  PATCH (attempt {p.attempt}): {p.explanation}")
+        print(textwrap.indent(p.diff.rstrip(), "    "))
+    elif t == "test_completed":
+        mark = "✓ as expected" if p.as_expected else "✗ NOT as expected"
+        print(
+            f"  {p.phase.upper()} `{p.command}` → exit {p.exit_code}, "
+            f"{p.passed} passed / {p.failed} failed  {mark}\n"
+            f"        Nebius operation {p.sandbox_image_id}"
+        )
+    elif t == "patch_status":
+        print(f"  FIX {p.status.upper()}: {p.notes}")
+    elif t == "pr_draft":
+        print(f"\nPR DRAFT: {p.title}\n" + textwrap.indent(p.body, "  "))
     elif t == "report":
         print("\n" + "=" * 70 + f"\nROOT CAUSE: {p.root_cause}\n")
         print(textwrap.indent(p.summary, "  "))

@@ -34,6 +34,14 @@ async def run_investigation(
     bus = EventBus(session, investigation.id)
     bus.listeners.extend(listeners or [])
     tools = ToolContext(session, router, project_id, Path(repo.local_path), ref=ref)
-    state = await Investigator(investigation, tools, bus, reported_at).run()
+    agent = Investigator(
+        investigation,
+        tools,
+        bus,
+        reported_at,
+        test_command=repo.test_command,
+        setup_command=repo.setup_command,
+    )
+    state = await agent.run()
     await session.commit()
     return investigation, state
