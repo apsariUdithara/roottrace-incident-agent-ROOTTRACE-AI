@@ -19,12 +19,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # Windows console
 
-from sqlalchemy import select  # noqa: E402
+from sqlalchemy import select, text  # noqa: E402
 
 from app.core.db import SessionLocal  # noqa: E402
 from app.core.security import hash_password  # noqa: E402
 from app.llm.router import get_router  # noqa: E402
-from app.models import Project, User  # noqa: E402
+from app.models import Project, Repository, User  # noqa: E402
 from app.rag.ingest import ingest_incidents, ingest_issues, ingest_logs, ingest_repo  # noqa: E402
 
 DEMO = Path(__file__).resolve().parents[2] / "demo-target"
@@ -50,6 +50,35 @@ async def get_or_create_project(session) -> Project:
     return project
 
 
+async def record_repository(session, project: Project) -> None:
+    """Remember where the clone lives, so the agent's git tools can find it."""
+    repo = await session.scalar(select(Repository).where(Repository.project_id == project.id))
+    if repo is None:
+        repo = Repository(project_id=project.id, url="https://github.com/apsariUdithara/paystream")
+        session.add(repo)
+    repo.local_path = str(REPO)
+    await session.flush()
+
+
+# ponytail: one shared demo_app schema for the single demo project; per-project schemas (or a
+# real read replica) when there are several projects with production data.
+PAYMENTS_SNAPSHOT = """
+DROP SCHEMA IF EXISTS demo_app CASCADE;
+CREATE SCHEMA demo_app;
+CREATE TABLE demo_app.payments AS
+    SELECT id, ts AS created_at, instance, status AS http_status, latency_ms, error_type
+    FROM log_entries
+    WHERE project_id = :project_id AND route = '/payments';
+"""
+
+
+async def load_production_snapshot(session, project: Project) -> int:
+    """A small 'production' table for query_database, derived from the payment logs."""
+    for statement in filter(str.strip, PAYMENTS_SNAPSHOT.split(";")):
+        await session.execute(text(statement), {"project_id": project.id})
+    return await session.scalar(text("SELECT count(*) FROM demo_app.payments"))
+
+
 async def main(ref: str) -> None:
     if not REPO.exists():
         sys.exit(f"{REPO} not found: run python demo-target/scripts/build_history.py first")
@@ -60,6 +89,7 @@ async def main(ref: str) -> None:
     router = get_router()
     async with SessionLocal() as session:
         project = await get_or_create_project(session)
+        await record_repository(session, project)
         repo = await ingest_repo(session, router, project.id, REPO, sha.stdout.strip())
         incidents = json.loads((FIXTURES / "incidents.json").read_text(encoding="utf-8"))
         issues = json.loads((FIXTURES / "issues.json").read_text(encoding="utf-8"))
@@ -69,6 +99,7 @@ async def main(ref: str) -> None:
         for file in sorted((FIXTURES / "logs").glob("*.jsonl")):
             rows = [json.loads(line) for line in file.read_text(encoding="utf-8").splitlines()]
             n_logs += await ingest_logs(session, project.id, rows)
+        n_payments = await load_production_snapshot(session, project)
         await session.commit()
 
     tokens = sum(s["prompt_tokens"] for s in router.spans)
@@ -81,6 +112,7 @@ async def main(ref: str) -> None:
     print(f"  incidents:   {n_incidents} indexed of {len(incidents)}")
     print(f"  issues:      {n_issues} indexed of {len(issues)}")
     print(f"  log lines:   {n_logs}")
+    print(f"  payments:    {n_payments} rows in demo_app.payments (for query_database)")
     print(f"  embeddings:  {len(router.spans)} calls, {tokens} tokens, ${cost:.6f}")
 
 
