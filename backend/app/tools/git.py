@@ -109,7 +109,7 @@ async def _log(ctx: ToolContext, args: CommitSearchArgs, *selector: str) -> list
     cmd = ["log", ctx.ref, f"-n{MAX_COMMITS}", "--date=iso-strict", "--numstat"]
     cmd.append(f"--format={RECORD}%H{FIELD}%an{FIELD}%ad{FIELD}%s")
     if args.since:
-        cmd.append(f"--since={args.since.isoformat()}")
+        cmd.append(f"--since={args.since.isoformat()}T00:00:00")  # a bare date means "now" to git
     if args.until:
         cmd.append(f"--until={args.until.isoformat()}T23:59:59")
     cmd += [*selector, "--"]
