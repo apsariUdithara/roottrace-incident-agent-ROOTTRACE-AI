@@ -12,12 +12,17 @@ which stops an attack:
 In production a dedicated SELECT-only role (READONLY_DATABASE_URL) adds a fifth layer.
 """
 
+import logging
+
 import sqlglot
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlglot import exp
 
 from app.tools.registry import ToolContext, ToolError, tool
+
+# The parser warns on SQL it can't read; the guard below rejects it anyway, so stay quiet.
+logging.getLogger("sqlglot").setLevel(logging.ERROR)
 
 SCHEMA = "demo_app"
 MAX_ROWS = 100
@@ -38,6 +43,22 @@ async def allowed_tables(ctx: ToolContext) -> set[str]:
         {"s": SCHEMA},
     )
     return set(rows.scalars())
+
+
+async def describe_tables(ctx: ToolContext) -> str:
+    """The tables query_database can read, with their columns, e.g. "payments(id, created_at)".
+
+    Given to the agent up front, so it never spends tool calls discovering the schema.
+    """
+    rows = await ctx.session.execute(
+        text(
+            "SELECT table_name, string_agg(column_name, ', ' ORDER BY ordinal_position) "
+            "FROM information_schema.columns WHERE table_schema = :s GROUP BY table_name "
+            "ORDER BY table_name"
+        ),
+        {"s": SCHEMA},
+    )
+    return "; ".join(f"{table}({columns})" for table, columns in rows.all())
 
 
 def check_sql(sql: str, tables: set[str]) -> str:
@@ -66,15 +87,18 @@ def check_sql(sql: str, tables: set[str]) -> str:
 @tool(
     "query_database",
     f"Run a read-only SELECT on production data (schema {SCHEMA}). At most {MAX_ROWS} rows are "
-    "returned. Call it without a meaningful query first if you need the table list: errors "
-    "list the available tables.",
+    "returned. The tables and their columns are listed in your instructions; database system "
+    "tables (pg_settings, information_schema) are not available.",
     QueryArgs,
 )
 async def query_database(ctx: ToolContext, args: QueryArgs) -> dict:
     tables = await allowed_tables(ctx)
     if not tables:
         raise ToolError("this project has no production data snapshot to query")
-    safe_sql = check_sql(args.sql, tables)
+    try:
+        safe_sql = check_sql(args.sql, tables)
+    except ToolError as exc:
+        raise ToolError(f"{exc}. Tables and columns: {await describe_tables(ctx)}") from None
 
     savepoint = await ctx.session.begin_nested()
     try:

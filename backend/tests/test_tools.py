@@ -5,7 +5,7 @@ import subprocess
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import text
+from sqlalchemy import select, text
 
 from app.models import DocumentSourceType, Incident, LogEntry
 from app.rag.chunkers import Chunk
@@ -271,3 +271,23 @@ async def test_search_logs_always_shows_deploys_even_when_filtering_errors(ctx):
     assert result["total"] == 3  # only errors are counted...
     [deploy] = result["deploys"]  # ...but the deploy is still visible
     assert deploy["ts"].startswith("2026-10-06T14:20") and "v2" in deploy["message"]
+
+
+async def test_a_filter_that_matches_nothing_shows_the_real_values(ctx):
+    await add_logs(ctx)
+    for entry in (await ctx.session.scalars(select(LogEntry))).all():
+        entry.service = "paystream-api"
+    await ctx.session.flush()
+    result = await call(ctx, "search_logs", service="payment-service")  # a guessed name
+    assert result["total"] == 0
+    assert result["available"]["services"] == ["paystream-api"]
+    assert "/payments" in result["available"]["routes"]
+    assert result["available"]["error_types"] == ["OperationalError"]
+
+
+async def test_the_agent_can_be_told_the_tables_and_columns_up_front(production_data):
+    from app.tools.database import describe_tables
+
+    assert await describe_tables(production_data) == "payments(id, http_status)"
+    result = await call(production_data, "query_database", sql="SELECT * FROM pg_settings")
+    assert "payments(id, http_status)" in result["error"]  # a wrong guess shows the schema

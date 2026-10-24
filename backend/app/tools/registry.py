@@ -89,6 +89,7 @@ def _fit(result: dict) -> str:
 async def call_tool(ctx: ToolContext, name: str, arguments: str | dict) -> str:
     """Run one tool call from the LLM and return its result as JSON text for the LLM."""
     start = time.perf_counter()
+    name = name.removeprefix("functions.")  # models sometimes copy the API's namespace prefix
     if name not in TOOLS:
         result = {"error": f"unknown tool {name!r}. Available: {', '.join(TOOLS)}"}
     else:
