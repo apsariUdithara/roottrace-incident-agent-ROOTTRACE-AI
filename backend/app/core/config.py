@@ -42,6 +42,8 @@ class Settings(BaseSettings):
     # Fine-grained GitHub token limited to the demo repo (Contents + Pull requests: write).
     # Used only after an engineer approves a fix, to open a draft PR.
     github_token: SecretStr | None = None
+    # Bearer token MCP clients must send. Unset: the MCP servers refuse every call.
+    mcp_token: SecretStr | None = None
 
     # Agent
     tool_transport: Literal["direct", "mcp"] = "direct"
