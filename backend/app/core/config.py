@@ -45,6 +45,11 @@ class Settings(BaseSettings):
     # Bearer token MCP clients must send. Unset: the MCP servers refuse every call.
     mcp_token: SecretStr | None = None
 
+    # Guard rails for a public demo, so the credits can't be spent before judging.
+    investigation_cost_cap_usd: float = 0.50  # one run stops past this (normal: ~$0.05-0.10)
+    daily_budget_usd: float = 5.00  # all investigations together, per UTC day
+    investigations_per_hour: int = 3  # per user, and only one running at a time
+
     # Agent
     tool_transport: Literal["direct", "mcp"] = "direct"
     sandbox_runner: Literal["nebius", "docker"] = "nebius"

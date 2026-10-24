@@ -10,14 +10,14 @@ import asyncio
 import json
 import uuid
 from collections.abc import AsyncIterator
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.agent import followup, run
 from app.agent.pr import PrError, open_pr
@@ -25,7 +25,13 @@ from app.api.deps import CurrentUser, OwnedProject, owned_select
 from app.core.config import get_settings
 from app.core.db import SessionDep, SessionLocal
 from app.llm.router import get_router
-from app.models import Investigation, InvestigationEvent, Patch, Repository
+from app.models import (
+    Investigation,
+    InvestigationEvent,
+    InvestigationStatus,
+    Patch,
+    Repository,
+)
 
 router = APIRouter(tags=["investigations"])
 
@@ -93,6 +99,46 @@ def start_in_background(investigation_id: uuid.UUID, ref: str | None, reported_a
     task.add_done_callback(lambda _: RUNNING.pop(investigation_id, None))
 
 
+ACTIVE = (InvestigationStatus.QUEUED, InvestigationStatus.RUNNING)
+STALE_AFTER = timedelta(minutes=30)  # a "running" row older than this was cut off by a restart
+
+
+def too_many(detail: str) -> HTTPException:
+    return HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, detail)
+
+
+async def check_limits(session, user) -> None:
+    """Guard rails for a public demo: one run at a time, a few per hour, a daily budget."""
+    settings, now = get_settings(), datetime.now(UTC)
+    active = Investigation.status.in_(ACTIVE) & (Investigation.started_at >= now - STALE_AFTER)
+
+    if await session.scalar(select(func.count()).where(Investigation.user_id == user.id, active)):
+        raise too_many("You already have an investigation running; wait for it to finish.")
+    last_hour = await session.scalar(
+        select(func.count()).where(
+            Investigation.user_id == user.id, Investigation.started_at >= now - timedelta(hours=1)
+        )
+    )
+    if last_hour >= settings.investigations_per_hour:
+        raise too_many(
+            f"Limit reached: {settings.investigations_per_hour} investigations per hour."
+        )
+
+    today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    spent, running = (
+        await session.execute(
+            select(
+                func.coalesce(func.sum(Investigation.total_cost_usd), 0),
+                func.count().filter(active),
+            ).where(Investigation.started_at >= today)
+        )
+    ).one()
+    # Running investigations haven't reported their cost yet: reserve their cap for them.
+    committed = float(spent) + running * settings.investigation_cost_cap_usd
+    if committed + settings.investigation_cost_cap_usd > settings.daily_budget_usd:
+        raise too_many("The demo's daily budget is used up. Please try again tomorrow.")
+
+
 @router.post("/projects/{project_id}/investigations", status_code=status.HTTP_202_ACCEPTED)
 async def start_investigation(
     body: InvestigationCreate, project: OwnedProject, user: CurrentUser, session: SessionDep
@@ -102,6 +148,7 @@ async def start_investigation(
     )
     if not has_repo:
         raise HTTPException(status.HTTP_409_CONFLICT, "Index a repository for this project first")
+    await check_limits(session, user)
     investigation = Investigation(project_id=project.id, user_id=user.id, question=body.question)
     session.add(investigation)
     await session.commit()

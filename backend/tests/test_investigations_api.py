@@ -157,3 +157,50 @@ def test_approval_needs_a_github_token_and_a_fix(client, started, monkeypatch):
     monkeypatch.setattr(routes, "get_settings", lambda: Settings(_env_file=None, github_token="t"))
     no_fix = client.post(f"/investigations/{inv_id}/approve", headers=alice)
     assert no_fix.status_code == 409 and "no fix" in no_fix.json()["detail"]
+
+
+def limits(monkeypatch, **overrides):
+    monkeypatch.setattr(routes, "get_settings", lambda: Settings(_env_file=None, **overrides))
+
+
+def start(client, headers, project_id):
+    return client.post(
+        f"/projects/{project_id}/investigations",
+        headers=headers,
+        json={"question": "Why are payments failing?"},
+    )
+
+
+def test_only_one_investigation_runs_at_a_time_per_user(client, new_user, monkeypatch):
+    async def never_finishes(*args, **kwargs):
+        pass  # leaves the investigation queued, as if still running
+
+    monkeypatch.setattr(run, "run_existing", never_finishes)
+    alice = new_user()
+    project_id = client.post("/projects", headers=alice, json={"name": "Payments"}).json()["id"]
+    add_repository(project_id)
+    assert start(client, alice, project_id).status_code == 202
+    blocked = start(client, alice, project_id)
+    assert (
+        blocked.status_code == 429 and "already have an investigation" in blocked.json()["detail"]
+    )
+
+
+def test_a_user_gets_a_few_investigations_per_hour(client, started, monkeypatch):
+    alice, project_id, first = started
+    limits(monkeypatch, investigations_per_hour=2)
+    read_stream(client, f"/investigations/{first.json()['id']}/stream", alice)
+    second = start(client, alice, project_id)
+    read_stream(client, f"/investigations/{second.json()['id']}/stream", alice)
+    third = start(client, alice, project_id)
+    assert second.status_code == 202
+    assert third.status_code == 429 and "2 investigations per hour" in third.json()["detail"]
+
+
+def test_the_daily_budget_stops_new_investigations(client: TestClient, new_user, monkeypatch):
+    alice = new_user()
+    project_id = client.post("/projects", headers=alice, json={"name": "Payments"}).json()["id"]
+    add_repository(project_id)
+    limits(monkeypatch, daily_budget_usd=0.10, investigation_cost_cap_usd=0.50)
+    resp = start(client, alice, project_id)
+    assert resp.status_code == 429 and "daily budget" in resp.json()["detail"]

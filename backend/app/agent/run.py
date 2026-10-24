@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent.events import EventBus, Listener
 from app.agent.graph import AgentState, Investigator
+from app.core.config import get_settings
 from app.core.db import SessionLocal
 from app.llm.router import LLMRouter, get_router
 from app.models import Investigation, Repository
@@ -81,4 +82,6 @@ async def run_existing(
     """Run an already-created investigation to the end, in its own database session."""
     async with SessionLocal() as session:
         investigation = await session.get(Investigation, investigation_id)
-        await _run(session, get_router(), investigation, ref, reported_at, None)
+        router = get_router()
+        router.cost_cap_usd = get_settings().investigation_cost_cap_usd  # public runs are capped
+        await _run(session, router, investigation, ref, reported_at, None)

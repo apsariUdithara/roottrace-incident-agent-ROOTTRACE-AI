@@ -186,3 +186,17 @@ async def test_retries_wait_longer_each_time():
     router = LLMRouter(Settings(_env_file=None), client=fake, sleep=record)
     await router.complete("nano", [{"role": "user", "content": "hi"}])
     assert waits == [2, 10]
+
+
+async def test_a_run_stops_once_it_reaches_its_cost_cap():
+    from app.llm.router import CostCapExceeded
+
+    # Each Super call of 1M tokens in and out costs $1.20.
+    big = reply("hi", prompt_tokens=1_000_000, completion_tokens=1_000_000)
+    fake = FakeNebius(big, big)
+    router = make_router(fake)
+    router.cost_cap_usd = 1.00
+    await router.complete("super", [{"role": "user", "content": "hi"}])  # spends $1.20
+    with pytest.raises(CostCapExceeded, match=r"\$1\.00"):
+        await router.complete("super", [{"role": "user", "content": "again"}])
+    assert len(fake.requests) == 1  # the second call never reached Nebius
