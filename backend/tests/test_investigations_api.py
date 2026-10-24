@@ -143,6 +143,7 @@ def test_follow_up_questions_need_a_report_and_are_answered(client, started, mon
         )
 
     monkeypatch.setattr(routes.followup, "answer", fake_answer)
+    monkeypatch.setattr(routes, "get_router", lambda: None)  # no real model client (CI has no key)
     reply = client.post(
         f"/investigations/{inv_id}/messages", headers=alice, json={"content": "Which commit?"}
     )
