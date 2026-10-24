@@ -73,6 +73,7 @@ from app.schemas.events import (
     VerdictReached,
 )
 from app.tools import TOOLS, ToolContext, ToolError, call_tool, openai_schemas
+from app.tools.database import describe_tables
 
 MAX_ROUNDS = 2  # investigate at most twice
 INVESTIGATE_BUDGET = 12  # tool calls per investigate round
@@ -141,6 +142,7 @@ class HypothesisItem(BaseModel):
 
 
 class Hypotheses(BaseModel):
+    fault_found: bool = True  # False: the evidence shows nothing is broken
     hypotheses: list[HypothesisItem] = Field(min_length=1, max_length=3)
 
 
@@ -177,6 +179,7 @@ class AgentState(TypedDict, total=False):
     blocked: bool  # the latest patch was rejected before testing (it edited existing tests)
     fix_feedback: str | None
     hints: str  # recalled memories, as text for the prompts
+    no_fault: bool  # the hypothesis step found nothing broken
 
 
 # --- Helpers ----------------------------------------------------------------------------------
@@ -266,6 +269,38 @@ def _counts(result: dict) -> str:
     return f"{result['passed'] or 0} passed, {result['failed'] or 0} failed"
 
 
+# The investigation checklist, as the tools that satisfy each item.
+CHECKLIST = {
+    "what changed (search_github_commits, get_commit_diff)": {
+        "search_github_commits",
+        "get_commit_diff",
+    },
+    "the deployed code (get_file)": {"get_file", "search_code"},
+    "what was observed (search_logs)": {"search_logs", "query_database"},
+    "the documented rules (search_documents)": {"search_documents"},
+    "past incidents (search_previous_incidents)": {"search_previous_incidents", "get_incident"},
+}
+
+
+def _call_key(call: dict) -> str:
+    """A tool call in a canonical form, so the same call with reordered arguments matches."""
+    try:
+        args = json.loads(call["arguments"] or "{}")
+    except json.JSONDecodeError:
+        args = call["arguments"]
+    return call["name"].removeprefix("functions.") + json.dumps(args, sort_keys=True)
+
+
+def _progress_note(step: Step, transcript: list[dict], left: int) -> str:
+    note = f"You have {left} tool call(s) left."
+    if step == Step.INVESTIGATE:
+        done = {t["tool"].removeprefix("functions.") for t in transcript}
+        missing = [item for item, tools in CHECKLIST.items() if not done & tools]
+        if missing:
+            note += " Not checked yet: " + "; ".join(missing) + ". Cover these first."
+    return note
+
+
 # --- The agent --------------------------------------------------------------------------------
 
 
@@ -291,6 +326,7 @@ class Investigator:
         self.base: Path | None = None  # snapshot of the deployed code
         self.tmp: Path | None = None
         self.image: str | None = None  # sandbox environment image
+        self.data_tables: str | None = None  # query_database schema, for the prompts
         self.graph = self._build()
 
     # graph ------------------------------------------------------------------------------------
@@ -346,8 +382,9 @@ class Investigator:
     @staticmethod
     def after_score(state: AgentState) -> str:
         # Only a verified root cause gets a fix: patching a guess could hide the real problem.
+        # "No fault found" gets no fix either: there is nothing to repair.
         supported = state["verdict"]["verdict"] == Verdict.SUPPORTED
-        return "generate_patch" if supported else "write_report"
+        return "generate_patch" if supported and not state.get("no_fault") else "write_report"
 
     @classmethod
     def after_patch(cls, state: AgentState) -> str:
@@ -406,14 +443,27 @@ class Investigator:
         return result.parsed
 
     async def run_tools(self, step: Step, prompt: str, budget: int) -> list[dict]:
-        """Let the model call tools until it stops or the budget runs out (a ReAct loop)."""
+        """Let the model call tools until it stops or the budget runs out (a ReAct loop).
+
+        After each turn the model is told how many calls it has left and, while investigating,
+        which kinds of evidence it has not checked yet, so the budget is not spent before the
+        checklist is covered. An exact repeat of an earlier call is not run again.
+        """
+        if self.data_tables is None:  # looked up once per investigation
+            self.data_tables = await describe_tables(self.ctx)
+        if self.data_tables:
+            prompt += (
+                "\nProduction data for query_database (tables and columns): " + self.data_tables
+            )
         messages = [
             {"role": "system", "content": prompts.SYSTEM},
             {"role": "user", "content": prompt},
         ]
         transcript: list[dict] = []
+        earlier: dict[str, int] = {}  # normalised call -> its number, to spot exact repeats
+        used = 0  # calls spent, including refused repeats
         schemas = openai_schemas()
-        while len(transcript) < budget:
+        while used < budget:
             result = await self.router.complete(
                 "super",
                 messages,
@@ -438,9 +488,19 @@ class Investigator:
                 }
             )
             for call in result.tool_calls:
-                if len(transcript) >= budget:
+                key = _call_key(call)
+                if used >= budget:
                     output = json.dumps({"error": "tool budget used up; summarise what you found"})
+                elif key in earlier:
+                    used += 1
+                    output = json.dumps(
+                        {
+                            "error": f"You already made this exact call (call {earlier[key]}); "
+                            "its result is above. Use different arguments or another tool."
+                        }
+                    )
                 else:
+                    used += 1
                     output = await self.call(step, call)
                     transcript.append(
                         {
@@ -450,7 +510,12 @@ class Investigator:
                             "output": output,
                         }
                     )
+                    earlier[key] = len(transcript)
                 messages.append({"role": "tool", "tool_call_id": call["id"], "content": output})
+            if used < budget:
+                messages.append(
+                    {"role": "user", "content": _progress_note(step, transcript, budget - used)}
+                )
         return transcript
 
     async def call(self, step: Step, call: dict) -> str:
@@ -702,7 +767,7 @@ class Investigator:
                     )
                 )
             info["summary"] = hypotheses[0]["statement"][:200]
-        return {"hypotheses": hypotheses}
+        return {"hypotheses": hypotheses, "no_fault": not h.fault_found}
 
     async def verify(self, state: AgentState) -> AgentState:
         top = state["hypotheses"][0]
@@ -799,7 +864,9 @@ class Investigator:
                 "report",
                 max_tokens=4000,
             )
-            root_cause = r.root_cause if verdict["verdict"] != Verdict.REFUTED else None
+            # No root cause when the hypothesis was refuted, or when nothing is broken.
+            refuted = verdict["verdict"] == Verdict.REFUTED
+            root_cause = None if refuted or state.get("no_fault") else r.root_cause
             payload = ReportReady(
                 root_cause=root_cause,
                 summary=r.summary,
@@ -1073,7 +1140,7 @@ class Investigator:
     async def save_memories(self, state: AgentState) -> AgentState:
         # Only a verified root cause becomes a lesson: saving a guess would teach a mistake.
         async with self.step(Step.SAVE_MEMORIES, "nano") as info:
-            if state["verdict"]["verdict"] != Verdict.SUPPORTED:
+            if state["verdict"]["verdict"] != Verdict.SUPPORTED or state.get("no_fault"):
                 info["summary"] = "nothing saved: the root cause was not verified"
                 return {}
             try:

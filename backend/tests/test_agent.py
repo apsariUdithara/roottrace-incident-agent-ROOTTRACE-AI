@@ -414,3 +414,88 @@ async def test_a_verified_run_saves_a_lesson_and_the_next_run_gets_it_as_a_hint(
 async def test_an_unverified_root_cause_teaches_nothing(db_session, project, repo):  # noqa: F811
     await investigate(db_session, project, repo, ScriptedModel([WEAK, REFUTED]))
     assert (await db_session.scalars(select(Memory))).all() == []
+
+
+class RepeatingModel(ScriptedModel):
+    """Calls get_file on config.py twice in a row during the first investigate round."""
+
+    def __init__(self, verdicts):
+        super().__init__(verdicts)
+        self.investigate_messages = []
+
+    async def complete(self, tier, messages, *, tools=None, schema=None, name="", **kw):
+        if tools is not None and name.startswith("investigate"):
+            self.investigate_messages = messages
+            done = sum(m["role"] == "tool" for m in messages)
+            if done < 2:
+                self.spans.append(
+                    {
+                        "name": name,
+                        "model": "fake",
+                        "tier": tier,
+                        "prompt_tokens": 1,
+                        "completion_tokens": 1,
+                        "cost_usd": 0.0,
+                        "latency_ms": 1,
+                    }
+                )
+                call = tool_call(done + 1, "functions.get_file", {"path": "config.py"})
+                return answer(name, tool_calls=[call])
+            return answer(name)
+        return await super().complete(tier, messages, tools=tools, schema=schema, name=name, **kw)
+
+
+async def test_a_repeated_call_is_refused_and_the_checklist_is_shown(db_session, project, repo):  # noqa: F811
+    model = RepeatingModel([SUPPORTED, SUPPORTED])
+    _, _, events = await investigate(db_session, project, repo, model)
+    first_round = model.investigate_messages
+    tool_outputs = [m["content"] for m in first_round if m["role"] == "tool"]
+    assert "DB_POOL_SIZE = 100" in tool_outputs[0]  # the first call ran (despite the prefix)
+    assert "already made this exact call" in tool_outputs[1]  # the repeat did not
+    notes = [m["content"] for m in first_round if m["role"] == "user"][1:]
+    assert "tool call(s) left" in notes[0] and "the documented rules" in notes[0]
+    assert "the deployed code" not in notes[0]  # get_file was used, so that item is covered
+
+
+class HealthyModel(ScriptedModel):
+    """The hypothesis step finds nothing broken."""
+
+    async def complete(self, tier, messages, *, tools=None, schema=None, name="", **kw):
+        if name.startswith("hypothesize"):
+            self.spans.append(
+                {
+                    "name": name,
+                    "model": "fake",
+                    "tier": tier,
+                    "prompt_tokens": 1,
+                    "completion_tokens": 1,
+                    "cost_usd": 0.0,
+                    "latency_ms": 1,
+                }
+            )
+            return answer(
+                name,
+                Hypotheses(
+                    fault_found=False,
+                    hypotheses=[
+                        HypothesisItem(
+                            statement="No fault found: no errors around the reported time.",
+                            supporting=["F1"],
+                        )
+                    ],
+                ),
+            )
+        return await super().complete(tier, messages, tools=tools, schema=schema, name=name, **kw)
+
+
+async def test_when_nothing_is_broken_nothing_is_claimed_fixed_or_remembered(
+    db_session,
+    project,
+    repo,  # noqa: F811
+):
+    inv, state, events = await investigate(db_session, project, repo, HealthyModel([SUPPORTED]))
+    assert not of(events, "patch_proposed")
+    [report] = of(events, "report")
+    assert report.root_cause is None and report.fix == "none"
+    assert inv.status == InvestigationStatus.COMPLETED  # not awaiting approval: no PR
+    assert (await db_session.scalars(select(Memory))).all() == []

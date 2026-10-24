@@ -197,9 +197,8 @@ async def score(session, router, sandbox, case, inv, image) -> dict:
     }
     expect = case["expect"]
     if expect is None:  # healthy case
-        row["no_false_fix"] = not (patch and patch.status == PatchStatus.VERIFIED) and not (
-            report.get("verdict") == "supported"
-        )
+        # Correct on a healthy version: no root cause claimed and no fix attempted at all.
+        row["no_false_fix"] = patch is None and not root_cause
         return row
 
     judged = await router.complete(

@@ -3,7 +3,7 @@
 Rule: nothing project-specific here. The agent learns about a project only through its tools.
 """
 
-PROMPT_VERSION = "v10"
+PROMPT_VERSION = "v11"
 
 SYSTEM = """You are RootTrace, an incident investigator for software teams.
 You find the root cause of production incidents from evidence, the way a careful senior engineer
@@ -103,7 +103,13 @@ Inferences:
 
 Propose 1-3 root-cause hypotheses, most likely first. A root cause explains why the symptoms
 started when they did, not just what the symptom is. For each, list the fact labels supporting
-it. Prefer the hypothesis that explains the most facts, including the timing."""
+it. Prefer the hypothesis that explains the most facts, including the timing.
+
+First decide fault_found: is there evidence that something is actually failing (errors,
+failed requests, wrong results, a breaking change) around the reported time? If the evidence
+shows the system working normally, set fault_found to false and give a single hypothesis that
+starts with "No fault found:" and says what was checked. An improvement idea (missing
+monitoring, a design weakness, a missing column) is NOT the root cause of an incident."""
 
 VERIFY_PROBE = """Incident: {question}
 Hypothesis to test: {hypothesis}
