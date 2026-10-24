@@ -1,6 +1,7 @@
 """POST /chat with a fake router: no network, no credits."""
 
 import pytest
+from cryptography.fernet import Fernet
 from fastapi.testclient import TestClient
 
 from app.core.config import Settings, get_settings
@@ -57,7 +58,11 @@ def test_chat_refuses_ultra(client):
 def test_chat_is_disabled_in_production(client):
     http, fake = client
     app.dependency_overrides[get_settings] = lambda: Settings(
-        _env_file=None, app_env="production", nebius_api_key="k", jwt_secret="s", fernet_key="f"
+        _env_file=None,
+        app_env="production",
+        nebius_api_key="k",
+        jwt_secret="x" * 32,  # production requires >= 32 characters
+        fernet_key=Fernet.generate_key().decode(),  # and a well-formed Fernet key
     )
     resp = http.post("/chat", json={"messages": [{"role": "user", "content": "hi"}]})
     assert resp.status_code == 403

@@ -3,10 +3,12 @@
 from functools import lru_cache
 from typing import Literal, Self
 
+from cryptography.fernet import Fernet
 from pydantic import SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REQUIRED_IN_PRODUCTION = ("nebius_api_key", "jwt_secret", "fernet_key")
+MIN_JWT_SECRET_LENGTH = 32  # HS256 wants a key at least as long as its 256-bit output
 
 
 class Settings(BaseSettings):
@@ -43,11 +45,18 @@ class Settings(BaseSettings):
     sandbox_runner: Literal["nebius", "docker"] = "nebius"
 
     @model_validator(mode="after")
-    def _require_secrets_in_production(self) -> Self:
+    def _check_secrets(self) -> Self:
         if self.app_env == "production":
             missing = [name for name in REQUIRED_IN_PRODUCTION if getattr(self, name) is None]
             if missing:
                 raise ValueError(f"Missing required settings in production: {', '.join(missing)}")
+            if len(self.jwt_secret.get_secret_value()) < MIN_JWT_SECRET_LENGTH:
+                raise ValueError(f"JWT_SECRET must be at least {MIN_JWT_SECRET_LENGTH} characters")
+        if self.fernet_key is not None:
+            try:
+                Fernet(self.fernet_key.get_secret_value())
+            except ValueError as exc:
+                raise ValueError("FERNET_KEY must be a key made by Fernet.generate_key()") from exc
         return self
 
 
