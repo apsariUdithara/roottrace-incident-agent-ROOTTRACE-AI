@@ -78,7 +78,9 @@ from app.tools.database import describe_tables
 MAX_ROUNDS = 2  # investigate at most twice
 INVESTIGATE_BUDGET = 12  # tool calls per investigate round
 VERIFY_BUDGET = 4  # tool calls the verifier may use to look for contradictions
-FACTS_PER_ROUND = 10
+EXTRACT_BATCH = 4  # tool results per extraction call
+FACTS_PER_BATCH = 5
+EXTRACT_MAX_TOKENS = 6000  # room for reasoning plus ~5 facts, not for a runaway answer
 PREVIEW_CHARS = 1500
 MAX_PATCH_ATTEMPTS = 2
 TEST_OUTPUT_LINES = 60  # streamed per test run
@@ -552,29 +554,32 @@ class Investigator:
         """Ask for the facts in the tool results, then keep only those we can verify."""
         if not transcript:
             return []
-        text = "\n\n".join(
-            f"[call {t['n']}] {t['tool']}({t['arguments']})\n{t['output'][:EXTRACT_CHARS]}"
-            for t in transcript
-        )
-        try:
-            # Nemotron reasons before answering; a generous limit leaves room for the answer.
-            found = await self.ask(
-                "super",
-                prompts.EXTRACT_FACTS.format(
-                    question=self.inv.question,
-                    transcript=text,
-                    limit=FACTS_PER_ROUND,
-                    known=_fact_lines(state.get("facts", [])),
-                ),
-                FactList,
-                "extract_facts",
-                max_tokens=12000,
+        # Small batches: a smaller answer is less likely to go wrong (we have seen a model emit
+        # blank lines until the token limit), and a failed batch only loses its own facts.
+        found = FactList(facts=[])
+        for i in range(0, len(transcript), EXTRACT_BATCH):
+            text = "\n\n".join(
+                f"[call {t['n']}] {t['tool']}({t['arguments']})\n{t['output'][:EXTRACT_CHARS]}"
+                for t in transcript[i : i + EXTRACT_BATCH]
             )
-        except Exception as exc:  # noqa: BLE001 - lose this batch of facts, not the investigation
-            await self.bus.publish(
-                ErrorRaised(message=f"fact extraction failed: {exc}"[:500], fatal=False)
-            )
-            return []
+            try:
+                part = await self.ask(
+                    "super",
+                    prompts.EXTRACT_FACTS.format(
+                        question=self.inv.question,
+                        transcript=text,
+                        limit=FACTS_PER_BATCH,
+                        known=_fact_lines(state.get("facts", [])),
+                    ),
+                    FactList,
+                    "extract_facts",
+                    max_tokens=EXTRACT_MAX_TOKENS,
+                )
+                found.facts += part.facts
+            except Exception as exc:  # noqa: BLE001 - lose this batch's facts, not the run
+                await self.bus.publish(
+                    ErrorRaised(message=f"fact extraction failed: {exc}"[:500], fatal=False)
+                )
         known = {(f["source_ref"], _norm(f["excerpt"])) for f in state.get("facts", [])}
         facts = []
         for item in found.facts:

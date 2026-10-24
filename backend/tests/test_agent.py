@@ -499,3 +499,67 @@ async def test_when_nothing_is_broken_nothing_is_claimed_fixed_or_remembered(
     assert report.root_cause is None and report.fix == "none"
     assert inv.status == InvestigationStatus.COMPLETED  # not awaiting approval: no PR
     assert (await db_session.scalars(select(Memory))).all() == []
+
+
+class BatchModel(ScriptedModel):
+    """Five tool calls, so extraction runs in two batches; the first batch's extraction fails."""
+
+    CALLS = [
+        ("search_github_commits", {}),
+        ("search_github_commits", {"since": "2026-10-01"}),
+        ("get_file", {"path": "README.md"}),
+        ("search_logs", {}),
+        ("get_file", {"path": "config.py"}),
+    ]
+
+    def __init__(self, verdicts):
+        super().__init__(verdicts)
+        self.extractions = 0
+
+    async def complete(self, tier, messages, *, tools=None, schema=None, name="", **kw):
+        step = name.split(".")[0]
+        note = {
+            "name": name,
+            "model": "fake",
+            "tier": tier,
+            "prompt_tokens": 1,
+            "completion_tokens": 1,
+            "cost_usd": 0.0,
+            "latency_ms": 1,
+        }
+        if tools is not None and step == "investigate":
+            self.spans.append(note)
+            done = sum(m["role"] == "tool" for m in messages)
+            if done < len(self.CALLS) and not any(
+                "round 2" in m["content"] for m in messages if m["role"] == "user"
+            ):
+                name_, args = self.CALLS[done]
+                return answer(name, tool_calls=[tool_call(done + 1, name_, args)])
+            return answer(name)
+        if step == "extract_facts":
+            self.spans.append(note)
+            self.extractions += 1
+            if self.extractions == 1:
+                raise ValueError("model emitted blank lines until the token limit")
+            return answer(
+                name,
+                FactList(
+                    facts=[
+                        FactItem(
+                            statement="Pool size is 100",
+                            call=5,
+                            excerpt="DB_POOL_SIZE = 100",
+                            source_ref="config.py L1-2 @ v2",
+                        )
+                    ]
+                ),
+            )
+        return await super().complete(tier, messages, tools=tools, schema=schema, name=name, **kw)
+
+
+async def test_a_failed_extraction_batch_loses_only_its_own_facts(db_session, project, repo):  # noqa: F811
+    model = BatchModel([SUPPORTED, SUPPORTED])
+    _, state, events = await investigate(db_session, project, repo, model)
+    assert any("fact extraction failed" in e.payload.message for e in events if e.type == "error")
+    first_round = [f for f in state["facts"] if f["statement"] == "Pool size is 100"]
+    assert first_round and first_round[0]["label"] == "F1"  # batch 2 still produced its fact

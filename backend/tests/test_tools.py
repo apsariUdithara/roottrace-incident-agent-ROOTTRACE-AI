@@ -291,3 +291,9 @@ async def test_the_agent_can_be_told_the_tables_and_columns_up_front(production_
     assert await describe_tables(production_data) == "payments(id, http_status)"
     result = await call(production_data, "query_database", sql="SELECT * FROM pg_settings")
     assert "payments(id, http_status)" in result["error"]  # a wrong guess shows the schema
+
+
+async def test_log_text_search_also_matches_the_error_type(ctx):
+    await add_logs(ctx)  # errors have message "too many connections", type OperationalError
+    assert (await call(ctx, "search_logs", text="operationalerror"))["total"] == 3
+    assert (await call(ctx, "search_logs", text="TOO MANY"))["total"] == 3

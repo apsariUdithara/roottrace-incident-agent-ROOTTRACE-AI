@@ -8,7 +8,7 @@ started, plus a handful of real lines (errors first) to cite.
 from datetime import datetime, timedelta
 
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 
 from app.models import LogEntry
 from app.tools.registry import ToolContext, tool
@@ -24,7 +24,10 @@ class LogSearchArgs(BaseModel):
     level: str | None = Field(default=None, description="INFO, WARN or ERROR.")
     route: str | None = Field(default=None, description="HTTP route or part of it, e.g. /pay")
     error_type: str | None = Field(default=None, description="e.g. OperationalError.")
-    text: str | None = Field(default=None, description="Text that must appear in the message.")
+    text: str | None = Field(
+        default=None,
+        description="Text to find, case-insensitively, in the message or the error type.",
+    )
     service: str | None = Field(default=None, description="Service name.")
 
 
@@ -41,7 +44,10 @@ def _filters(ctx: ToolContext, args: LogSearchArgs) -> list:
     if args.error_type:
         f.append(LogEntry.error_type == args.error_type)
     if args.text:
-        f.append(LogEntry.message.ilike(f"%{args.text}%"))
+        # Case-insensitive, in the message OR the error type: "ReconciliationMismatch" is the
+        # error type of lines whose message says "reconciliation mismatch".
+        pattern = f"%{args.text}%"
+        f.append(or_(LogEntry.message.ilike(pattern), LogEntry.error_type.ilike(pattern)))
     if args.service:
         f.append(LogEntry.service == args.service)
     return f
