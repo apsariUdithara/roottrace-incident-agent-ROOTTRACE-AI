@@ -155,3 +155,22 @@ async def test_a_timed_out_call_is_retried():
     fake = FakeNebius(timeout, reply("hi"))
     result = await make_router(fake).complete("nano", [{"role": "user", "content": "hi"}])
     assert result.content == "hi" and len(fake.requests) == 2
+
+
+async def test_a_call_that_never_finishes_hits_the_deadline_and_is_retried(monkeypatch):
+    import asyncio
+
+    import app.llm.router as router_module
+
+    monkeypatch.setattr(router_module, "CALL_DEADLINE_S", 0.05)
+
+    class Stalling(FakeNebius):
+        async def create(self, **request):
+            self.requests.append(request)
+            if len(self.requests) == 1:
+                await asyncio.sleep(10)  # a server that never finishes
+            return reply("hi")
+
+    fake = Stalling()
+    result = await make_router(fake).complete("nano", [{"role": "user", "content": "hi"}])
+    assert result.content == "hi" and len(fake.requests) == 2

@@ -32,11 +32,13 @@ RETRYABLE = (
     openai.APITimeoutError,
     openai.RateLimitError,
     openai.InternalServerError,
+    TimeoutError,  # our own deadline (CALL_DEADLINE_S) was reached
 )
 MAX_ATTEMPTS = 3
 # Longest a single model call may take. Without a limit, a stalled connection (e.g. after the
 # machine slept) waits forever; with one, it raises APITimeoutError and our retry takes over.
 CALL_TIMEOUT_S = 180
+CALL_DEADLINE_S = 240  # total time for one call, however the server behaves
 # ponytail: embeddings are not cached; ingestion already skips unchanged files by content hash.
 EMBED_BATCH = 64
 
@@ -176,7 +178,12 @@ class LLMRouter:
     async def _call(self, tier: Tier, request: dict) -> LLMResult:
         model = self.model_for(tier)
         start = time.perf_counter()
-        resp = await self.client.chat.completions.create(model=model, **request)
+        # A hard limit on the WHOLE call: the client's timeout only limits the wait between
+        # chunks, so a server that keeps sending (e.g. a model emitting blank lines) never
+        # trips it. TimeoutError is retryable.
+        resp = await asyncio.wait_for(
+            self.client.chat.completions.create(model=model, **request), CALL_DEADLINE_S
+        )
         message = resp.choices[0].message
         usage = resp.usage
         return LLMResult(
