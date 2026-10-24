@@ -9,7 +9,7 @@ import pytest
 from pydantic import BaseModel, ValidationError
 
 from app.core.config import Settings
-from app.llm.router import LLMRouter
+from app.llm.router import MAX_ATTEMPTS, LLMRouter
 
 pytestmark = pytest.mark.anyio  # run the async tests (anyio's pytest plugin is already installed)
 
@@ -130,7 +130,7 @@ async def test_cache_is_off_outside_development(tmp_path):
 
 
 async def test_ultra_falls_back_to_super_when_unavailable():
-    fake = FakeNebius(connection_error(), connection_error(), connection_error(), reply("ok"))
+    fake = FakeNebius(*[connection_error() for _ in range(MAX_ATTEMPTS)], reply("ok"))
     router = make_router(fake)
     result = await router.complete("ultra", [{"role": "user", "content": "hi"}])
     assert result.downgraded
@@ -143,3 +143,60 @@ async def test_every_call_records_a_span():
     await router.complete("nano", [{"role": "user", "content": "hi"}], name="triage")
     span = router.spans[0]
     assert span["name"] == "triage" and span["model"] == router.settings.nemotron_nano
+
+
+def test_real_client_has_a_timeout_and_leaves_retries_to_the_router():
+    router = LLMRouter(Settings(_env_file=None, nebius_api_key="k"))
+    assert router.client.timeout == 180 and router.client.max_retries == 0
+
+
+async def test_a_timed_out_call_is_retried():
+    timeout = openai.APITimeoutError(request=httpx2.Request("POST", "https://example.invalid"))
+    fake = FakeNebius(timeout, reply("hi"))
+    result = await make_router(fake).complete("nano", [{"role": "user", "content": "hi"}])
+    assert result.content == "hi" and len(fake.requests) == 2
+
+
+async def test_a_call_that_never_finishes_hits_the_deadline_and_is_retried(monkeypatch):
+    import asyncio
+
+    import app.llm.router as router_module
+
+    monkeypatch.setattr(router_module, "CALL_DEADLINE_S", 0.05)
+
+    class Stalling(FakeNebius):
+        async def create(self, **request):
+            self.requests.append(request)
+            if len(self.requests) == 1:
+                await asyncio.sleep(10)  # a server that never finishes
+            return reply("hi")
+
+    fake = Stalling()
+    result = await make_router(fake).complete("nano", [{"role": "user", "content": "hi"}])
+    assert result.content == "hi" and len(fake.requests) == 2
+
+
+async def test_retries_wait_longer_each_time():
+    waits = []
+
+    async def record(seconds):
+        waits.append(seconds)
+
+    fake = FakeNebius(connection_error(), connection_error(), reply("ok"))
+    router = LLMRouter(Settings(_env_file=None), client=fake, sleep=record)
+    await router.complete("nano", [{"role": "user", "content": "hi"}])
+    assert waits == [2, 10]
+
+
+async def test_a_run_stops_once_it_reaches_its_cost_cap():
+    from app.llm.router import CostCapExceeded
+
+    # Each Super call of 1M tokens in and out costs $1.20.
+    big = reply("hi", prompt_tokens=1_000_000, completion_tokens=1_000_000)
+    fake = FakeNebius(big, big)
+    router = make_router(fake)
+    router.cost_cap_usd = 1.00
+    await router.complete("super", [{"role": "user", "content": "hi"}])  # spends $1.20
+    with pytest.raises(CostCapExceeded, match=r"\$1\.00"):
+        await router.complete("super", [{"role": "user", "content": "again"}])
+    assert len(fake.requests) == 1  # the second call never reached Nebius

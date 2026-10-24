@@ -1,0 +1,106 @@
+{
+  "summary": {
+    "cases": 4,
+    "root_cause_accuracy": 0.75,
+    "keyword_hit_rate": 0.75,
+    "evidence_recall": 0.855,
+    "citations_valid": 1.0,
+    "tool_selection": 1.0,
+    "verified_fix_rate": 0.75,
+    "no_false_fix_rate": null,
+    "avg_confidence_correct": 0.8793333333333333,
+    "total_cost_usd": 0.2498,
+    "avg_seconds": 202.75
+  },
+  "models": {
+    "ultra": "nvidia/Nemotron-3-Ultra-550b-a55b",
+    "super": "nvidia/nemotron-3-super-120b-a12b",
+    "nano": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B"
+  },
+  "cases": [
+    {
+      "id": "s3-q1",
+      "ref": "v1.4.2",
+      "status": "awaiting_approval",
+      "root_cause": "Release v1.4.2 introduced a breaking change in `is_expired()` that falls back to `datetime.utcnow()`, producing a naive datetime that cannot be compared with the timezone-aware expiration timestamps stored in tokens. This raises a TypeError (\u201ccan\u2019t compare offset-naive and offset-aware datetimes\u201d) which is logged as `InvalidToken`, causing every token validation to fail and logging users out.",
+      "confidence": 0.9,
+      "citations": true,
+      "fix_status": "verified",
+      "cost_usd": 0.049054,
+      "tokens": 98504,
+      "seconds": 144,
+      "investigation_id": "39a861fd-2597-429f-bb0f-fcb57304019f",
+      "root_cause_correct": true,
+      "judge_reason": "Both descriptions point to the same underlying issue: a fallback to datetime.utcnow() creates a naive datetime that cannot be compared with timezone\u2011aware token expiry timestamps, causing a TypeError and universal token rejection.",
+      "keywords": true,
+      "evidence": 1.0,
+      "evidence_missing": [],
+      "tools": true,
+      "fix": true
+    },
+    {
+      "id": "s3-q2",
+      "ref": "v1.4.2",
+      "status": "completed",
+      "root_cause": "",
+      "confidence": 0.388,
+      "citations": true,
+      "fix_status": "none",
+      "cost_usd": 0.063866,
+      "tokens": 139618,
+      "seconds": 196,
+      "investigation_id": "282b2ff3-34cc-4153-946f-a3ffadf00672",
+      "root_cause_correct": false,
+      "judge_reason": "The incident report provides no root\u2011cause information ('(none)'), whereas the expected root cause describes using naive `datetime.utcnow()` for comparisons against timezone\u2011aware expiry times leading to all tokens being rejected. Since the report does not mention this specific change or its effect, it does not identify the same root cause.",
+      "keywords": false,
+      "evidence": 0.67,
+      "evidence_missing": [
+        "docs/authentication.md"
+      ],
+      "tools": true,
+      "fix": false
+    },
+    {
+      "id": "s4-q1",
+      "ref": "v1.4.3",
+      "status": "awaiting_approval",
+      "root_cause": "The removal of the idempotency key lookup in `create_charge` (commit 4785b8f120), deployed in v1.4.3 at ~16:10 UTC, caused every charge request to create a new charge instead of returning an existing charge for the same idempotency key, directly producing duplicate charges starting at 16:19 UTC.",
+      "confidence": 0.9,
+      "citations": true,
+      "fix_status": "verified",
+      "cost_usd": 0.063178,
+      "tokens": 139587,
+      "seconds": 195,
+      "investigation_id": "cf12960d-9268-4452-900a-76a778338d1c",
+      "root_cause_correct": true,
+      "judge_reason": "Both descriptions state that removing the idempotency\u2011key lookup in `create_charge` causes repeated requests with the same key to generate additional charges rather than reusing an existing one, which is exactly the same root cause.",
+      "keywords": true,
+      "evidence": 1.0,
+      "evidence_missing": [],
+      "tools": true,
+      "fix": true
+    },
+    {
+      "id": "s4-q2",
+      "ref": "v1.4.3",
+      "status": "awaiting_approval",
+      "root_cause": "The rolling deploy of v1.4.3 (commit 4785b8f120) removed the idempotency-key lookup in the charge creation function, causing client retries to create duplicate charges instead of returning the original charge.",
+      "confidence": 0.838,
+      "citations": true,
+      "fix_status": "verified",
+      "cost_usd": 0.073691,
+      "tokens": 153641,
+      "seconds": 276,
+      "investigation_id": "d5cf1ec1-aa7e-42c2-854a-df9f731adc53",
+      "root_cause_correct": true,
+      "judge_reason": "Both statements describe removal of the idempotency\u2011key lookup from the charge creation function during the specified deployment/commit, which caused retrying clients to generate duplicate charges.",
+      "keywords": true,
+      "evidence": 0.75,
+      "evidence_missing": [
+        "src/paystream/payments/service.py"
+      ],
+      "tools": true,
+      "fix": true
+    }
+  ]
+}

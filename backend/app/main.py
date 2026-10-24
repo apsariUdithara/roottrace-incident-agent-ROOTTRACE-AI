@@ -1,22 +1,26 @@
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import AsyncExitStack, asynccontextmanager
 
 from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.api.routes import auth, chat, projects
+from app.api.routes import auth, chat, investigations, projects
 from app.core.config import get_settings
 from app.core.db import SessionDep, engine
 from app.core.errors import install_error_handlers
+from app.mcp_servers import MOUNTS
 
 settings = get_settings()  # also fails fast on invalid config
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-    yield
+    async with AsyncExitStack() as stack:
+        for mount in MOUNTS.values():  # each MCP server runs for the app's lifetime
+            await stack.enter_async_context(mount.running())
+        yield
     await engine.dispose()
 
 
@@ -34,6 +38,10 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(projects.router)
 app.include_router(chat.router)
+app.include_router(investigations.router)
+# RootTrace's tools for any MCP client: /mcp/github, /mcp/docs, /mcp/incidents
+for _name, _mount in MOUNTS.items():
+    app.mount(f"/mcp/{_name}", _mount)
 
 
 @app.get("/health")

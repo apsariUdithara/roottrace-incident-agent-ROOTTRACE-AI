@@ -65,6 +65,39 @@ def text_to_embed(path: str, chunk: Chunk) -> str:
     return f"{path} > {where}\n{chunk.content}" if where else f"{path}\n{chunk.content}"
 
 
+async def reuse_or_embed(
+    session: AsyncSession, router: LLMRouter, path: str, chunks: list[Chunk]
+) -> list[list[float]]:
+    """Embeddings for `chunks`, reusing any already stored for the same path and text.
+
+    Identical text gives an identical embedding, so a chunk unchanged since another indexed
+    version (another release of the same repo) costs nothing. Only new text is embedded.
+    """
+    vectors: list[list[float] | None] = []
+    for c in chunks:
+        stored = await session.scalar(
+            select(DocumentChunk.embedding)
+            .join(Document)
+            .where(
+                Document.path == path,
+                DocumentChunk.content == c.content,
+                DocumentChunk.section_path.is_not_distinct_from(c.section_path),
+                DocumentChunk.symbol.is_not_distinct_from(c.symbol),
+                DocumentChunk.embedding.is_not(None),
+            )
+            .limit(1)
+        )
+        vectors.append(list(stored) if stored is not None else None)
+    missing = [i for i, v in enumerate(vectors) if v is None]
+    if missing:
+        fresh = await router.embed(
+            [text_to_embed(path, chunks[i]) for i in missing], name=f"embed {path}"
+        )
+        for i, vector in zip(missing, fresh, strict=True):
+            vectors[i] = vector
+    return vectors
+
+
 async def store_document(
     session: AsyncSession,
     router: LLMRouter,
@@ -85,6 +118,7 @@ async def store_document(
         )
     )
     if existing and existing.hash == content_hash:
+        existing.commit_sha = commit_sha  # same content, maybe a new commit: keep citations current
         return False
     if existing:
         await session.delete(existing)  # its chunks go too (ON DELETE CASCADE)
@@ -100,7 +134,7 @@ async def store_document(
     )
     session.add(doc)
     await session.flush()
-    vectors = await router.embed([text_to_embed(path, c) for c in chunks], name=f"embed {path}")
+    vectors = await reuse_or_embed(session, router, path, chunks)
     session.add_all(
         DocumentChunk(
             document_id=doc.id,

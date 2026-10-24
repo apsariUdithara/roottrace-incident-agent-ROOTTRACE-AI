@@ -67,7 +67,7 @@ MAIN = [
 def git(*args: str, date: str | None = None, author: str | None = None) -> str:
     env = dict(os.environ)
     if date:
-        env["GIT_AUTHOR_DATE"] = env["GIT_COMMITTER_DATE"] = date + ":00"
+        env["GIT_AUTHOR_DATE"] = env["GIT_COMMITTER_DATE"] = date + ":00+00:00"  # UTC, like the logs
     if author:
         name, email = author[:-1].split(" <")
         env.update(GIT_AUTHOR_NAME=name, GIT_AUTHOR_EMAIL=email, GIT_COMMITTER_NAME=name, GIT_COMMITTER_EMAIL=email)

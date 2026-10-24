@@ -32,8 +32,22 @@ RETRYABLE = (
     openai.APITimeoutError,
     openai.RateLimitError,
     openai.InternalServerError,
+    TimeoutError,  # our own deadline (CALL_DEADLINE_S) was reached
 )
-MAX_ATTEMPTS = 3
+# Waits between attempts: long enough to ride out a short network outage, not just one
+# dropped request (a 1-2 s wait failed a whole investigation during an outage).
+BACKOFF_S = (2, 10, 30)
+MAX_ATTEMPTS = len(BACKOFF_S) + 1
+
+
+class CostCapExceeded(Exception):
+    """A run reached its spending limit. Not retryable: the run should stop."""
+
+
+# Longest a single model call may take. Without a limit, a stalled connection (e.g. after the
+# machine slept) waits forever; with one, it raises APITimeoutError and our retry takes over.
+CALL_TIMEOUT_S = 180
+CALL_DEADLINE_S = 240  # total time for one call, however the server behaves
 # ponytail: embeddings are not cached; ingestion already skips unchanged files by content hash.
 EMBED_BATCH = 64
 
@@ -61,6 +75,18 @@ class LLMRouter:
     sleep: Any = asyncio.sleep
     # ponytail: spans kept in memory for now; they move to the trace_spans table in Phase 5.
     spans: list[dict] = field(default_factory=list)
+    # Spending limit for everything this router does (one investigation). None: no limit.
+    cost_cap_usd: float | None = None
+
+    def spent_usd(self) -> float:
+        return sum(s["cost_usd"] for s in self.spans)
+
+    def check_budget(self) -> None:
+        """Refuse the next call once this router's spending reached its cap."""
+        if self.cost_cap_usd is not None and self.spent_usd() >= self.cost_cap_usd:
+            raise CostCapExceeded(
+                f"stopped: this investigation reached its cost limit of ${self.cost_cap_usd:.2f}"
+            )
 
     def __post_init__(self) -> None:
         if self.client is None:
@@ -68,6 +94,8 @@ class LLMRouter:
             self.client = openai.AsyncOpenAI(
                 base_url=self.settings.nebius_base_url,
                 api_key=key.get_secret_value() if key else None,
+                timeout=CALL_TIMEOUT_S,
+                max_retries=0,  # retries are ours (_with_retries), so they show in traces
             )
         if self.settings.app_env != "development":
             self.cache_dir = None  # never serve saved answers in evaluation or production
@@ -87,6 +115,7 @@ class LLMRouter:
         temperature: float = 0.2,
         name: str = "llm",
     ) -> LLMResult:
+        self.check_budget()
         request: dict[str, Any] = {
             "messages": messages,
             "max_tokens": max_tokens,
@@ -139,7 +168,7 @@ class LLMRouter:
             except RETRYABLE:
                 if attempt == MAX_ATTEMPTS - 1:
                     raise
-                await self.sleep(2**attempt)  # wait 1 s, then 2 s
+                await self.sleep(BACKOFF_S[attempt])
         raise AssertionError("unreachable")
 
     async def embed(self, texts: list[str], name: str = "embed") -> list[list[float]]:
@@ -147,6 +176,7 @@ class LLMRouter:
         model, vectors = self.settings.embed_model, []
         for i in range(0, len(texts), EMBED_BATCH):
             batch = texts[i : i + EMBED_BATCH]
+            self.check_budget()
             start = time.perf_counter()
             resp = await self._retry(
                 lambda batch=batch: self.client.embeddings.create(
@@ -171,7 +201,12 @@ class LLMRouter:
     async def _call(self, tier: Tier, request: dict) -> LLMResult:
         model = self.model_for(tier)
         start = time.perf_counter()
-        resp = await self.client.chat.completions.create(model=model, **request)
+        # A hard limit on the WHOLE call: the client's timeout only limits the wait between
+        # chunks, so a server that keeps sending (e.g. a model emitting blank lines) never
+        # trips it. TimeoutError is retryable.
+        resp = await asyncio.wait_for(
+            self.client.chat.completions.create(model=model, **request), CALL_DEADLINE_S
+        )
         message = resp.choices[0].message
         usage = resp.usage
         return LLMResult(
