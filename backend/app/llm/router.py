@@ -34,7 +34,10 @@ RETRYABLE = (
     openai.InternalServerError,
     TimeoutError,  # our own deadline (CALL_DEADLINE_S) was reached
 )
-MAX_ATTEMPTS = 3
+# Waits between attempts: long enough to ride out a short network outage, not just one
+# dropped request (a 1-2 s wait failed a whole investigation during an outage).
+BACKOFF_S = (2, 10, 30)
+MAX_ATTEMPTS = len(BACKOFF_S) + 1
 # Longest a single model call may take. Without a limit, a stalled connection (e.g. after the
 # machine slept) waits forever; with one, it raises APITimeoutError and our retry takes over.
 CALL_TIMEOUT_S = 180
@@ -146,7 +149,7 @@ class LLMRouter:
             except RETRYABLE:
                 if attempt == MAX_ATTEMPTS - 1:
                     raise
-                await self.sleep(2**attempt)  # wait 1 s, then 2 s
+                await self.sleep(BACKOFF_S[attempt])
         raise AssertionError("unreachable")
 
     async def embed(self, texts: list[str], name: str = "embed") -> list[list[float]]:

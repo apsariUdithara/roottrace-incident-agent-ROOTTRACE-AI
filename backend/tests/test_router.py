@@ -9,7 +9,7 @@ import pytest
 from pydantic import BaseModel, ValidationError
 
 from app.core.config import Settings
-from app.llm.router import LLMRouter
+from app.llm.router import MAX_ATTEMPTS, LLMRouter
 
 pytestmark = pytest.mark.anyio  # run the async tests (anyio's pytest plugin is already installed)
 
@@ -130,7 +130,7 @@ async def test_cache_is_off_outside_development(tmp_path):
 
 
 async def test_ultra_falls_back_to_super_when_unavailable():
-    fake = FakeNebius(connection_error(), connection_error(), connection_error(), reply("ok"))
+    fake = FakeNebius(*[connection_error() for _ in range(MAX_ATTEMPTS)], reply("ok"))
     router = make_router(fake)
     result = await router.complete("ultra", [{"role": "user", "content": "hi"}])
     assert result.downgraded
@@ -174,3 +174,15 @@ async def test_a_call_that_never_finishes_hits_the_deadline_and_is_retried(monke
     fake = Stalling()
     result = await make_router(fake).complete("nano", [{"role": "user", "content": "hi"}])
     assert result.content == "hi" and len(fake.requests) == 2
+
+
+async def test_retries_wait_longer_each_time():
+    waits = []
+
+    async def record(seconds):
+        waits.append(seconds)
+
+    fake = FakeNebius(connection_error(), connection_error(), reply("ok"))
+    router = LLMRouter(Settings(_env_file=None), client=fake, sleep=record)
+    await router.complete("nano", [{"role": "user", "content": "hi"}])
+    assert waits == [2, 10]
