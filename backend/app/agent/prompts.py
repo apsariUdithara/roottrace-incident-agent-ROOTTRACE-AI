@@ -3,7 +3,7 @@
 Rule: nothing project-specific here. The agent learns about a project only through its tools.
 """
 
-PROMPT_VERSION = "v11"
+PROMPT_VERSION = "v12"
 
 SYSTEM = """You are RootTrace, an incident investigator for software teams.
 You find the root cause of production incidents from evidence, the way a careful senior engineer
@@ -95,6 +95,9 @@ each other or don't fit. Do not introduce new facts."""
 
 HYPOTHESIZE = """Incident: {question}
 
+Errors actually recorded in the logs before the report (read directly from the log store):
+{observed}
+
 Facts:
 {facts}
 
@@ -131,7 +134,14 @@ Facts (label: statement):
 Inferences:
 {inferences}
 
-Judge the hypothesis against ALL the facts.
+Errors actually recorded in the logs before the report (read directly from the log store, so
+they are reliable even if a fact above is missing):
+{observed}
+
+Judge the hypothesis against ALL the facts AND the recorded errors.
+A root cause must explain the exact error messages above. If the logs show an error that the
+hypothesis would not produce (for example a type or comparison error, when the hypothesis is a
+missing table), the hypothesis is "refuted", however plausible it sounds.
 - verdict: "supported" if the facts explain the symptoms and their timing and nothing important
   contradicts it; "weak" if it is plausible but key evidence is missing; "refuted" if the facts
   contradict it.

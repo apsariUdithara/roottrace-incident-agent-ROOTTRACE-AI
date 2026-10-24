@@ -21,12 +21,13 @@ import tempfile
 import time
 import uuid
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Literal, TypedDict
 
 from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel, Field
+from sqlalchemy import func, select
 
 from app.agent import fix, memory, prompts
 from app.agent.confidence import components, score
@@ -39,6 +40,7 @@ from app.models import (
     Hypothesis,
     Investigation,
     InvestigationStatus,
+    LogEntry,
     ModelTier,
     Patch,
     PatchStatus,
@@ -76,6 +78,8 @@ from app.tools import TOOLS, ToolContext, ToolError, call_tool, openai_schemas
 from app.tools.database import describe_tables
 
 MAX_ROUNDS = 2  # investigate at most twice
+OBSERVED_WINDOW_H = 6  # recorded errors this long before the report are shown to the verifier
+OBSERVED_TYPES = 8
 INVESTIGATE_BUDGET = 12  # tool calls per investigate round
 VERIFY_BUDGET = 4  # tool calls the verifier may use to look for contradictions
 EXTRACT_BATCH = 4  # tool results per extraction call
@@ -322,7 +326,9 @@ class Investigator:
         self.session = tools.session
         self.router: LLMRouter = tools.router
         self.bus = bus
-        self.reported_at = (reported_at or datetime.now(UTC)).isoformat(timespec="minutes")
+        self.reported_dt = reported_at or datetime.now(UTC)
+        self.reported_at = self.reported_dt.isoformat(timespec="minutes")
+        self.observed: str | None = None  # error messages in the logs, read once
         self.sandbox = sandbox or NebiusSandbox()
         self.test_command, self.setup_command = test_command, setup_command
         self.base: Path | None = None  # snapshot of the deployed code
@@ -443,6 +449,39 @@ class Investigator:
             name=f"{name}.{prompts.PROMPT_VERSION}",
         )
         return result.parsed
+
+    async def observed_errors(self) -> str:
+        """The distinct errors and warnings in the logs before the report, read by code.
+
+        The verifier must see the real symptoms even when fact extraction failed: a hypothesis
+        that does not explain them is wrong, however plausible it sounds.
+        """
+        if self.observed is None:
+            since = self.reported_dt - timedelta(hours=OBSERVED_WINDOW_H)
+            rows = await self.session.execute(
+                select(
+                    LogEntry.error_type,
+                    func.count(),
+                    func.min(LogEntry.ts),
+                    func.min(LogEntry.message),
+                )
+                .where(
+                    LogEntry.project_id == self.inv.project_id,
+                    LogEntry.ts.between(since, self.reported_dt),
+                    func.upper(LogEntry.level).in_(("ERROR", "WARN")),
+                    LogEntry.error_type.is_not(None),
+                )
+                .group_by(LogEntry.error_type)
+                .order_by(func.count().desc())
+                .limit(OBSERVED_TYPES)
+            )
+            lines = [
+                f"- {error_type}: {count}x, first at {first:%Y-%m-%d %H:%M} UTC, e.g. "
+                f'"{message[:200]}"'
+                for error_type, count, first, message in rows.all()
+            ]
+            self.observed = "\n".join(lines) or "(no errors or warnings recorded)"
+        return self.observed
 
     async def run_tools(self, step: Step, prompt: str, budget: int) -> list[dict]:
         """Let the model call tools until it stops or the budget runs out (a ReAct loop).
@@ -751,6 +790,7 @@ class Investigator:
                 "ultra",
                 prompts.HYPOTHESIZE.format(
                     question=self.inv.question,
+                    observed=await self.observed_errors(),
                     facts=_fact_lines(state["facts"]),
                     inferences=_inference_lines(state.get("inferences", [])),
                 ),
@@ -792,6 +832,7 @@ class Investigator:
                 "ultra",
                 prompts.VERDICT.format(
                     question=self.inv.question,
+                    observed=await self.observed_errors(),
                     hypothesis=top["statement"],
                     facts=_fact_lines(facts),
                     inferences=_inference_lines(state.get("inferences", [])),
@@ -1190,6 +1231,9 @@ class Investigator:
             status = InvestigationStatus.COMPLETED
         except Exception as exc:  # noqa: BLE001 - recorded and reported, never swallowed
             await self.session.rollback()
+            # A rollback marks loaded rows as stale; reload the investigation now, asynchronously,
+            # or the next attribute access tries a synchronous reload and crashes.
+            await self.session.refresh(self.inv)
             await self.bus.publish(
                 ErrorRaised(message=f"{type(exc).__name__}: {exc}"[:2000], fatal=True)
             )

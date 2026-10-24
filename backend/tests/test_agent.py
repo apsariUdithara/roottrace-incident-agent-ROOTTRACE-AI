@@ -213,7 +213,7 @@ class FakeSandbox:
         )
 
 
-async def investigate(db_session, project, repo, model, sandbox=None):  # noqa: F811
+async def investigate(db_session, project, repo, model, sandbox=None, reported_at=None):  # noqa: F811
     inv = Investigation(project_id=project.id, user_id=project.owner_id, question="Why 500s?")
     db_session.add(inv)
     await db_session.flush()
@@ -221,7 +221,7 @@ async def investigate(db_session, project, repo, model, sandbox=None):  # noqa: 
     events = []
     bus.listeners.append(events.append)
     ctx = ToolContext(db_session, model, project.id, repo, ref="v2")
-    state = await Investigator(inv, ctx, bus, sandbox=sandbox or FakeSandbox()).run()
+    state = await Investigator(inv, ctx, bus, reported_at, sandbox=sandbox or FakeSandbox()).run()
     return inv, state, events
 
 
@@ -563,3 +563,45 @@ async def test_a_failed_extraction_batch_loses_only_its_own_facts(db_session, pr
     assert any("fact extraction failed" in e.payload.message for e in events if e.type == "error")
     first_round = [f for f in state["facts"] if f["statement"] == "Pool size is 100"]
     assert first_round and first_round[0]["label"] == "F1"  # batch 2 still produced its fact
+
+
+async def test_the_verifier_sees_the_real_error_messages_even_without_facts_about_them(
+    db_session,
+    project,
+    repo,  # noqa: F811
+):
+    from datetime import UTC, datetime, timedelta
+
+    from app.models import LogEntry
+
+    reported = datetime(2026, 9, 15, 10, 30, tzinfo=UTC)
+    for minutes in (5, 10, 15):
+        db_session.add(
+            LogEntry(
+                project_id=project.id,
+                ts=reported - timedelta(minutes=minutes),
+                level="WARN",
+                route="/payments",
+                status=401,
+                error_type="InvalidToken",
+                message="token rejected: can't compare offset-naive and offset-aware datetimes",
+            )
+        )
+    db_session.add(
+        LogEntry(  # long before the report: not shown
+            project_id=project.id,
+            ts=reported - timedelta(days=2),
+            level="ERROR",
+            error_type="OldError",
+            message="something from two days ago",
+        )
+    )
+    await db_session.flush()
+
+    model = ScriptedModel([SUPPORTED])
+    await investigate(db_session, project, repo, model, reported_at=reported)
+    for step in ("verdict", "hypothesize"):
+        assert "InvalidToken: 3x" in model.prompts[step]
+        assert "offset-naive and offset-aware" in model.prompts[step]
+        assert "OldError" not in model.prompts[step]
+    assert 'is "refuted", however plausible' in model.prompts["verdict"]
