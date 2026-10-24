@@ -34,6 +34,9 @@ RETRYABLE = (
     openai.InternalServerError,
 )
 MAX_ATTEMPTS = 3
+# Longest a single model call may take. Without a limit, a stalled connection (e.g. after the
+# machine slept) waits forever; with one, it raises APITimeoutError and our retry takes over.
+CALL_TIMEOUT_S = 180
 # ponytail: embeddings are not cached; ingestion already skips unchanged files by content hash.
 EMBED_BATCH = 64
 
@@ -68,6 +71,8 @@ class LLMRouter:
             self.client = openai.AsyncOpenAI(
                 base_url=self.settings.nebius_base_url,
                 api_key=key.get_secret_value() if key else None,
+                timeout=CALL_TIMEOUT_S,
+                max_retries=0,  # retries are ours (_with_retries), so they show in traces
             )
         if self.settings.app_env != "development":
             self.cache_dir = None  # never serve saved answers in evaluation or production

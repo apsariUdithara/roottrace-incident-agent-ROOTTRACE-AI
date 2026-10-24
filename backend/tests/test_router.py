@@ -143,3 +143,15 @@ async def test_every_call_records_a_span():
     await router.complete("nano", [{"role": "user", "content": "hi"}], name="triage")
     span = router.spans[0]
     assert span["name"] == "triage" and span["model"] == router.settings.nemotron_nano
+
+
+def test_real_client_has_a_timeout_and_leaves_retries_to_the_router():
+    router = LLMRouter(Settings(_env_file=None, nebius_api_key="k"))
+    assert router.client.timeout == 180 and router.client.max_retries == 0
+
+
+async def test_a_timed_out_call_is_retried():
+    timeout = openai.APITimeoutError(request=httpx2.Request("POST", "https://example.invalid"))
+    fake = FakeNebius(timeout, reply("hi"))
+    result = await make_router(fake).complete("nano", [{"role": "user", "content": "hi"}])
+    assert result.content == "hi" and len(fake.requests) == 2
