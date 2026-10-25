@@ -20,7 +20,7 @@
 <rect x="40" y="196" width="320" height="108" rx="12" fill="#fffbeb" stroke="#f59e0b" stroke-width="1.5"/>
 <text x="58" y="226" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="16" font-weight="700" fill="#92400e" text-anchor="start">Nemotron 3 Ultra</text>
 <text x="58" y="250" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11.5" font-weight="500" fill="#78350f" text-anchor="start">nvidia/Nemotron-3-Ultra-550b-a55b</text>
-<text x="58" y="274" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#78350f" text-anchor="start">deepest reasoning · thinking ON</text>
+<text x="58" y="274" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#78350f" text-anchor="start">deepest reasoning · hardest steps</text>
 <path d="M360,250 L396,250" fill="none" stroke="#f59e0b" stroke-width="1.8" marker-end="url(#y)"/>
 <rect x="396" y="196" width="764" height="108" rx="12" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
 <rect x="414" y="218" width="161" height="28" rx="14.0" fill="#ffffff" stroke="#cbd5e1"/>
@@ -34,7 +34,7 @@
 <rect x="414" y="256" width="189" height="28" rx="14.0" fill="#ffffff" stroke="#cbd5e1"/>
 <text x="508.52" y="274.32" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="600" fill="#0f172a" text-anchor="middle">Patch retry (escalation)</text>
 <rect x="613.04" y="256" width="140" height="28" rx="14.0" fill="#ffffff" stroke="#cbd5e1"/>
-<text x="683.1999999999999" y="274.32" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="600" fill="#0f172a" text-anchor="middle">Eval answer judge</text>
+<text x="683.1999999999999" y="274.32" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="600" fill="#0f172a" text-anchor="middle">Refute vs real logs</text>
 <rect x="40" y="322" width="320" height="108" rx="12" fill="#fffbeb" stroke="#f59e0b" stroke-width="1.5"/>
 <text x="58" y="352" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="16" font-weight="700" fill="#92400e" text-anchor="start">Nemotron 3 Super</text>
 <text x="58" y="376" font-family="'JetBrains Mono',Consolas,'Courier New',monospace" font-size="11.5" font-weight="500" fill="#78350f" text-anchor="start">nvidia/nemotron-3-super-120b-a12b</text>
@@ -64,18 +64,16 @@
 <rect x="414" y="470" width="126" height="28" rx="14.0" fill="#ffffff" stroke="#cbd5e1"/>
 <text x="477.2" y="488.32" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="600" fill="#0f172a" text-anchor="middle">Incident triage</text>
 <rect x="550.4" y="470" width="126" height="28" rx="14.0" fill="#ffffff" stroke="#cbd5e1"/>
-<text x="613.6" y="488.32" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="600" fill="#0f172a" text-anchor="middle">Query rewriting</text>
-<rect x="686.8" y="470" width="140" height="28" rx="14.0" fill="#ffffff" stroke="#cbd5e1"/>
-<text x="756.9599999999999" y="488.32" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="600" fill="#0f172a" text-anchor="middle">Log summarization</text>
-<rect x="837.1199999999999" y="470" width="147" height="28" rx="14.0" fill="#ffffff" stroke="#cbd5e1"/>
-<text x="910.7599999999999" y="488.32" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="600" fill="#0f172a" text-anchor="middle">Listwise reranking</text>
-<rect x="994.3999999999999" y="470" width="140" height="28" rx="14.0" fill="#ffffff" stroke="#cbd5e1"/>
-<text x="1064.56" y="488.32" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="600" fill="#0f172a" text-anchor="middle">Memory extraction</text>
+<text x="613.6" y="488.32" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="600" fill="#0f172a" text-anchor="middle">Scope extraction</text>
+<rect x="686.80" y="470" width="147" height="28" rx="14.0" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="760.44" y="488.32" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="600" fill="#0f172a" text-anchor="middle">Listwise reranking</text>
+<rect x="844.08" y="470" width="140" height="28" rx="14.0" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="914.24" y="488.32" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="600" fill="#0f172a" text-anchor="middle">Memory extraction</text>
 <text x="40" y="590" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="500" fill="#64748b" text-anchor="start" font-style="italic">IDs are env-configurable — confirmed against GET /v1/models on 2026-10-11.</text>
 <rect x="40" y="600" width="347" height="26" rx="13.0" fill="#eff6ff" stroke="#60a5fa"/>
 <text x="213.69" y="616.96" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="600" fill="#1e3a8a" text-anchor="middle">Structured output: json_schema → Pydantic → 1 retry</text>
 <rect x="399.38" y="600" width="360" height="26" rx="13.0" fill="#eff6ff" stroke="#60a5fa"/>
-<text x="579.45" y="616.96" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="600" fill="#1e3a8a" text-anchor="middle">Resilience: 429/5xx → backoff → degrade Ultra → Super</text>
+<text x="579.45" y="616.96" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="600" fill="#1e3a8a" text-anchor="middle">Resilience: 5xx/timeout → backoff → Ultra → Super</text>
 <rect x="771.52" y="600" width="347" height="26" rx="13.0" fill="#eff6ff" stroke="#60a5fa"/>
 <text x="945.21" y="616.96" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="600" fill="#1e3a8a" text-anchor="middle">Observability: trace_span → tokens · latency · cost</text>
 </svg>

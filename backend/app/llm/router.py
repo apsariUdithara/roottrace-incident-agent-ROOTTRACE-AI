@@ -36,7 +36,7 @@ RETRYABLE = (
 )
 # Waits between attempts: long enough to ride out a short network outage, not just one
 # dropped request (a 1-2 s wait failed a whole investigation during an outage).
-BACKOFF_S = (2, 10, 30)
+BACKOFF_S = (2, 10, 30, 60, 120)  # ~4 min in total: rides out short provider outages (503s)
 MAX_ATTEMPTS = len(BACKOFF_S) + 1
 
 

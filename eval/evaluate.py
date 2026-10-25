@@ -331,16 +331,19 @@ async def main(args) -> None:
         projects = {}
         for ref in dict.fromkeys(c["ref"] for c in cases):
             print(f"indexing PayStream@{ref} ...", flush=True)
-            projects[ref], _ = await ingest.load(session, index_router, ref, f"PayStream@{ref}")
+            project, _ = await ingest.load(session, index_router, ref, f"PayStream@{ref}")
+            # Plain values: a rollback inside a run expires ORM objects, and reading an
+            # expired attribute later (outside an await) crashes with MissingGreenlet.
+            projects[ref] = (project.id, project.owner_id)
         for case in cases:
-            project = projects[case["ref"]]
+            project_id, owner_id = projects[case["ref"]]
             router = LLMRouter(settings)
             print(f"\n▶ {case['id']} @ {case['ref']}: {case['question']}")
             inv, _ = await run_investigation(
                 session,
                 router,
-                project.id,
-                project.owner_id,
+                project_id,
+                owner_id,
                 case["question"],
                 ref=case["ref"],
                 reported_at=case["reported_at"],
@@ -349,9 +352,18 @@ async def main(args) -> None:
             await session.refresh(inv)  # load fields the database filled in (started_at)
             image = None
             if case["scenario"]:
-                with tempfile.TemporaryDirectory() as tmp:
-                    snapshot(REPO, case["ref"], Path(tmp) / "code")
-                    image = await sandbox.environment(Path(tmp) / "code", None)
+                # A sandbox outage must not end the whole run: retry once, then score this
+                # case without the hidden test (its fix counts as not confirmed).
+                for wait in (30, None):
+                    try:
+                        with tempfile.TemporaryDirectory() as tmp:
+                            snapshot(REPO, case["ref"], Path(tmp) / "code")
+                            image = await sandbox.environment(Path(tmp) / "code", None)
+                        break
+                    except SandboxError as exc:
+                        print(f"  sandbox unavailable: {exc}")
+                        if wait:
+                            await asyncio.sleep(wait)
             row = await score(session, router, sandbox, case, inv, image)
             await session.commit()
             rows.append(row)

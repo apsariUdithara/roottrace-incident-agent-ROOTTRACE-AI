@@ -1,0 +1,108 @@
+{
+  "summary": {
+    "cases": 4,
+    "root_cause_accuracy": 1.0,
+    "keyword_hit_rate": 1.0,
+    "evidence_recall": 0.73,
+    "citations_valid": 1.0,
+    "tool_selection": 1.0,
+    "verified_fix_rate": 1.0,
+    "no_false_fix_rate": null,
+    "avg_confidence_correct": 0.87075,
+    "total_cost_usd": 0.2444,
+    "avg_seconds": 278.0
+  },
+  "models": {
+    "ultra": "nvidia/Nemotron-3-Ultra-550b-a55b",
+    "super": "nvidia/nemotron-3-super-120b-a12b",
+    "nano": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B"
+  },
+  "cases": [
+    {
+      "id": "s3-q1",
+      "ref": "v1.4.2",
+      "status": "awaiting_approval",
+      "root_cause": "Release v1.4.2 replaced a timezone-aware UTC call with `datetime.utcnow()` (naive) in token expiry checking. This caused `is_expired` to compare a timezone-aware `expires_at` with a naive datetime, raising `TypeError` that was caught and surfaced as `InvalidToken`, logging users out.",
+      "confidence": 0.838,
+      "citations": true,
+      "fix_status": "verified",
+      "cost_usd": 0.080071,
+      "tokens": 151429,
+      "seconds": 342,
+      "investigation_id": "220805f8-f53e-4943-8836-dcb1dbeb820d",
+      "root_cause_correct": true,
+      "judge_reason": "Both descriptions point to the same underlying issue: replacing a timezone\u2011aware UTC timestamp generation with naive datetime.utcnow() leads to comparing a na\u00efve datetime with a timezone\u2011aware expiration time, which causes a type/comparison error that results in all tokens being treated as expired/rejected.",
+      "keywords": true,
+      "evidence": 0.67,
+      "evidence_missing": [
+        "docs/authentication.md"
+      ],
+      "tools": true,
+      "fix": true
+    },
+    {
+      "id": "s3-q2",
+      "ref": "v1.4.2",
+      "status": "awaiting_approval",
+      "root_cause": "The v1.4.2 release introduced a regression in `src/paystream/auth/tokens.py`: `is_expired()` now uses naive `datetime.utcnow()` while `issue_token()` still uses aware `datetime.now(UTC)`. Comparing these mismatched datetimes raises a TypeError on every token validation, which `verify()` treats as an invalid token, causing the 401 surge.",
+      "confidence": 0.9,
+      "citations": true,
+      "fix_status": "verified",
+      "cost_usd": 0.05546,
+      "tokens": 114941,
+      "seconds": 252,
+      "investigation_id": "2f9ab2c1-eb92-47d4-b345-bbac0dded1fc",
+      "root_cause_correct": true,
+      "judge_reason": "Both descriptions point to the same underlying problem: after the v1.4.2 change, `is_expired()` compares a naive `datetime.utcnow()` result with timezone\u2011aware timestamps produced by `issue_token()`. This type mismatch causes every token validation to fail (raising a TypeError that is interpreted as an invalid token), which matches the expected root cause.",
+      "keywords": true,
+      "evidence": 1.0,
+      "evidence_missing": [],
+      "tools": true,
+      "fix": true
+    },
+    {
+      "id": "s4-q1",
+      "ref": "v1.4.3",
+      "status": "awaiting_approval",
+      "root_cause": "The rolling deployment of v1.4.3 (commit 4785b8f120) removed the server-side idempotency-key lookup, causing legitimate retry requests bearing the same Idempotency-Key to create new charge records instead of returning the original charge.",
+      "confidence": 0.97,
+      "citations": true,
+      "fix_status": "verified",
+      "cost_usd": 0.062288,
+      "tokens": 126288,
+      "seconds": 314,
+      "investigation_id": "477f1150-b74f-4c7a-8f9f-05777c4497d3",
+      "root_cause_correct": true,
+      "judge_reason": "Both describe the removal of the server\u2011side idempotency\u2011key lookup as the cause, leading to duplicate charges on retried requests.",
+      "keywords": true,
+      "evidence": 1.0,
+      "evidence_missing": [],
+      "tools": true,
+      "fix": true
+    },
+    {
+      "id": "s4-q2",
+      "ref": "v1.4.3",
+      "status": "awaiting_approval",
+      "root_cause": "Commit 4785b8f120 removed the idempotency-key duplicate-charge guard in `create_charge`; when v1.4.3 deployed at 16:20 UTC, client retries using the same idempotency key created duplicate charges, triggering the DuplicateCharge warnings.",
+      "confidence": 0.775,
+      "citations": true,
+      "fix_status": "verified",
+      "cost_usd": 0.046568,
+      "tokens": 102143,
+      "seconds": 204,
+      "investigation_id": "a7082c2c-8c77-4c2d-80d1-0f1520895735",
+      "root_cause_correct": true,
+      "judge_reason": "Both descriptions state that removing the idempotency\u2011key check/guard in `create_charge` caused retried requests with the same key to produce duplicate charges.",
+      "keywords": true,
+      "evidence": 0.25,
+      "evidence_missing": [
+        "src/paystream/payments/service.py",
+        "docs/payments.md",
+        "INC-009"
+      ],
+      "tools": true,
+      "fix": true
+    }
+  ]
+}
