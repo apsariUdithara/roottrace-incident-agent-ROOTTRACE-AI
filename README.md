@@ -237,6 +237,16 @@ RootTrace is not tied to the demo repo. Connect any GitHub repository and:
 
 Patch quality on unfamiliar codebases will be lower than on the seeded demo, which is why every patch needs engineer approval before a PR is opened.
 
+**Known limits, from our own evaluation:**
+
+- **Small, self-built benchmark.** The 8 scenarios are bugs we seeded into PayStream ourselves. The numbers show the agent works on realistic incidents; they don't predict accuracy on any codebase.
+- **The agent's own test checks the fix, not the diagnosis.** The agent writes a regression test from its own hypothesis, so red→green proves the patch does what the hypothesis says. It can't prove the hypothesis is right. That's why the evaluation grades fixes with **hidden tests the agent never sees**, and why a human approves every PR.
+- **Some correct diagnoses end without a fix.** In the final run, 3 of 16 correct diagnoses got no PR because the patch failed the sandbox tests twice. The agent reports this rather than offering an untested fix.
+- **Vague questions about healthy code.** Asked "checkout felt slow earlier" about a healthy version, the agent once suspected a problem and tried a fix. The sandbox tests failed, so no PR was drafted, but the evaluation still counts any attempt as a failure.
+- **Results vary between runs.** Model output isn't fully repeatable: across our full runs, root-cause accuracy ranged from 88% to 100%. Every run is kept in `eval/results/`.
+- **Depends on provider uptime.** During one run, short Nebius outages (HTTP 503) stopped three investigations. Calls now retry for up to about 4 minutes.
+- **The agent calls its tools directly.** The MCP servers serve the same tools to outside clients such as Claude Desktop; the agent doesn't go through them itself.
+
 ## Hackathon checklist
 
 - [ ] Working demo URL (with a "Try demo" button)
