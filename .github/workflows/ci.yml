@@ -80,7 +80,7 @@ jobs:
           fi
 
   frontend:
-    name: Frontend (eslint, tsc, build)
+    name: Frontend (eslint, vitest, tsc, build)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -107,6 +107,9 @@ jobs:
 
       - name: Lint
         run: npm run lint
+
+      - name: Test
+        run: npm test
 
       - name: Type-check and build
         run: npm run build

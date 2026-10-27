@@ -1,18 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
 
+import { api, ok } from '@/api/client'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
-type Health = { status: string }
-
-async function fetchHealth(): Promise<Health> {
-  const response = await fetch('/api/health')
-  if (!response.ok) throw new Error(`HTTP ${response.status}`)
-  return response.json()
-}
-
 function ApiStatus() {
-  const { data, isPending, isError } = useQuery({ queryKey: ['health'], queryFn: fetchHealth })
+  const { data, isPending, isError } = useQuery({
+    queryKey: ['health'],
+    queryFn: () => ok(api.GET('/health')),
+  })
 
   if (isPending) return <Badge variant="secondary">checking…</Badge>
   if (isError) return <Badge variant="destructive">unreachable</Badge>

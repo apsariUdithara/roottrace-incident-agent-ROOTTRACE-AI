@@ -16,8 +16,33 @@ Start the backend first (see [backend/README.md](../backend/README.md)). Then, f
 npm install
 npm run dev       # http://localhost:5173 — /api/* is proxied to the backend on :8000
 npm run lint
+npm test          # vitest, once (npx vitest to watch)
 npm run build     # type-check + production build into dist/
 ```
+
+## Calling the API
+
+Use `api` and `ok` from `src/api/client.ts`. Paths, parameters, bodies and responses are all typed from the generated schema:
+
+```ts
+import { api, ok } from '@/api/client'
+
+useQuery({ queryKey: ['projects'], queryFn: () => ok(api.GET('/projects')) })
+
+const investigation = await ok(
+  api.POST('/projects/{project_id}/investigations', {
+    params: { path: { project_id } },
+    body: { question },
+  }),
+)
+```
+
+- `ok()` returns the data, or throws an `ApiError` with `status`, `message` (the backend's readable `detail`), `code` and `fieldErrors` (for a 422).
+- **Login:** the access token is kept in memory only (`src/api/session.ts`), never in localStorage. Every request sends it as `Authorization: Bearer …`.
+- **Expired token:** on a 401, the client calls `POST /auth/refresh` once (the browser sends the httpOnly refresh cookie) and retries with the new token. Requests that fail at the same moment share one refresh. A reload restores the session the same way.
+- **Session ended:** if the refresh fails, the session is cleared and the caller gets the 401. Subscribe with `useSyncExternalStore(subscribeSession, getSession)` to react, e.g. by sending the user to the login page.
+- A 401 from `/auth/login` or `/auth/register` means a wrong password or a taken email, and never triggers a refresh.
+- Queries retry once on network and 5xx errors, never on a 4xx (`shouldRetry` in `src/lib/query-client.ts`).
 
 ## API types
 
