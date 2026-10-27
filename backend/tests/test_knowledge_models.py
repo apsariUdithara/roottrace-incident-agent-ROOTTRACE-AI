@@ -59,9 +59,13 @@ async def test_full_text_search_matches_headings_and_symbols(
     )
 
     async def search(query: str) -> set:
+        # Only this project: API tests commit chunks of their own to the same database.
         rows = await db_session.scalars(
-            text("SELECT id FROM document_chunks WHERE tsv @@ plainto_tsquery('english', :q)"),
-            {"q": query},
+            text(
+                "SELECT id FROM document_chunks"
+                " WHERE project_id = :project AND tsv @@ plainto_tsquery('english', :q)"
+            ),
+            {"project": project.id, "q": query},
         )
         return set(rows)
 

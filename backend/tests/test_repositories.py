@@ -1,43 +1,21 @@
-import asyncio
 import uuid
-from collections.abc import Awaitable, Callable
+from collections.abc import Callable
 from typing import Any
 
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.pool import NullPool
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import decrypt_secret
 from app.models import Document, DocumentChunk, DocumentSourceType, Repository, SandboxStatus
+from tests.support import db, new_project
 
 NewUser = Callable[[], dict[str, str]]
 URL = "https://github.com/acme/payments"
 
 
-def db[T](work: Callable[[AsyncSession], Awaitable[T]]) -> T:
-    """Run `work` in its own committed session, outside the app (to look at or set up rows)."""
-    from app.core.db import engine as app_engine  # points at the test database
-
-    async def run() -> T:
-        engine = create_async_engine(app_engine.url, poolclass=NullPool)
-        try:
-            async with AsyncSession(engine, expire_on_commit=False) as session:
-                result = await work(session)
-                await session.commit()
-                return result
-        finally:
-            await engine.dispose()
-
-    return asyncio.run(run())
-
-
 def stored(repository_id: str) -> Repository:
     return db(lambda session: session.get(Repository, uuid.UUID(repository_id)))
-
-
-def new_project(client: TestClient, headers: dict[str, str], name: str = "Payments") -> str:
-    return client.post("/projects", headers=headers, json={"name": name}).json()["id"]
 
 
 def connect(client: TestClient, headers: dict[str, str], project_id: str, **fields: Any):

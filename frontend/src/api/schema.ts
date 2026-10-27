@@ -298,7 +298,7 @@ export interface paths {
         };
         /**
          * List Incidents
-         * @description Newest first.
+         * @description Newest first: by when it happened, or else when it was added.
          */
         get: operations["list_incidents_projects__project_id__incidents_get"];
         put?: never;
@@ -324,7 +324,10 @@ export interface paths {
         get: operations["get_incident_projects__project_id__incidents__incident_id__get"];
         put?: never;
         post?: never;
-        /** Delete Incident */
+        /**
+         * Delete Incident
+         * @description Also removes it from the search index. Investigations that linked it keep their results.
+         */
         delete: operations["delete_incident_projects__project_id__incidents__incident_id__delete"];
         options?: never;
         head?: never;
@@ -1140,7 +1143,8 @@ export interface components {
         IncidentStatus: "open" | "investigating" | "resolved";
         /**
          * IncidentUpdate
-         * @description Only the fields you send are changed.
+         * @description Only the fields you send are changed. Null clears an optional field (severity, symptoms,
+         *     root_cause, fix, commit_sha, occurred_at), and leaves key, title, tags and status unchanged.
          */
         IncidentUpdate: {
             /** Key */

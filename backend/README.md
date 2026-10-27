@@ -80,6 +80,24 @@ Routes get a session with the `SessionDep` dependency from `app/core/db.py`. The
 - **Connecting doesn't clone or index yet.** That's `POST /projects/{id}/ingest` (B-304). Until then, `ingest_status` is `indexed` when the knowledge base holds the repository's files, and `not_indexed` otherwise.
 - The stored token isn't used yet: opening a PR still uses `GITHUB_TOKEN` from the environment.
 
+## Incidents API
+
+`app/api/routes/incidents.py`: a project's incident history, which the agent searches for similar past incidents.
+
+| Route | Does |
+|---|---|
+| `GET /projects/{id}/incidents` | Newest first: by `occurred_at`, or else by when it was added. |
+| `POST /projects/{id}/incidents` | `{key, title, severity?, symptoms?, root_cause?, fix?, commit_sha?, tags?, status?, occurred_at?}`. 409 if the project already has the key. |
+| `GET …/{incident_id}` | One incident. |
+| `PATCH …/{incident_id}` | Changes only the fields you send. Null clears an optional field, and leaves `key`, `title`, `tags` and `status` unchanged. |
+| `DELETE …/{incident_id}` | Deletes it. Investigations that linked it keep their results. |
+
+- **Keys look like `INC-017`:** letters, a dash and a number, the form the agent's `get_incident` tool looks up. `inc-17` is accepted as `INC-17`.
+- **Every change also updates the search index**, in the same transaction, so `search_previous_incidents` finds exactly the incidents listed here. The text is the same as for an ingested incident (`index_incident()` in `app/rag/ingest.py`).
+  - Indexing embeds the text: one small call to the embedding model. It's skipped when the searchable text (key, title, severity, date, symptoms, root cause, fix) didn't change, so a change of status or tags costs nothing.
+  - If the model can't be reached, nothing is saved, and the answer is a 502 with a readable `detail`.
+- A time without a timezone is read as UTC.
+
 ## Investigations API
 
 `app/api/routes/investigations.py`. Every route needs a login, and `{investigation_id}` routes give the same 404 for someone else's investigation as for a missing one.
@@ -113,7 +131,7 @@ The MCP servers are mounted at `/mcp/github`, `/mcp/docs` and `/mcp/incidents`. 
 Every route in [IMPLEMENTATION_PLAN.md §11](../docs/IMPLEMENTATION_PLAN.md#11-backend-api-surface-fastapi), plus the ones the backlog adds, exists with its final request and response models. So `/openapi.json` (and `/docs`) is the whole contract, and the frontend types are generated from it. A route that isn't built yet answers, after the login, ownership and validation checks:
 
 ```json
-501 {"detail": "Not implemented yet (B-303)", "code": "not_implemented"}
+501 {"detail": "Not implemented yet (B-304)", "code": "not_implemented"}
 ```
 
 The task id is the backlog item that fills it in. To build one, replace its `raise not_implemented(...)` with the real body, remove its row from `STUBS` in `tests/test_api_surface.py`, and add the route's own tests.
@@ -134,7 +152,7 @@ After any change to a route or a request/response/event model, run `npm run gen:
 | | `POST /projects/{id}/uploads` (multipart: `kind`, `file`, `mapping`) | B-310 |
 | | `GET /projects/{id}/sources?ref=` | B-401 |
 | | `GET /projects/{id}/logs?level=&service=&route=&error_type=&trace_id=&since=&until=` | B-309 |
-| Incidents | `GET/POST /projects/{id}/incidents`, `GET/PATCH/DELETE …/{incident_id}` | B-303 |
+| Incidents | `GET/POST /projects/{id}/incidents`, `GET/PATCH/DELETE …/{incident_id}` | done (see above) |
 | Memories | `GET /projects/{id}/memories?category=&status=`, `PATCH/DELETE …/{memory_id}` | B-703 |
 | Evaluation | `GET /evaluation/runs`, `GET /evaluation/runs/{id}` | B-901 |
 | Dashboard | `GET /stats/dashboard?project_id=` | B-804 |

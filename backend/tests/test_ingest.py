@@ -83,7 +83,9 @@ async def test_incidents_are_rows_and_searchable_documents(db_session, project):
     assert await ingest_incidents(db_session, FakeEmbedder(), project.id, [INCIDENT]) == 1
     incident = await db_session.scalar(select(Incident).where(Incident.project_id == project.id))
     assert incident.key == "INC-017" and incident.root_cause == "pool raised to 60"
-    doc = await db_session.scalar(select(Document).where(Document.path == "INC-017"))
+    doc = await db_session.scalar(
+        select(Document).where(Document.project_id == project.id, Document.path == "INC-017")
+    )
     assert doc is not None
     assert await ingest_incidents(db_session, FakeEmbedder(), project.id, [INCIDENT]) == 0
 
@@ -91,7 +93,9 @@ async def test_incidents_are_rows_and_searchable_documents(db_session, project):
 async def test_issues_become_documents(db_session, project):
     issue = {"number": 57, "title": "500s", "body": "after deploy", "created_at": "2026-10-06"}
     assert await ingest_issues(db_session, FakeEmbedder(), project.id, [issue]) == 1
-    assert await db_session.scalar(select(Document).where(Document.path == "issue:57"))
+    assert await db_session.scalar(
+        select(Document).where(Document.project_id == project.id, Document.path == "issue:57")
+    )
 
 
 LOG = {

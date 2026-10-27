@@ -232,6 +232,43 @@ async def ingest_incidents(
     return indexed
 
 
+async def index_incident(session: AsyncSession, router: LLMRouter, incident: Incident) -> bool:
+    """Make an incident created or edited in the app searchable (search_previous_incidents).
+    Its text is the same as for an ingested record, so an unchanged incident isn't re-embedded."""
+    chunk = chunk_incident(
+        {
+            "key": incident.key,
+            "title": incident.title,
+            "severity": incident.severity or "",
+            "date": incident.occurred_at.date().isoformat() if incident.occurred_at else "",
+            "symptoms": incident.symptoms or "",
+            "root_cause": incident.root_cause or "",
+            "fix": incident.fix or "",
+        }
+    )
+    return await store_document(
+        session,
+        router,
+        incident.project_id,
+        DocumentSourceType.INCIDENT,
+        incident.key,
+        incident.title,
+        sha256(chunk.content),
+        [chunk],
+    )
+
+
+async def unindex_incident(session: AsyncSession, project_id: uuid.UUID, key: str) -> None:
+    """Remove an incident from the search index (its chunks go too: ON DELETE CASCADE)."""
+    await session.execute(
+        delete(Document).where(
+            Document.project_id == project_id,
+            Document.source_type == DocumentSourceType.INCIDENT,
+            Document.path == key,
+        )
+    )
+
+
 async def ingest_issues(
     session: AsyncSession, router: LLMRouter, project_id: uuid.UUID, records: list[dict]
 ) -> int:

@@ -1156,7 +1156,7 @@
           "incidents"
         ],
         "summary": "List Incidents",
-        "description": "Newest first.",
+        "description": "Newest first: by when it happened, or else when it was added.",
         "operationId": "list_incidents_projects__project_id__incidents_get",
         "security": [
           {
@@ -1388,6 +1388,7 @@
           "incidents"
         ],
         "summary": "Delete Incident",
+        "description": "Also removes it from the search index. Investigations that linked it keep their results.",
         "operationId": "delete_incident_projects__project_id__incidents__incident_id__delete",
         "security": [
           {
@@ -3577,7 +3578,6 @@
           "key": {
             "type": "string",
             "maxLength": 50,
-            "minLength": 1,
             "title": "Key"
           },
           "title": {
@@ -3834,8 +3834,7 @@
             "anyOf": [
               {
                 "type": "string",
-                "maxLength": 50,
-                "minLength": 1
+                "maxLength": 50
               },
               {
                 "type": "null"
@@ -3959,7 +3958,7 @@
         },
         "type": "object",
         "title": "IncidentUpdate",
-        "description": "Only the fields you send are changed."
+        "description": "Only the fields you send are changed. Null clears an optional field (severity, symptoms,\nroot_cause, fix, commit_sha, occurred_at), and leaves key, title, tags and status unchanged."
       },
       "IngestStatus": {
         "type": "string",
