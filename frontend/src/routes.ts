@@ -10,6 +10,7 @@ import { EvaluationPage } from '@/pages/evaluation-page'
 import { KnowledgePage } from '@/pages/knowledge-page'
 import { LoginPage } from '@/pages/login-page'
 import { NotFoundPage } from '@/pages/not-found-page'
+import { ProjectSettingsPage } from '@/pages/project-settings-page'
 import { ProjectsPage } from '@/pages/projects-page'
 import { RegisterPage } from '@/pages/register-page'
 
@@ -42,6 +43,7 @@ export const routes: RouteObject[] = [
             children: [
               { index: true, Component: DashboardPage },
               { path: 'projects', Component: ProjectsPage },
+              { path: 'projects/:projectId', Component: ProjectSettingsPage },
               { path: 'knowledge', Component: KnowledgePage },
               { path: 'evaluation', Component: EvaluationPage },
               // Loaded when first opened: Markdown rendering is heavy, and only this page needs it.

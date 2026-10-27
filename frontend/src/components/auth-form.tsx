@@ -2,7 +2,6 @@ import { useMutation } from '@tanstack/react-query'
 import type { FormEvent, ReactNode } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 
-import { ApiError } from '@/api/client'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -15,6 +14,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { safeNext } from '@/lib/auth'
+import { errorMessage } from '@/lib/errors'
 
 type Credentials = { email: string; password: string }
 
@@ -98,15 +98,4 @@ export function AuthForm({
       </Card>
     </div>
   )
-}
-
-function errorMessage(error: Error): string {
-  if (!(error instanceof ApiError)) return "Can't reach the server. Check your connection and try again."
-  // A 422 names the field: "body.password" -> "password: String should have at least 8 ..."
-  if (error.fieldErrors.length > 0) {
-    return error.fieldErrors
-      .map(({ field, message }) => `${field.replace(/^body\./, '')}: ${message}`)
-      .join(' · ')
-  }
-  return error.message // the backend's own words, e.g. "Incorrect email or password"
 }

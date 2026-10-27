@@ -63,8 +63,18 @@ Logged-in pages render inside `AppShell` (`src/layouts/app-shell.tsx`):
   - The choice is remembered in this browser. If it's missing, blocked, or isn't one of this user's projects, the switcher uses the first project.
   - With no projects, the switcher becomes a link to create one.
 - **To add a page:** add a route under `AppShell` in `src/routes.ts`, and a `NAV` entry in `app-sidebar.tsx` if it belongs in the sidebar. Start the page with `PageHeader` (`src/components/page-header.tsx`).
-- Dashboard, Projects, Knowledge and Evaluation are placeholders for now (`PlannedPage`). Each one says which backlog task builds it, like the backend's 501 stubs.
+- Dashboard, Knowledge and Evaluation are placeholders for now (`PlannedPage`). Each one says which backlog task builds it, like the backend's 501 stubs.
 - **To keep a heavy page out of the first download**, give its route `lazy` instead of `Component` (as `/chat` does). Its code then loads when it's first opened.
+
+## Projects
+
+- **`/projects`** (`src/pages/projects-page.tsx`) lists the user's projects, newest first, and marks the current one. Its form creates a project, makes it the current one, and opens its settings.
+- **`/projects/:projectId`** (`src/pages/project-settings-page.tsx`) edits the name and description, and holds the repository (`src/components/repository-settings.tsx`):
+  - With none, a form connects a GitHub repository: URL, default branch, an optional access token, the setup command (empty: auto-detect) and the test command.
+  - Once connected, it shows whether the tests can run in the sandbox, and the indexing status. The same settings can be changed there.
+  - **The access token is write-only:** the field is a password field, it's never filled in, and it's emptied once saved. Leaving it empty keeps the saved token; Remove token deletes it.
+  - Disconnect asks first, because the repository's docs and code leave the knowledge base with it.
+- A project has one repository, because the agent investigates one codebase (a second gives 409).
 
 ## Chat
 
@@ -82,7 +92,7 @@ Logged-in pages render inside `AppShell` (`src/layouts/app-shell.tsx`):
 
 ## Tests
 
-`npm test` runs vitest. Tests run on Node by default. A test of components starts with `// @vitest-environment jsdom`. It mounts the real `routes` in a memory router (`renderApp`) and fakes the backend by stubbing `fetch` (`backend()`); both come from `src/test/helpers.tsx`. Call `stubMatchMedia()` first, because jsdom has no `matchMedia` and the sidebar uses it.
+`npm test` runs vitest. Tests run on Node by default. A test of components starts with `// @vitest-environment jsdom`. It mounts the real `routes` in a memory router (`renderApp`) and fakes the backend by stubbing `fetch` (`backend()`); both come from `src/test/helpers.tsx`. Call `stubMatchMedia()` first, because jsdom has no `matchMedia` and the sidebar uses it. `backend()` knows login, projects and chat; give it `handle` to answer other routes (see `fakeBackend` in `projects-page.test.tsx`).
 
 ## API types
 
@@ -100,6 +110,8 @@ npm run gen:types   # just openapi.json → src/api/schema.ts
 - `openapi-typescript` 7 only declares TypeScript 5 as a peer. The `overrides` entry in `package.json` makes it use this project's TypeScript 6, which it works with.
 
 ## Conventions
+
+- **Forms:** wrap each control in `FormField` (`src/components/form-field.tsx`) for its label and hint. Show a failed request with `errorMessage()` (`src/lib/errors.ts`): the backend's own words, or the field errors of a 422.
 
 - Import from `src/` with the `@/` alias, e.g. `import { Button } from '@/components/ui/button'`.
 - Add shadcn components with `npx shadcn@latest add <name>`. They land in `src/components/ui/`.
