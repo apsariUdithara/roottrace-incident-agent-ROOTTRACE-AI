@@ -7,7 +7,7 @@
 - All LLM calls run on **Nebius Token Factory** using **NVIDIA Nemotron 3** models (Ultra / Super / Nano).
 - Patches are tested in **Nebius Token Factory Sandboxes**.
 
-> Status: planning complete, implementation starting. Full plan: [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) · Original concept: [docs/ai-incident-investigator-hackathon-plan.pdf](docs/ai-incident-investigator-hackathon-plan.pdf)
+> Status (27 Oct): the backend is built and tested end to end: agent, RAG, tools, Fix Generator with Nebius Sandboxes, follow-up chat, long-term memory, MCP servers and evaluation (results below). The web UI and the public deployment are in progress. Full plan: [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) · Original concept: [docs/ai-incident-investigator-hackathon-plan.pdf](docs/ai-incident-investigator-hackathon-plan.pdf)
 
 ---
 
@@ -49,7 +49,7 @@ The workflow is a LangGraph state graph with two bounded loops:
 - **Verifier → Investigator** when the evidence is weak (at most 2 rounds).
 - **Fix Generator** revises its patch once if the tests fail.
 
-The Fix Generator runs only when the hypothesis is *supported*. Before any PR is opened, the graph pauses (`interrupt()`) for the engineer's approval.
+The Fix Generator runs only when the hypothesis is *supported*. The agent never opens a PR by itself: a run with a verified fix ends in `awaiting_approval`, and the draft PR is opened only when the engineer approves it (`POST /investigations/{id}/approve`).
 
 ## 3. One investigation, end to end
 
@@ -62,7 +62,7 @@ Every step is streamed to the UI over SSE and persisted to `investigation_events
 ![Fix Generator and Sandbox](docs/diagrams/04-fix-generator-sandbox.svg)
 
 This stage is what makes RootTrace a **coding agent** rather than a Q&A tool:
-1. Dependencies are installed once into a cached sandbox image, using ConTree branching with `disposable=False`.
+1. Dependencies are installed once per dependency set into a tagged sandbox image. Each test run starts from that image and is thrown away afterwards (`--disposable`).
 2. The baseline run must **fail** (bug reproduced).
 3. The patched run must **pass**.
 4. Nemotron Ultra checks that the patch actually addresses the evidence.
@@ -91,7 +91,7 @@ If Ultra is rate-limited, the router falls back to Super, and the downgrade is r
 
 **PayStream** is a small, purpose-built payments service with eight seeded incidents. Each one has a realistic "bad" commit, matching logs, docs, a related past incident or issue, and a **hidden regression test** the agent never sees. The same scenarios drive the live demo and `evaluate.py`.
 
-PayStream is only test data: the agent, tools and prompts contain nothing PayStream-specific, and CI enforces that. To show it generalizes, a second demo project uses a **real open-source Python repo** with a real past bug, and its evaluation results are reported separately.
+PayStream is only test data: the agent, tools and prompts contain nothing PayStream-specific, and CI enforces that. A second demo on a real open-source repo was planned but cut for time, so the evaluation covers PayStream only (see [Known limits](#limitations--roadmap)).
 
 ## 8. Hero scenario walkthrough
 
@@ -103,7 +103,7 @@ The confidence score is **computed, not guessed**. It is a deterministic formula
 
 ![Data model](docs/diagrams/09-data-model.svg)
 
-One PostgreSQL database with pgvector holds application data, embeddings, long-term memory, traces and LangGraph checkpoints. All data is scoped per user and project.
+One PostgreSQL database with pgvector holds application data, embeddings, long-term memory and traces. All data is scoped per user and project.
 
 ## 10. Deployment
 
@@ -116,23 +116,23 @@ One PostgreSQL database with pgvector holds application data, embeddings, long-t
 | Layer | Choice |
 |---|---|
 | Models | NVIDIA Nemotron 3 Ultra / Super / Nano + embedding model on **Nebius Token Factory** (OpenAI-compatible API) |
-| Code execution | **Nebius Token Factory Sandboxes** (ConTree SDK) |
-| Agent | LangGraph (`StateGraph`, `AsyncPostgresSaver`, `interrupt()`) |
+| Code execution | **Nebius Token Factory Sandboxes** (ConTree CLI) |
+| Agent | LangGraph `StateGraph`; PR approval is a separate, human-triggered API call |
 | Backend | Python 3.12, FastAPI, SQLAlchemy 2 + Alembic, Pydantic v2, `uv` |
 | Data | PostgreSQL 16 + pgvector |
-| MCP | FastMCP servers (GitHub, Docs, Incident), consumed via `langchain-mcp-adapters` |
+| MCP | MCP Python SDK servers (GitHub, Docs, Incidents), generated from the agent's tool registry |
 | Frontend | React + Vite + TypeScript, Tailwind + shadcn/ui, TanStack Query, Monaco diff, Recharts |
 | Infra | Docker Compose on Nebius AI Cloud, Nebius Container Registry, GitHub Actions |
 
 ## Repository layout
 
 ```
-backend/            FastAPI app: llm/, rag/, tools/, agent/, sandbox/, memory/, mcp_servers/, observability/
-frontend/           React app: Dashboard, Investigation, Knowledge, Evaluation
+backend/            FastAPI app: llm/, rag/, tools/, agent/ (graph, fix, memory, follow-ups, PR), sandbox/, mcp_servers.py
+frontend/           React app (in progress)
 demo-target/        PayStream service + scripts that build its seeded git history
 eval/               cases.yaml, hidden_tests/, evaluate.py, results/
-infra/              docker-compose files, Caddyfile, sandbox image
-.github/workflows/  CI and deploy pipelines
+infra/              docker-compose.yml for local Postgres (production compose and Caddy in progress)
+.github/workflows/  CI (deploy pipeline in progress)
 docs/               concept PDF, implementation plan, diagrams/
 ```
 
@@ -253,8 +253,8 @@ Patch quality on unfamiliar codebases will be lower than on the seeded demo, whi
 - [ ] Demo video ≤ 3 minutes: full investigation → patch → red/green tests → PR draft
 - [ ] Public repo with an Apache-2.0 license
 - [ ] README covering Nemotron tiers, Token Factory + Sandboxes, architecture, setup and evaluation
-- [ ] Feedback note on Nebius and NVIDIA tools (`docs/FEEDBACK.md`)
-- [ ] Evaluation results from `evaluate.py` in this README
+- [x] Feedback note on Nebius and NVIDIA tools (`docs/FEEDBACK.md`)
+- [x] Evaluation results from `evaluate.py` in this README
 
 ## License
 

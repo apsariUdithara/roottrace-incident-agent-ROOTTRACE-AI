@@ -4,8 +4,8 @@ FastAPI app (Python 3.12, `uv`). It serves the REST API and SSE stream, and runs
 
 | Folder (under `app/`) | Owner |
 |---|---|
-| `core/`, `models/`, `schemas/`, `api/routes/`, plus `alembic/` | Person B |
-| `llm/`, `prompts/`, `rag/`, `tools/`, `agent/`, `memory/`, `sandbox/`, `mcp_servers/`, `observability/` | Person A |
+| `core/`, `models/`, `schemas/`, `api/routes/` (except `investigations.py`), plus `alembic/` | Person B |
+| `llm/`, `rag/`, `tools/`, `agent/` (graph, fix, memory, follow-ups, PR), `sandbox/`, `mcp_servers.py`, `api/routes/investigations.py` | Person A |
 | `main.py`, `agent/events.py` | Shared |
 
 No PayStream names, paths or hints anywhere under `app/`. CI enforces this.
@@ -24,6 +24,23 @@ uv run ruff check . && uv run ruff format --check .
 ```
 
 `GET /health` says the process is up. `GET /health/ready` also checks the database and returns 503 if it can't be reached.
+
+### Demo data and a first investigation
+
+The agent needs an indexed repository. There's no API to connect one yet, so the scripts load PayStream:
+
+```bash
+python ../demo-target/scripts/build_history.py   # builds demo-target/build/paystream (git only, free)
+uv run python scripts/seed_demo.py               # demo user + PayStream indexed at v1.4.8 (~$0.0003)
+uv run python scripts/investigate.py             # one investigation in the terminal (~$0.05-0.15)
+uv run python scripts/ask.py "Which commit introduced this?"
+uv run python scripts/open_pr.py                 # approve the verified fix: opens a draft PR
+```
+
+- `seed_demo.py` creates `demo@roottrace.dev` with `DEMO_PASSWORD`, or prints a generated password once. Running it again is safe.
+- Sandbox runs use the ConTree CLI's saved login (`contree auth`), or `NEBIUS_API_KEY` plus `NEBIUS_AI_PROJECT`.
+- `open_pr.py` needs `GITHUB_TOKEN`: a fine-grained token for the demo repo only.
+- In development, model answers are cached, so re-running the same investigation costs nothing.
 
 ## Database sessions
 
@@ -46,7 +63,27 @@ Routes get a session with the `SessionDep` dependency from `app/core/db.py`. The
 - Wrong password and unknown email give the same 401 in the same time (argon2 runs either way).
 - Not yet done: rate limiting on login (planned with the demo endpoint), and server-side token revocation. Logout clears the cookie, and an access token already issued stays valid until it expires.
 
-## Investigation events (draft v1, pending Person A's review)
+## Investigations API
+
+`app/api/routes/investigations.py`. Every route needs a login, and `{investigation_id}` routes give the same 404 for someone else's investigation as for a missing one.
+
+| Route | Does |
+|---|---|
+| `POST /projects/{id}/investigations` | `{question, ref?, reported_at?}`. Creates the investigation and runs the agent in the background, returning 202 at once. 409 if the project has no indexed repository, 429 when a guard rail is hit. `ref` is the deployed version (default: the default branch). |
+| `GET /projects/{id}/investigations` | The project's investigations, newest first. |
+| `GET /investigations/{id}` | The row: status, root cause, confidence, `report` (the `report` event's payload), tokens and cost. |
+| `GET /investigations/{id}/events?after=` | Saved events after `seq`, as JSON, for rendering a finished investigation. |
+| `GET /investigations/{id}/stream` | SSE. Replays saved events after `Last-Event-ID` (or `?after=`), then polls for new ones every 0.5 s. A keep-alive comment is sent every 15 s, and the stream closes after `done`. |
+| `POST /investigations/{id}/messages` | A follow-up question. The answer comes back in the response, cites evidence labels like `[F2]`, and is also published as a `message` event. 409 before the report exists. |
+| `POST /investigations/{id}/approve` | The engineer's approval: opens the verified fix as a draft PR and returns `{url}`. 409 if there's no fix, 503 without `GITHUB_TOKEN`. |
+
+**Guard rails for the public demo** (settings in `.env`): one running investigation per user, `INVESTIGATIONS_PER_HOUR` per user, `DAILY_BUDGET_USD` across everyone, and `INVESTIGATION_COST_CAP_USD` per run. A run past its cap stops. A run older than 30 minutes no longer counts as running, so a server restart can't lock anyone out.
+
+Not available over HTTP yet: connecting repositories and ingesting (scripts only), incidents CRUD, uploads, the source viewer, listing chat messages, rerunning a patch, rejecting a patch, the trace, memories, evaluation runs and dashboard stats.
+
+The MCP servers are mounted at `/mcp/github`, `/mcp/docs` and `/mcp/incidents`. See the root README for connecting a client.
+
+## Investigation events (v1, agreed)
 
 The agent publishes payloads from `app/schemas/events.py`. `make_event()` wraps each one in an envelope `{seq, ts, type, payload}`, which is stored in `investigation_events` and streamed over SSE as `id: <seq>`, `event: <type>`, `data: <json>`. Types marked * are additions to the plan's list.
 
@@ -66,11 +103,12 @@ The agent publishes payloads from `app/schemas/events.py`. `make_event()` wraps 
 | `patch_status`* | verify_fix decides | `status` (verified, tests_failed, untested, rejected), `notes` |
 | `pr_draft`* / `pr_opened`* | PR text is ready / the draft PR was created | `title`, `body` / `url` |
 | `report` | the final report | `root_cause`, `summary` (cites `[F1]`), `verdict`, `fact_ids`, `fix` (verified, untested, failed, none) |
-| `message_delta`* / `message`* | a follow-up chat reply streams / finishes | `message_id`, `delta` / `content`, `evidence_ids` |
+| `message_delta`* / `message`* | a follow-up chat reply streams / finishes. Only `message` is sent today: replies arrive whole. | `message_id`, `delta` / `content`, `evidence_ids` |
 | `error` | something went wrong | `message`, `step`, `fatal` |
 | `done` | the run ends; the stream closes | `status`, `duration_ms`, `total_tokens`, `total_cost_usd` |
 
-- `step` is one of the 16 graph nodes in `Step`, in run order. The timeline shows all of them from the start.
+- `step` is one of the graph nodes in `Step`, in run order. The agent runs 14 of the 16: `await_approval` and `create_pr` aren't graph steps, because approval is the separate `/approve` call, which sends `status` and `pr_opened`. The timeline shows the 14 from the start.
+- The stream's `data:` is the whole envelope. `GET /events` returns the same envelopes as a JSON list.
 - Payloads reject unknown fields, and a fact without `source_type`, `source_ref` and `excerpt` is rejected at publish time.
 - `tests/test_events.py` pins the set of event types and the wire format. Changing the contract means updating that test, regenerating the frontend types, and telling the other person.
 
