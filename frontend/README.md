@@ -44,6 +44,19 @@ const investigation = await ok(
 - A 401 from `/auth/login` or `/auth/register` means a wrong password or a taken email, and never triggers a refresh.
 - Queries retry once on network and 5xx errors, never on a 4xx (`shouldRetry` in `src/lib/query-client.ts`).
 
+## Login and protected pages
+
+- `/login` and `/register` log in and go on to `?next=` (or home). `safeNext()` only follows a `next` that is a page of this app, so a link can't use the login page to send someone to another site.
+- **Every page that needs a login goes under the `ProtectedLayout` route** in `src/routes.ts`.
+  - On arrival, its loader (`requireSession`) checks for a session. After a reload there isn't one in memory, so it tries the refresh cookie first, showing "Loading…" meanwhile. Otherwise it sends the visitor to `/login?next=<this page>`.
+  - After that, the layout follows the session. When it ends, by logging out or because the refresh cookie has expired, the login page shows straight away, with the way back.
+- **Log out** is in the header. It clears the refresh cookie on the server, ends the session here even if the server can't be reached, and drops all cached query data, since another user may log in next.
+- `useSession()` (`src/lib/auth.ts`) gives any component the current user, or null.
+
+## Tests
+
+`npm test` runs vitest. Tests run on Node by default. A test of components starts with `// @vitest-environment jsdom`, mounts the real `routes` in a memory router, and fakes the backend by stubbing `fetch` (see `src/pages/auth.test.tsx`).
+
 ## API types
 
 The types for every route, request, response and investigation event are generated from the backend, so a backend change can't silently break the UI:
@@ -63,5 +76,5 @@ npm run gen:types   # just openapi.json → src/api/schema.ts
 
 - Import from `src/` with the `@/` alias, e.g. `import { Button } from '@/components/ui/button'`.
 - Add shadcn components with `npx shadcn@latest add <name>`. They land in `src/components/ui/`.
-- Routes live in `src/router.tsx`, pages in `src/pages/`, layouts in `src/layouts/`.
+- Routes live in `src/routes.ts` (`src/router.ts` only creates the browser router), pages in `src/pages/`, layouts in `src/layouts/`.
 - The app always runs in dark mode (`class="dark"` on `<html>`).

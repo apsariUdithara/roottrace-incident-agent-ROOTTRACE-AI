@@ -11,6 +11,8 @@ import type { Schemas } from './types'
 
 /** Vite (in development) and Caddy (in production) proxy this prefix to the backend. */
 export const API_BASE = '/api'
+// Absolute where there's a page, so Request() also accepts it in tests (jsdom on Node).
+const BASE_URL = typeof location === 'undefined' ? API_BASE : `${location.origin}${API_BASE}`
 
 // A 401 from these means a wrong password or no session at all, not an expired access token.
 const NO_REFRESH = new Set(['/auth/login', '/auth/register', '/auth/refresh', '/auth/logout'])
@@ -27,7 +29,7 @@ export function refreshSession(): Promise<boolean> {
 }
 
 async function requestNewToken(): Promise<boolean> {
-  const response = await fetch(`${API_BASE}/auth/refresh`, { method: 'POST' })
+  const response = await fetch(`${BASE_URL}/auth/refresh`, { method: 'POST' })
   if (!response.ok) {
     clearSession()
     return false
@@ -57,7 +59,7 @@ function apiPath(request: Request): string {
   return path.startsWith(API_BASE) ? path.slice(API_BASE.length) : path
 }
 
-export const api = createClient<paths>({ baseUrl: API_BASE, fetch: authFetch })
+export const api = createClient<paths>({ baseUrl: BASE_URL, fetch: authFetch })
 
 type FieldError = { field: string; message: string }
 
