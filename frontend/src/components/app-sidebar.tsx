@@ -1,4 +1,11 @@
-import { BookOpen, FlaskConical, FolderGit2, LayoutDashboard, type LucideIcon } from 'lucide-react'
+import {
+  BookOpen,
+  FlaskConical,
+  FolderGit2,
+  LayoutDashboard,
+  MessageSquare,
+  type LucideIcon,
+} from 'lucide-react'
 import { Link, NavLink, useMatch } from 'react-router'
 
 import {
@@ -19,6 +26,7 @@ const NAV: NavItem[] = [
   { to: '/projects', label: 'Projects', icon: FolderGit2 },
   { to: '/knowledge', label: 'Knowledge', icon: BookOpen },
   { to: '/evaluation', label: 'Evaluation', icon: FlaskConical },
+  { to: '/chat', label: 'Chat', icon: MessageSquare },
 ]
 
 export function AppSidebar() {

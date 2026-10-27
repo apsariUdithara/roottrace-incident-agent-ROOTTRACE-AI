@@ -20,19 +20,22 @@ export function project(id: string, name: string): Schemas['ProjectOut'] {
   return { id, name, description: '', created_at: '2026-10-27T10:00:00Z' }
 }
 
-function json(status: number, body: unknown): Response {
+export function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: { 'Content-Type': 'application/json' },
   })
 }
 
+type ChatHandler = (body: Schemas['ChatRequest']) => Response
+
 /** A stand-in for the backend: Alice has an account and `projects`. The refresh cookie is valid
- * once someone logs in or registers, or from the start with `cookie: true`. Returns the list of
- * calls made, e.g. "POST /auth/refresh". */
+ * once someone logs in or registers, or from the start with `cookie: true`. `chat` answers
+ * POST /chat. Returns the list of calls made, e.g. "POST /auth/refresh". */
 export function backend({
   cookie = false,
   projects = [] as Schemas['ProjectOut'][],
+  chat = (() => json(404, { detail: 'Not Found', code: 'not_found' })) as ChatHandler,
 } = {}) {
   const calls: string[] = []
   vi.stubGlobal(
@@ -68,6 +71,8 @@ export function backend({
           return new Response(null, { status: 204 })
         case 'GET /projects':
           return json(200, projects)
+        case 'POST /chat':
+          return chat(JSON.parse(body))
         default:
           return json(404, { detail: 'Not Found', code: 'not_found' })
       }

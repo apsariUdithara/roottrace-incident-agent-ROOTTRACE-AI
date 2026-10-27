@@ -57,13 +57,28 @@ const investigation = await ok(
 
 Logged-in pages render inside `AppShell` (`src/layouts/app-shell.tsx`):
 
-- **Sidebar** (`src/components/app-sidebar.tsx`): Dashboard, Projects, Knowledge and Evaluation. The current section is highlighted and marked `aria-current="page"`. It collapses to icons with the top bar's button or Ctrl/⌘+B, and becomes a slide-over drawer below 768 px.
+- **Sidebar** (`src/components/app-sidebar.tsx`): Dashboard, Projects, Knowledge, Evaluation and Chat. The current section is highlighted and marked `aria-current="page"`. It collapses to icons with the top bar's button or Ctrl/⌘+B, and becomes a slide-over drawer below 768 px.
 - **Top bar:** the project switcher, the user's email, and Log out.
 - **Project switcher** (`src/components/project-switcher.tsx`): the user's projects, from `GET /projects`. A page about one project reads the selection with `useCurrentProject()` (`src/lib/current-project.ts`).
   - The choice is remembered in this browser. If it's missing, blocked, or isn't one of this user's projects, the switcher uses the first project.
   - With no projects, the switcher becomes a link to create one.
 - **To add a page:** add a route under `AppShell` in `src/routes.ts`, and a `NAV` entry in `app-sidebar.tsx` if it belongs in the sidebar. Start the page with `PageHeader` (`src/components/page-header.tsx`).
 - Dashboard, Projects, Knowledge and Evaluation are placeholders for now (`PlannedPage`). Each one says which backlog task builds it, like the backend's 501 stubs.
+- **To keep a heavy page out of the first download**, give its route `lazy` instead of `Component` (as `/chat` does). Its code then loads when it's first opened.
+
+## Chat
+
+`/chat` (`src/pages/chat-page.tsx`) talks to Nemotron through `POST /chat`.
+
+- Each request sends the conversation so far, at most the latest 20 messages, starting with a question (`historyForRequest` in `src/lib/chat.ts`). The Model picker chooses Nano (fast) or Super (stronger).
+- Under each answer: the model that answered, the time it took, the tokens and the cost.
+- Enter sends and Shift+Enter starts a new line. An empty chat offers example questions, and New chat starts over.
+- On an error, the backend's own message is shown (for example the hourly limit), with Try again.
+- **Markdown** (`src/components/markdown.tsx`, GitHub-flavoured) renders model output. Raw HTML in it is never rendered, because model output is untrusted, and links open in a new tab. Reuse it for any text from the model.
+
+## Docker
+
+`frontend/Dockerfile` builds the app and serves it with Caddy, which also proxies `/api` to the backend. See [infra/README.md](../infra/README.md#docker-images).
 
 ## Tests
 

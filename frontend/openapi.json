@@ -2502,6 +2502,9 @@
     },
     "/chat": {
       "post": {
+        "tags": [
+          "chat"
+        ],
         "summary": "Chat",
         "operationId": "chat_chat_post",
         "requestBody": {
@@ -2535,7 +2538,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/health": {
@@ -2624,11 +2632,35 @@
         ],
         "title": "Body_upload_file_projects__project_id__uploads_post"
       },
+      "ChatMessage": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "assistant"
+            ],
+            "title": "Role"
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Content"
+          }
+        },
+        "type": "object",
+        "required": [
+          "role",
+          "content"
+        ],
+        "title": "ChatMessage"
+      },
       "ChatRequest": {
         "properties": {
           "messages": {
             "items": {
-              "$ref": "#/components/schemas/Message"
+              "$ref": "#/components/schemas/ChatMessage"
             },
             "type": "array",
             "maxItems": 20,
@@ -2649,7 +2681,8 @@
         "required": [
           "messages"
         ],
-        "title": "ChatRequest"
+        "title": "ChatRequest",
+        "description": "The conversation so far, oldest first; the last message is the new question."
       },
       "ChatResponse": {
         "properties": {
@@ -2662,8 +2695,7 @@
             "title": "Model"
           },
           "tier": {
-            "type": "string",
-            "title": "Tier"
+            "$ref": "#/components/schemas/ModelTier"
           },
           "prompt_tokens": {
             "type": "integer",
@@ -4716,30 +4748,6 @@
         "type": "object",
         "title": "MemoryUpdate",
         "description": "Only the fields you send are changed. A new `content` is re-embedded."
-      },
-      "Message": {
-        "properties": {
-          "role": {
-            "type": "string",
-            "enum": [
-              "user",
-              "assistant"
-            ],
-            "title": "Role"
-          },
-          "content": {
-            "type": "string",
-            "maxLength": 4000,
-            "minLength": 1,
-            "title": "Content"
-          }
-        },
-        "type": "object",
-        "required": [
-          "role",
-          "content"
-        ],
-        "title": "Message"
       },
       "MessageCompleted": {
         "properties": {

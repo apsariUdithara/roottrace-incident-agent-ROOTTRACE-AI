@@ -25,6 +25,8 @@ uv run ruff check . && uv run ruff format --check .
 
 `GET /health` says the process is up. `GET /health/ready` also checks the database and returns 503 if it can't be reached.
 
+The Docker image (`backend/Dockerfile`, built from the repo root) is described in [infra/README.md](../infra/README.md#docker-images).
+
 ### Demo data and a first investigation
 
 The agent needs an indexed repository. There's no API to connect one yet, so the scripts load PayStream:
@@ -82,6 +84,14 @@ Routes get a session with the `SessionDep` dependency from `app/core/db.py`. The
 The request and response models live in `app/schemas/investigation.py`. `/events` and `/stream` both declare the event union from `app/schemas/events.py`, so the OpenAPI schema has a type for every event the page renders.
 
 The MCP servers are mounted at `/mcp/github`, `/mcp/docs` and `/mcp/incidents`. See the root README for connecting a client.
+
+## Chat
+
+`POST /chat` (`app/api/routes/chat.py`) is a plain conversation with Nemotron: `{messages, tier}` in, the answer plus `model`, `tier`, tokens, cost and latency out. It has no access to projects; investigations do that.
+
+- It needs a login. Each user may send `CHAT_MESSAGES_PER_HOUR` messages (default 30), then gets 429 until the hour has passed. The counts are kept in the process, so a restart resets them.
+- `tier` is `nano` (default) or `super`. Ultra is refused (422), because it's the expensive tier. Answers stop at 512 tokens, and a request holds at most 20 messages.
+- If the provider still fails after the router's retries, the answer is a 502 with a readable `detail`. The server log keeps the reason (for example an invalid key), never the conversation.
 
 ## API surface
 

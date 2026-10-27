@@ -44,6 +44,11 @@ export const routes: RouteObject[] = [
               { path: 'projects', Component: ProjectsPage },
               { path: 'knowledge', Component: KnowledgePage },
               { path: 'evaluation', Component: EvaluationPage },
+              // Loaded when first opened: Markdown rendering is heavy, and only this page needs it.
+              {
+                path: 'chat',
+                lazy: async () => ({ Component: (await import('@/pages/chat-page')).ChatPage }),
+              },
             ],
           },
         ],

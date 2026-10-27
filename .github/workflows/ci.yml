@@ -113,3 +113,17 @@ jobs:
 
       - name: Type-check and build
         run: npm run build
+
+  docker:
+    name: Docker images build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Both build from the repo root. The backend build also builds PayStream and checks that
+      # every release still has its bug, so this catches a broken demo too.
+      - name: Build the backend image
+        run: docker build -f backend/Dockerfile -t roottrace-backend .
+
+      - name: Build the frontend image
+        run: docker build -f frontend/Dockerfile -t roottrace-frontend .

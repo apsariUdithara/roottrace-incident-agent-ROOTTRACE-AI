@@ -655,10 +655,23 @@ export interface components {
              */
             mapping?: string | null;
         };
-        /** ChatRequest */
+        /** ChatMessage */
+        ChatMessage: {
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "user" | "assistant";
+            /** Content */
+            content: string;
+        };
+        /**
+         * ChatRequest
+         * @description The conversation so far, oldest first; the last message is the new question.
+         */
         ChatRequest: {
             /** Messages */
-            messages: components["schemas"]["Message"][];
+            messages: components["schemas"]["ChatMessage"][];
             /**
              * Tier
              * @default nano
@@ -672,8 +685,7 @@ export interface components {
             content: string;
             /** Model */
             model: string;
-            /** Tier */
-            tier: string;
+            tier: components["schemas"]["ModelTier"];
             /** Prompt Tokens */
             prompt_tokens: number;
             /** Completion Tokens */
@@ -1441,16 +1453,6 @@ export interface components {
             content?: string | null;
             category?: components["schemas"]["MemoryCategory"] | null;
             status?: components["schemas"]["MemoryStatus"] | null;
-        };
-        /** Message */
-        Message: {
-            /**
-             * Role
-             * @enum {string}
-             */
-            role: "user" | "assistant";
-            /** Content */
-            content: string;
         };
         /**
          * MessageCompleted

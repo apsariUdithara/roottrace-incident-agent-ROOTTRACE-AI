@@ -32,13 +32,13 @@ function isCurrent(name: string): boolean {
 }
 
 describe('sidebar', () => {
-  it('has the four sections, marks the current one, and navigates', async () => {
+  it('has its sections, marks the current one, and navigates', async () => {
     backend({ cookie: true })
     const router = renderApp('/')
     await screen.findByRole('heading', { name: 'Dashboard' })
 
     const sections = nav().getAllByRole('link').map((link) => link.textContent)
-    expect(sections).toEqual(['Dashboard', 'Projects', 'Knowledge', 'Evaluation'])
+    expect(sections).toEqual(['Dashboard', 'Projects', 'Knowledge', 'Evaluation', 'Chat'])
     expect(isCurrent('Dashboard')).toBe(true)
     expect(isCurrent('Knowledge')).toBe(false)
 
