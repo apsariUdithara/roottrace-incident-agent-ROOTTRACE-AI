@@ -25,6 +25,7 @@ from app.core.db import SessionLocal  # noqa: E402
 from app.core.security import hash_password  # noqa: E402
 from app.llm.router import get_router  # noqa: E402
 from app.models import Project, Repository, User  # noqa: E402
+from app.rag.indexing import mark_indexed  # noqa: E402
 from app.rag.ingest import ingest_incidents, ingest_issues, ingest_logs, ingest_repo  # noqa: E402
 
 DEMO = Path(__file__).resolve().parents[2] / "demo-target"
@@ -50,14 +51,18 @@ async def get_or_create_project(session, name: str = "PayStream") -> Project:
     return project
 
 
-async def record_repository(session, project: Project) -> None:
-    """Remember where the clone lives, so the agent's git tools can find it."""
+async def record_repository(session, project: Project, ref: str) -> Repository:
+    """Remember where the clone lives, so the agent's git tools can find it. The indexed ref is
+    its default branch: investigations start from it, and re-indexing from the app keeps it
+    (PayStream's main is the healthy service, without the scenario's bug)."""
     repo = await session.scalar(select(Repository).where(Repository.project_id == project.id))
     if repo is None:
         repo = Repository(project_id=project.id, url="https://github.com/apsariUdithara/paystream")
         session.add(repo)
     repo.local_path = str(REPO)
+    repo.default_branch = ref
     await session.flush()
+    return repo
 
 
 # ponytail: one shared demo_app schema for the single demo project; per-project schemas (or a
@@ -87,8 +92,9 @@ async def load(session, router, ref: str, name: str = "PayStream") -> tuple[Proj
     subprocess.run([*git, "checkout", "-q", ref], check=True)
     sha = subprocess.run([*git, "rev-parse", "HEAD"], check=True, capture_output=True, text=True)
     project = await get_or_create_project(session, name)
-    await record_repository(session, project)
+    repository = await record_repository(session, project, ref)
     repo = await ingest_repo(session, router, project.id, REPO, sha.stdout.strip())
+    mark_indexed(repository, sha.stdout.strip())
     incidents = json.loads((FIXTURES / "incidents.json").read_text(encoding="utf-8"))
     issues = json.loads((FIXTURES / "issues.json").read_text(encoding="utf-8"))
     stats = {

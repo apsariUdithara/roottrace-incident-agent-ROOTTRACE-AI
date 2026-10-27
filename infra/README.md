@@ -37,6 +37,7 @@ docker build -f frontend/Dockerfile -t roottrace-frontend .
 - **Health check:** on `/health`.
 - **PayStream repo:** built during the image build and checked release by release, at `/app/demo-target/build/paystream`. The build fails if any release lost its bug. Fixed dates and authors keep its commit SHAs the same on every rebuild, so an indexed project stays valid.
 - **Migrations:** `docker run --env-file backend/.env --entrypoint alembic roottrace-backend upgrade head`.
+- **Clones** of connected repositories go in `/app/backend/data` (`DATA_DIR`). Mount a volume there, or they're cloned again after each deploy.
 - **Secrets:** settings come from the environment only. `.env` files never go into an image (`.dockerignore`). Pass the `.env` as the container's environment (`--env-file`, or Compose `env_file:`), so the sandbox CLI also sees `NEBIUS_API_KEY` and `NEBIUS_AI_PROJECT`.
 
 **`roottrace-frontend`** (about 95 MB) is Caddy serving the built app on port 80, with `/api/*` proxied to the backend.

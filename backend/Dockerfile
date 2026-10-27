@@ -39,6 +39,8 @@ COPY backend /app/backend
 COPY demo-target /app/demo-target
 # The agent's PR step adds worktrees inside this repo, so the app user must be able to write it.
 COPY --from=paystream --chown=roottrace /app/demo-target/build /app/demo-target/build
+# Clones of connected repositories (DATA_DIR). Mount a volume here to keep them across deploys.
+RUN mkdir /app/backend/data && chown roottrace /app/backend/data
 ENV PATH="/app/backend/.venv/bin:$PATH"
 USER roottrace
 EXPOSE 8000

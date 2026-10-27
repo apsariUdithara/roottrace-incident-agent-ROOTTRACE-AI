@@ -29,7 +29,7 @@ The Docker image (`backend/Dockerfile`, built from the repo root) is described i
 
 ### Demo data and a first investigation
 
-The agent needs an indexed repository. The API can connect one, but indexing it arrives with B-304, so for now the scripts load PayStream:
+The agent needs an indexed repository. The app connects and indexes one (see the Repositories and Knowledge APIs below); for the demo, the scripts load PayStream with its past incidents, issues and logs too:
 
 ```bash
 python ../demo-target/scripts/build_history.py   # builds demo-target/build/paystream (git only, free)
@@ -40,6 +40,7 @@ uv run python scripts/open_pr.py                 # approve the verified fix: ope
 ```
 
 - `seed_demo.py` creates `demo@roottrace.dev` with `DEMO_PASSWORD`, or prints a generated password once. Running it again is safe.
+- The seed records the indexed release (`v1.4.8`) as PayStream's default branch. Investigations start from it, and re-indexing from the app keeps it: PayStream's `main` is the healthy service, without the bug.
 - Sandbox runs use the ConTree CLI's saved login (`contree auth`), or `NEBIUS_API_KEY` plus `NEBIUS_AI_PROJECT`.
 - `open_pr.py` needs `GITHUB_TOKEN`: a fine-grained token for the demo repo only.
 - In development, model answers are cached, so re-running the same investigation costs nothing.
@@ -77,8 +78,26 @@ Routes get a session with the `SessionDep` dependency from `app/core/db.py`. The
 | `DELETE …/{repository_id}` | Disconnects it, and removes its docs and code from the knowledge base. Incidents, issues and logs stay. |
 
 - **The token is write-only.** It's encrypted with `FERNET_KEY` before it's stored, and never returned: responses only say `has_token`. Spaces and line breaks around it are trimmed.
-- **Connecting doesn't clone or index yet.** That's `POST /projects/{id}/ingest` (B-304). Until then, `ingest_status` is `indexed` when the knowledge base holds the repository's files, and `not_indexed` otherwise.
-- The stored token isn't used yet: opening a PR still uses `GITHUB_TOKEN` from the environment.
+- **Connecting doesn't clone or index.** `POST /projects/{id}/ingest` does (see below). An investigation can start once the repository has been indexed.
+- The stored token is used to clone and fetch. Opening a PR still uses `GITHUB_TOKEN` from the environment.
+
+## Knowledge API
+
+`app/api/routes/knowledge.py`.
+
+| Route | Does |
+|---|---|
+| `POST /projects/{id}/ingest` | 202, with the repository as `queued`. Indexes it in the background; poll `GET …/repositories` until `ingest_status` is `indexed` or `failed` (with `ingest_error`, a readable reason). A run already going isn't started twice. 409 without a repository. |
+| `GET /projects/{id}/knowledge?type=&q=&limit=&offset=` | What the agent can search: the indexed docs, code, issues and incidents, by type and then path. `q` matches the title or path, as plain text. Each item has its `chunk_count` and a `source_ref` for the source viewer. |
+
+A run (`app/rag/indexing.py`):
+1. **Clone** the repository, bare, into `DATA_DIR/repos/<id>.git` (default `backend/data`), or fetch what's new. The token goes in a header for each command, through the environment: it's never written to the clone's config. A repository without a remote, like the demo's local PayStream build, is used as it is.
+2. **Export** its files at the default branch with `git archive`. The clone itself never changes, so a running investigation can keep reading it.
+3. **Index** them with `ingest_repo` (unchanged files cost no embedding calls), then record the commit (`last_indexed_sha`, `last_indexed_at`) and the clone (`local_path`). All of it is saved together: a failed run leaves the previous index as it was.
+
+- At most 2000 files to index (docs, code and config) per repository, to keep a public demo's embedding spend small.
+- Runs live in the server process, like investigations. When the server starts, runs that a restart cut off are marked failed.
+- Disconnecting a repository deletes the clone RootTrace made (never a repository it didn't clone).
 
 ## Incidents API
 
@@ -131,7 +150,7 @@ The MCP servers are mounted at `/mcp/github`, `/mcp/docs` and `/mcp/incidents`. 
 Every route in [IMPLEMENTATION_PLAN.md §11](../docs/IMPLEMENTATION_PLAN.md#11-backend-api-surface-fastapi), plus the ones the backlog adds, exists with its final request and response models. So `/openapi.json` (and `/docs`) is the whole contract, and the frontend types are generated from it. A route that isn't built yet answers, after the login, ownership and validation checks:
 
 ```json
-501 {"detail": "Not implemented yet (B-304)", "code": "not_implemented"}
+501 {"detail": "Not implemented yet (B-310)", "code": "not_implemented"}
 ```
 
 The task id is the backlog item that fills it in. To build one, replace its `raise not_implemented(...)` with the real body, remove its row from `STUBS` in `tests/test_api_surface.py`, and add the route's own tests.
@@ -148,7 +167,7 @@ After any change to a route or a request/response/event model, run `npm run gen:
 | | `POST /investigations/{id}/patches/{patch_id}/rerun` | B-604 |
 | | `GET /investigations/{id}/trace` | B-803 |
 | Repositories | `GET/POST /projects/{id}/repositories`, `PATCH/DELETE …/{repository_id}` | done (see above) |
-| Knowledge | `POST /projects/{id}/ingest`, `GET /projects/{id}/knowledge?type=&q=` | B-304 |
+| Knowledge | `POST /projects/{id}/ingest`, `GET /projects/{id}/knowledge?type=&q=` | done (see above) |
 | | `POST /projects/{id}/uploads` (multipart: `kind`, `file`, `mapping`) | B-310 |
 | | `GET /projects/{id}/sources?ref=` | B-401 |
 | | `GET /projects/{id}/logs?level=&service=&route=&error_type=&trace_id=&since=&until=` | B-309 |
@@ -159,7 +178,6 @@ After any change to a route or a request/response/event model, run `npm run gen:
 | Chat | `POST /chat` | done |
 
 - `/investigations/{investigation_id}` routes take `investigation: OwnedInvestigation` from `app/api/deps.py`. It's the same rule as `OwnedProject`: someone else's investigation gives the same 404 as a missing one.
-- The contract already has some fields the database doesn't yet: `ingest_status`, `ingest_error` and `last_indexed_at` on repositories, added with B-304. Until then `ingest_status` is worked out from the knowledge base, and the other two are null.
 - An evaluation run's `metrics` and `cases` stay loose JSON until `evaluate.py`'s output shape is agreed.
 
 ## Investigation events (v1, agreed)

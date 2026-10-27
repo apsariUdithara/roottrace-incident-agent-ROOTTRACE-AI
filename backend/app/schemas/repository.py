@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, BeforeValidator, Field, SecretStr, StringConstraints
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, SecretStr, StringConstraints
 
 from app.models import IngestStatus, SandboxStatus
 
@@ -45,6 +45,8 @@ class RepositoryUpdate(BaseModel):
 
 
 class RepositoryOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: uuid.UUID
     provider: str
     url: str

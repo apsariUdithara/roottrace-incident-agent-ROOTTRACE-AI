@@ -173,17 +173,6 @@ def indexed_paths(project_id: str) -> tuple[list[str], int]:
     return db(look)
 
 
-def test_indexed_when_its_files_are_in_the_knowledge_base(client: TestClient, new_user: NewUser):
-    alice = new_user()
-    project_id = new_project(client, alice)
-    connect(client, alice, project_id)
-
-    add_documents(project_id)
-
-    listed = client.get(f"/projects/{project_id}/repositories", headers=alice).json()
-    assert listed[0]["ingest_status"] == "indexed"
-
-
 def test_disconnect_removes_what_was_indexed_from_it(client: TestClient, new_user: NewUser):
     alice = new_user()
     project_id = new_project(client, alice)

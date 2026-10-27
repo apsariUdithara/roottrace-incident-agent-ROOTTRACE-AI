@@ -127,8 +127,11 @@ async def check_limits(session, user) -> None:
 async def start_investigation(
     body: InvestigationCreate, project: OwnedProject, user: CurrentUser, session: SessionDep
 ) -> InvestigationOut:
+    # Indexed at least once: the agent reads the clone, which indexing makes.
     has_repo = await session.scalar(
-        select(Repository.id).where(Repository.project_id == project.id)
+        select(Repository.id).where(
+            Repository.project_id == project.id, Repository.local_path.is_not(None)
+        )
     )
     if not has_repo:
         raise HTTPException(status.HTTP_409_CONFLICT, "Index a repository for this project first")

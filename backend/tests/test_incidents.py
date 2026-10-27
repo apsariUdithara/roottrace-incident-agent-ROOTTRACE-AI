@@ -1,6 +1,6 @@
 import logging
 import uuid
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -11,12 +11,10 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.llm.router import get_router
-from app.main import app
 from app.models import Document, DocumentChunk, DocumentSourceType
 from app.tools.registry import ToolContext
 from app.tools.search import IncidentKey, SearchArgs, get_incident, search_previous_incidents
-from tests.support import db, new_project
+from tests.support import FakeEmbedder, db, new_project
 
 NewUser = Callable[[], dict[str, str]]
 
@@ -32,28 +30,6 @@ POOL = {
     "status": "resolved",
     "occurred_at": "2026-03-14T09:30:00Z",
 }
-
-
-class FakeEmbedder:
-    """Stands in for the model router: records what's embedded, and can fail like Nebius."""
-
-    def __init__(self):
-        self.texts: list[str] = []
-        self.fail: Exception | None = None
-
-    async def embed(self, texts, name="embed"):
-        if self.fail:
-            raise self.fail
-        self.texts += texts
-        return [[0.1] * 1024 for _ in texts]
-
-
-@pytest.fixture
-def embedder() -> Iterator[FakeEmbedder]:
-    fake = FakeEmbedder()
-    app.dependency_overrides[get_router] = lambda: fake
-    yield fake
-    app.dependency_overrides.pop(get_router, None)
 
 
 def outage() -> openai.APIConnectionError:

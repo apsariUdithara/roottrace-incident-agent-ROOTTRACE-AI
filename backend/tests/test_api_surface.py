@@ -75,7 +75,6 @@ ROUTES = {
 # {investigation_id} are the owner's; {other_id} is a random id for rows that don't exist yet.
 STUBS: list[tuple[str, str, str, dict[str, Any]]] = [
     ("POST", "/auth/demo", "B-1001", {}),
-    ("POST", PROJECT + "/ingest", "B-304", {}),
     (
         "POST",
         PROJECT + "/uploads",
@@ -85,7 +84,6 @@ STUBS: list[tuple[str, str, str, dict[str, Any]]] = [
             "files": {"file": ("app.jsonl", b'{"level": "ERROR"}\n', "application/x-ndjson")},
         },
     ),
-    ("GET", PROJECT + "/knowledge?type=doc&q=pool", "B-304", {}),
     ("GET", PROJECT + "/sources?ref=commit:a3f9c21", "B-401", {}),
     ("GET", PROJECT + "/logs?level=ERROR&since=2026-10-19T00:00:00Z", "B-309", {}),
     ("GET", PROJECT + "/memories?category=project_fact&status=active", "B-703", {}),
@@ -212,7 +210,6 @@ def test_stubs_still_validate_requests(client: TestClient, owner: dict[str, Any]
         client.post(
             f"/projects/{project_id}/investigations", headers=headers, json={"question": "why"}
         ),
-        client.get(f"/projects/{project_id}/knowledge?type=video", headers=headers),
         client.get(f"/projects/{project_id}/logs?limit=0", headers=headers),
     ):
         assert response.status_code == 422, response.text

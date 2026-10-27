@@ -20,6 +20,7 @@ from sqlalchemy.pool import NullPool
 
 from app.core.config import get_settings
 from app.models import Project, User
+from tests.support import FakeEmbedder
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 DB_HINT = "Start Postgres first: docker compose -f infra/docker-compose.yml up -d --wait"
@@ -81,6 +82,18 @@ def client() -> Iterator[TestClient]:
 
     with TestClient(app) as client:
         yield client
+
+
+@pytest.fixture
+def embedder() -> Iterator[FakeEmbedder]:
+    """The app's model router, replaced by a fake embedder."""
+    from app.llm.router import get_router
+    from app.main import app
+
+    fake = FakeEmbedder()
+    app.dependency_overrides[get_router] = lambda: fake
+    yield fake
+    app.dependency_overrides.pop(get_router, None)
 
 
 @pytest.fixture

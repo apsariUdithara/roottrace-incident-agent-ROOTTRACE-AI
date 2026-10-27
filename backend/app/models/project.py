@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from enum import StrEnum
 
 from sqlalchemy import ForeignKey, String, Text, UniqueConstraint
@@ -25,10 +26,7 @@ class SandboxStatus(StrEnum):
 
 
 class IngestStatus(StrEnum):
-    """Indexing state of a repository, for the Knowledge page's re-ingest badge.
-
-    Already part of the API contract; the `ingest_status` column arrives with the ingest route.
-    """
+    """Indexing state of a repository (POST /projects/{id}/ingest), for the re-ingest badge."""
 
     NOT_INDEXED = "not_indexed"
     QUEUED = "queued"
@@ -42,13 +40,14 @@ class Repository(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     __table_args__ = (
         UniqueConstraint("project_id", "url"),
         enum_check("sandbox_status", SandboxStatus),
+        enum_check("ingest_status", IngestStatus),
     )
 
     project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
     provider: Mapped[str] = mapped_column(String(32), default="github", server_default="github")
     url: Mapped[str] = mapped_column(String(500))
     default_branch: Mapped[str] = mapped_column(String(255), default="main", server_default="main")
-    local_path: Mapped[str | None] = mapped_column(String(500))
+    local_path: Mapped[str | None] = mapped_column(String(500))  # set once it's been indexed
     encrypted_token: Mapped[str | None] = mapped_column(Text)  # Fernet; never sent to the client
     last_indexed_sha: Mapped[str | None] = mapped_column(String(64))
     # NULL means auto-detect: `pip install -r requirements.txt` or `pip install -e .`
@@ -59,3 +58,14 @@ class Repository(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
         default=SandboxStatus.UNKNOWN,
         server_default=SandboxStatus.UNKNOWN.value,
     )
+    ingest_status: Mapped[IngestStatus] = mapped_column(
+        enum_type(IngestStatus),
+        default=IngestStatus.NOT_INDEXED,
+        server_default=IngestStatus.NOT_INDEXED.value,
+    )
+    ingest_error: Mapped[str | None] = mapped_column(Text)  # why the last indexing failed
+    last_indexed_at: Mapped[datetime | None]
+
+    @property
+    def has_token(self) -> bool:
+        return self.encrypted_token is not None

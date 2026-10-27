@@ -183,7 +183,7 @@ export interface paths {
         post?: never;
         /**
          * Disconnect Repository
-         * @description Also removes what was indexed from it: its docs and code.
+         * @description Also removes what was indexed from it (its docs and code), and RootTrace's clone of it.
          */
         delete: operations["disconnect_repository_projects__project_id__repositories__repository_id__delete"];
         options?: never;
@@ -203,7 +203,10 @@ export interface paths {
         put?: never;
         /**
          * Ingest Project
-         * @description Re-indexes the project in the background. Poll the repositories' `ingest_status`.
+         * @description Re-indexes the project's repository in the background: its files at the default branch.
+         *     Poll GET /projects/{id}/repositories until `ingest_status` is `indexed` or `failed`.
+         *
+         *     A run that's already going isn't started again. 409 if there's no repository.
          */
         post: operations["ingest_project_projects__project_id__ingest_post"];
         delete?: never;
@@ -239,7 +242,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Knowledge */
+        /**
+         * List Knowledge
+         * @description What the agent can search: the indexed documents, by type and then path (ignoring case).
+         */
         get: operations["list_knowledge_projects__project_id__knowledge_get"];
         put?: never;
         post?: never;
@@ -1169,9 +1175,7 @@ export interface components {
         };
         /**
          * IngestStatus
-         * @description Indexing state of a repository, for the Knowledge page's re-ingest badge.
-         *
-         *     Already part of the API contract; the `ingest_status` column arrives with the ingest route.
+         * @description Indexing state of a repository (POST /projects/{id}/ingest), for the re-ingest badge.
          * @enum {string}
          */
         IngestStatus: "not_indexed" | "queued" | "running" | "indexed" | "failed";

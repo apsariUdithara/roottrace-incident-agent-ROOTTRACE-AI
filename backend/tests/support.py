@@ -25,5 +25,19 @@ def db[T](work: Callable[[AsyncSession], Awaitable[T]]) -> T:
     return asyncio.run(run())
 
 
+class FakeEmbedder:
+    """Stands in for the model router: records what's embedded, and can fail like Nebius."""
+
+    def __init__(self):
+        self.texts: list[str] = []
+        self.fail: Exception | None = None
+
+    async def embed(self, texts, name="embed"):
+        if self.fail:
+            raise self.fail
+        self.texts += texts
+        return [[0.1] * 1024 for _ in texts]
+
+
 def new_project(client: TestClient, headers: dict[str, str], name: str = "Payments") -> str:
     return client.post("/projects", headers=headers, json={"name": name}).json()["id"]
