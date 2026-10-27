@@ -183,7 +183,7 @@ export interface paths {
         post?: never;
         /**
          * Disconnect Repository
-         * @description Also removes what was indexed from it.
+         * @description Also removes what was indexed from it: its docs and code.
          */
         delete: operations["disconnect_repository_projects__project_id__repositories__repository_id__delete"];
         options?: never;
@@ -1864,7 +1864,8 @@ export interface components {
         };
         /**
          * RepositoryUpdate
-         * @description Only the fields you send are changed. `setup_command: null` goes back to auto-detect.
+         * @description Only the fields you send are changed. `setup_command: null` goes back to auto-detect,
+         *     `token: null` removes the stored token, and null leaves the other fields unchanged.
          */
         RepositoryUpdate: {
             /** Default Branch */

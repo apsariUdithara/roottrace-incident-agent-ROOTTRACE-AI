@@ -75,20 +75,6 @@ ROUTES = {
 # {investigation_id} are the owner's; {other_id} is a random id for rows that don't exist yet.
 STUBS: list[tuple[str, str, str, dict[str, Any]]] = [
     ("POST", "/auth/demo", "B-1001", {}),
-    ("GET", PROJECT + "/repositories", "B-301", {}),
-    (
-        "POST",
-        PROJECT + "/repositories",
-        "B-301",
-        {"json": {"url": "https://github.com/acme/payments"}},
-    ),
-    (
-        "PATCH",
-        PROJECT + "/repositories/{other_id}",
-        "B-301",
-        {"json": {"test_command": "pytest -q"}},
-    ),
-    ("DELETE", PROJECT + "/repositories/{other_id}", "B-301", {}),
     ("POST", PROJECT + "/ingest", "B-304", {}),
     (
         "POST",
@@ -236,11 +222,6 @@ def test_stubs_still_validate_requests(client: TestClient, owner: dict[str, Any]
         client.post(
             f"/projects/{project_id}/investigations", headers=headers, json={"question": "why"}
         ),
-        client.post(
-            f"/projects/{project_id}/repositories",
-            headers=headers,
-            json={"url": "https://gitlab.com/acme/payments"},
-        ),
         client.get(f"/projects/{project_id}/knowledge?type=video", headers=headers),
         client.get(f"/projects/{project_id}/logs?limit=0", headers=headers),
     ):
@@ -287,8 +268,8 @@ def test_investigation_responses_are_typed(client: TestClient):
 def test_github_token_is_write_only(client: TestClient):
     schemas = client.get("/openapi.json").json()["components"]["schemas"]
 
-    assert {"type": "string", "format": "password", "writeOnly": True} in schemas[
-        "RepositoryCreate"
-    ]["properties"]["token"]["anyOf"]
+    for body in ("RepositoryCreate", "RepositoryUpdate"):
+        token = schemas[body]["properties"]["token"]["anyOf"][0]
+        assert (token["type"], token["format"], token["writeOnly"]) == ("string", "password", True)
     assert "token" not in schemas["RepositoryOut"]["properties"]
     assert "encrypted_token" not in schemas["RepositoryOut"]["properties"]

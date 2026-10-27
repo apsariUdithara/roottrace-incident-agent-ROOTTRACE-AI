@@ -9,7 +9,7 @@ export function Markdown({ children, className }: { children: string; className?
   return (
     <div
       className={cn(
-        'flex flex-col gap-2 text-sm leading-relaxed break-words',
+        'flex flex-col gap-2 text-sm leading-relaxed wrap-break-word',
         '[&_ul]:list-disc [&_ol]:list-decimal [&_ul,&_ol]:flex [&_ul,&_ol]:flex-col [&_ul,&_ol]:gap-1 [&_ul,&_ol]:pl-5',
         '[&_h1,&_h2,&_h3]:font-heading [&_h1,&_h2,&_h3]:font-semibold [&_h1]:text-base [&_h2]:text-sm',
         '[&_a]:text-primary [&_a]:underline-offset-4 [&_a:hover]:underline',

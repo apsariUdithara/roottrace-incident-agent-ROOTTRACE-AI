@@ -597,7 +597,7 @@
           "repositories"
         ],
         "summary": "Disconnect Repository",
-        "description": "Also removes what was indexed from it.",
+        "description": "Also removes what was indexed from it: its docs and code.",
         "operationId": "disconnect_repository_projects__project_id__repositories__repository_id__delete",
         "security": [
           {
@@ -5492,6 +5492,8 @@
             "anyOf": [
               {
                 "type": "string",
+                "maxLength": 255,
+                "minLength": 1,
                 "format": "password",
                 "writeOnly": true
               },
@@ -5649,6 +5651,8 @@
             "anyOf": [
               {
                 "type": "string",
+                "maxLength": 255,
+                "minLength": 1,
                 "format": "password",
                 "writeOnly": true
               },
@@ -5687,7 +5691,7 @@
         },
         "type": "object",
         "title": "RepositoryUpdate",
-        "description": "Only the fields you send are changed. `setup_command: null` goes back to auto-detect."
+        "description": "Only the fields you send are changed. `setup_command: null` goes back to auto-detect,\n`token: null` removes the stored token, and null leaves the other fields unchanged."
       },
       "SandboxStatus": {
         "type": "string",

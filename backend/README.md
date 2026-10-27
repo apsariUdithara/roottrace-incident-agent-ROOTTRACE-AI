@@ -29,7 +29,7 @@ The Docker image (`backend/Dockerfile`, built from the repo root) is described i
 
 ### Demo data and a first investigation
 
-The agent needs an indexed repository. There's no API to connect one yet, so the scripts load PayStream:
+The agent needs an indexed repository. The API can connect one, but indexing it arrives with B-304, so for now the scripts load PayStream:
 
 ```bash
 python ../demo-target/scripts/build_history.py   # builds demo-target/build/paystream (git only, free)
@@ -65,6 +65,21 @@ Routes get a session with the `SessionDep` dependency from `app/core/db.py`. The
 - Wrong password and unknown email give the same 401 in the same time (argon2 runs either way).
 - Not yet done: rate limiting on login (planned with the demo endpoint), and server-side token revocation. Logout clears the cookie, and an access token already issued stays valid until it expires.
 
+## Repositories API
+
+`app/api/routes/repositories.py`. A project has one repository for now, because the agent investigates a single codebase.
+
+| Route | Does |
+|---|---|
+| `GET /projects/{id}/repositories` | The project's repository, as a list (empty, or one item). |
+| `POST /projects/{id}/repositories` | `{url, default_branch?, token?, setup_command?, test_command?}`. Connects a GitHub repository (`https://github.com/<owner>/<repo>`). 409 if the project already has one. |
+| `PATCH …/{repository_id}` | Changes only the fields you send. `setup_command: null` goes back to auto-detect, and `token: null` removes the token. Changing a command sets `sandbox_status` back to `unknown`, to be checked again. |
+| `DELETE …/{repository_id}` | Disconnects it, and removes its docs and code from the knowledge base. Incidents, issues and logs stay. |
+
+- **The token is write-only.** It's encrypted with `FERNET_KEY` before it's stored, and never returned: responses only say `has_token`. Spaces and line breaks around it are trimmed.
+- **Connecting doesn't clone or index yet.** That's `POST /projects/{id}/ingest` (B-304). Until then, `ingest_status` is `indexed` when the knowledge base holds the repository's files, and `not_indexed` otherwise.
+- The stored token isn't used yet: opening a PR still uses `GITHUB_TOKEN` from the environment.
+
 ## Investigations API
 
 `app/api/routes/investigations.py`. Every route needs a login, and `{investigation_id}` routes give the same 404 for someone else's investigation as for a missing one.
@@ -98,7 +113,7 @@ The MCP servers are mounted at `/mcp/github`, `/mcp/docs` and `/mcp/incidents`. 
 Every route in [IMPLEMENTATION_PLAN.md §11](../docs/IMPLEMENTATION_PLAN.md#11-backend-api-surface-fastapi), plus the ones the backlog adds, exists with its final request and response models. So `/openapi.json` (and `/docs`) is the whole contract, and the frontend types are generated from it. A route that isn't built yet answers, after the login, ownership and validation checks:
 
 ```json
-501 {"detail": "Not implemented yet (B-301)", "code": "not_implemented"}
+501 {"detail": "Not implemented yet (B-303)", "code": "not_implemented"}
 ```
 
 The task id is the backlog item that fills it in. To build one, replace its `raise not_implemented(...)` with the real body, remove its row from `STUBS` in `tests/test_api_surface.py`, and add the route's own tests.
@@ -114,7 +129,7 @@ After any change to a route or a request/response/event model, run `npm run gen:
 | | `GET /investigations/{id}/messages` | B-701 |
 | | `POST /investigations/{id}/patches/{patch_id}/rerun` | B-604 |
 | | `GET /investigations/{id}/trace` | B-803 |
-| Repositories | `GET/POST /projects/{id}/repositories`, `PATCH/DELETE …/{repository_id}` | B-301 |
+| Repositories | `GET/POST /projects/{id}/repositories`, `PATCH/DELETE …/{repository_id}` | done (see above) |
 | Knowledge | `POST /projects/{id}/ingest`, `GET /projects/{id}/knowledge?type=&q=` | B-304 |
 | | `POST /projects/{id}/uploads` (multipart: `kind`, `file`, `mapping`) | B-310 |
 | | `GET /projects/{id}/sources?ref=` | B-401 |
@@ -126,7 +141,7 @@ After any change to a route or a request/response/event model, run `npm run gen:
 | Chat | `POST /chat` | done |
 
 - `/investigations/{investigation_id}` routes take `investigation: OwnedInvestigation` from `app/api/deps.py`. It's the same rule as `OwnedProject`: someone else's investigation gives the same 404 as a missing one.
-- The contract already has some fields the database doesn't yet: `ingest_status`, `ingest_error` and `last_indexed_at` on repositories, added with B-304.
+- The contract already has some fields the database doesn't yet: `ingest_status`, `ingest_error` and `last_indexed_at` on repositories, added with B-304. Until then `ingest_status` is worked out from the knowledge base, and the other two are null.
 - An evaluation run's `metrics` and `cases` stay loose JSON until `evaluate.py`'s output shape is agreed.
 
 ## Investigation events (v1, agreed)
