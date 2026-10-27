@@ -16,8 +16,19 @@ from app.agent.events import EventBus
 from app.api.routes import investigations as routes
 from app.core.config import Settings
 from app.core.db import SessionLocal
-from app.models import Investigation, InvestigationStatus, Repository
-from app.schemas.events import Done, StatusChanged, Step, StepStarted
+from app.models import Investigation, InvestigationStatus, Repository, Verdict
+from app.schemas.events import Done, ReportReady, StatusChanged, Step, StepStarted
+
+# What the agent stores in investigations.report: the report event's payload plus the version.
+REPORT = {
+    **ReportReady(
+        root_cause="pool too big",
+        summary="DB_POOL_SIZE x instances exceeds max_connections [F1]",
+        verdict=Verdict.SUPPORTED,
+        fix="none",
+    ).model_dump(mode="json"),
+    "deployed_ref": "v1.4.8",
+}
 
 
 async def fake_run(investigation_id, ref=None, reported_at=None):
@@ -31,7 +42,7 @@ async def fake_run(investigation_id, ref=None, reported_at=None):
             .where(Investigation.id == investigation_id)
             .values(
                 status=InvestigationStatus.COMPLETED,
-                report={"summary": "ok"},
+                report=REPORT,
                 root_cause="pool too big",
             )
         )

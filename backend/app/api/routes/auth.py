@@ -13,6 +13,7 @@ from sqlalchemy.exc import IntegrityError
 from app.api.deps import CurrentUser, unauthorized
 from app.core.config import get_settings
 from app.core.db import SessionDep
+from app.core.errors import not_implemented
 from app.core.security import (
     DUMMY_PASSWORD_HASH,
     InvalidTokenError,
@@ -85,6 +86,12 @@ async def login(body: LoginRequest, session: SessionDep, response: Response) -> 
         user.password_hash = await hash_password(body.password)
         await session.commit()
     return _issue_tokens(user, response)
+
+
+@router.post("/demo")
+async def demo() -> TokenResponse:
+    """Logs in to the seeded demo project ("Try demo"). Read-mostly and rate-limited."""
+    raise not_implemented("B-1001")
 
 
 @router.post("/refresh")

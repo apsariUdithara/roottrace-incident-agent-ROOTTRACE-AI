@@ -6,7 +6,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.api.routes import auth, chat, investigations, projects
+from app.api.routes import (
+    auth,
+    chat,
+    evaluation,
+    incidents,
+    investigations,
+    knowledge,
+    memories,
+    projects,
+    repositories,
+    stats,
+)
 from app.core.config import get_settings
 from app.core.db import SessionDep, engine
 from app.core.errors import install_error_handlers
@@ -37,8 +48,14 @@ app.add_middleware(
 )
 app.include_router(auth.router)
 app.include_router(projects.router)
-app.include_router(chat.router)
+app.include_router(repositories.router)
+app.include_router(knowledge.router)
+app.include_router(incidents.router)
 app.include_router(investigations.router)
+app.include_router(memories.router)
+app.include_router(evaluation.router)
+app.include_router(stats.router)
+app.include_router(chat.router)
 # RootTrace's tools for any MCP client: /mcp/github, /mcp/docs, /mcp/incidents
 for _name, _mount in MOUNTS.items():
     app.mount(f"/mcp/{_name}", _mount)

@@ -1,6 +1,6 @@
 """The investigation event stream: what the agent emits and the Investigation page renders.
 
-DRAFT v1, pending Person A's review. Changing a payload is a contract change: update this file,
+v1, agreed by Person A and Person B. Changing a payload is a contract change: update this file,
 regenerate the frontend types (`npm run gen:api`), and tell the other person.
 
 Every event is an envelope, stored in `investigation_events` and streamed over SSE:

@@ -24,6 +24,19 @@ class SandboxStatus(StrEnum):
     UNTESTABLE = "untestable"  # tests can't run in the sandbox: investigation-only mode
 
 
+class IngestStatus(StrEnum):
+    """Indexing state of a repository, for the Knowledge page's re-ingest badge.
+
+    Already part of the API contract; the `ingest_status` column arrives with the ingest route.
+    """
+
+    NOT_INDEXED = "not_indexed"
+    QUEUED = "queued"
+    RUNNING = "running"
+    INDEXED = "indexed"
+    FAILED = "failed"
+
+
 class Repository(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     __tablename__ = "repositories"
     __table_args__ = (

@@ -4,9 +4,9 @@ FastAPI app (Python 3.12, `uv`). It serves the REST API and SSE stream, and runs
 
 | Folder (under `app/`) | Owner |
 |---|---|
-| `core/`, `models/`, `schemas/`, `api/routes/` (except `investigations.py`), plus `alembic/` | Person B |
-| `llm/`, `rag/`, `tools/`, `agent/` (graph, fix, memory, follow-ups, PR), `sandbox/`, `mcp_servers.py`, `api/routes/investigations.py` | Person A |
-| `main.py`, `agent/events.py` | Shared |
+| `core/`, `models/`, `schemas/`, `api/routes/`, plus `alembic/` | Person B |
+| `llm/`, `rag/`, `tools/`, `agent/` (graph, fix, memory, follow-ups, PR), `sandbox/`, `mcp_servers.py` | Person A |
+| `main.py`, `agent/events.py`, `api/routes/investigations.py` (A wrote the built routes) | Shared |
 
 No PayStream names, paths or hints anywhere under `app/`. CI enforces this.
 
@@ -71,17 +71,51 @@ Routes get a session with the `SessionDep` dependency from `app/core/db.py`. The
 |---|---|
 | `POST /projects/{id}/investigations` | `{question, ref?, reported_at?}`. Creates the investigation and runs the agent in the background, returning 202 at once. 409 if the project has no indexed repository, 429 when a guard rail is hit. `ref` is the deployed version (default: the default branch). |
 | `GET /projects/{id}/investigations` | The project's investigations, newest first. |
-| `GET /investigations/{id}` | The row: status, root cause, confidence, `report` (the `report` event's payload), tokens and cost. |
-| `GET /investigations/{id}/events?after=` | Saved events after `seq`, as JSON, for rendering a finished investigation. |
+| `GET /investigations/{id}` | The row: status, root cause, confidence, tokens, cost, and `report` (an `InvestigationReport`: the `report` event's payload plus `deployed_ref`). |
+| `GET /investigations/{id}/events?after=` | Saved events after `seq`, as a JSON list of `Event`s, for rendering a finished investigation. |
 | `GET /investigations/{id}/stream` | SSE. Replays saved events after `Last-Event-ID` (or `?after=`), then polls for new ones every 0.5 s. A keep-alive comment is sent every 15 s, and the stream closes after `done`. |
 | `POST /investigations/{id}/messages` | A follow-up question. The answer comes back in the response, cites evidence labels like `[F2]`, and is also published as a `message` event. 409 before the report exists. |
 | `POST /investigations/{id}/approve` | The engineer's approval: opens the verified fix as a draft PR and returns `{url}`. 409 if there's no fix, 503 without `GITHUB_TOKEN`. |
 
 **Guard rails for the public demo** (settings in `.env`): one running investigation per user, `INVESTIGATIONS_PER_HOUR` per user, `DAILY_BUDGET_USD` across everyone, and `INVESTIGATION_COST_CAP_USD` per run. A run past its cap stops. A run older than 30 minutes no longer counts as running, so a server restart can't lock anyone out.
 
-Not available over HTTP yet: connecting repositories and ingesting (scripts only), incidents CRUD, uploads, the source viewer, listing chat messages, rerunning a patch, rejecting a patch, the trace, memories, evaluation runs and dashboard stats.
+The request and response models live in `app/schemas/investigation.py`. `/events` and `/stream` both declare the event union from `app/schemas/events.py`, so the OpenAPI schema has a type for every event the page renders.
 
 The MCP servers are mounted at `/mcp/github`, `/mcp/docs` and `/mcp/incidents`. See the root README for connecting a client.
+
+## API surface
+
+Every route in [IMPLEMENTATION_PLAN.md §11](../docs/IMPLEMENTATION_PLAN.md#11-backend-api-surface-fastapi), plus the ones the backlog adds, exists with its final request and response models. So `/openapi.json` (and `/docs`) is the whole contract, and the frontend types are generated from it. A route that isn't built yet answers, after the login, ownership and validation checks:
+
+```json
+501 {"detail": "Not implemented yet (B-301)", "code": "not_implemented"}
+```
+
+The task id is the backlog item that fills it in. To build one, replace its `raise not_implemented(...)` with the real body, remove its row from `STUBS` in `tests/test_api_surface.py`, and add the route's own tests.
+
+| Area | Routes | Status |
+|---|---|---|
+| Auth | `POST /auth/register`, `/login`, `/refresh`, `/logout`, `GET /auth/me` | done |
+| | `POST /auth/demo` | B-1001 |
+| Projects | `GET/POST /projects`, `GET/PATCH/DELETE /projects/{id}` | done |
+| Investigations | `POST/GET /projects/{id}/investigations`, `GET /investigations/{id}`, `/events`, `/stream`, `POST …/messages`, `POST …/approve` | done (see above) |
+| | `GET /investigations/{id}/messages` | B-701 |
+| | `POST /investigations/{id}/patches/{patch_id}/rerun` | B-604 |
+| | `GET /investigations/{id}/trace` | B-803 |
+| Repositories | `GET/POST /projects/{id}/repositories`, `PATCH/DELETE …/{repository_id}` | B-301 |
+| Knowledge | `POST /projects/{id}/ingest`, `GET /projects/{id}/knowledge?type=&q=` | B-304 |
+| | `POST /projects/{id}/uploads` (multipart: `kind`, `file`, `mapping`) | B-310 |
+| | `GET /projects/{id}/sources?ref=` | B-401 |
+| | `GET /projects/{id}/logs?level=&service=&route=&error_type=&trace_id=&since=&until=` | B-309 |
+| Incidents | `GET/POST /projects/{id}/incidents`, `GET/PATCH/DELETE …/{incident_id}` | B-303 |
+| Memories | `GET /projects/{id}/memories?category=&status=`, `PATCH/DELETE …/{memory_id}` | B-703 |
+| Evaluation | `GET /evaluation/runs`, `GET /evaluation/runs/{id}` | B-901 |
+| Dashboard | `GET /stats/dashboard?project_id=` | B-804 |
+| Chat | `POST /chat` | done |
+
+- `/investigations/{investigation_id}` routes take `investigation: OwnedInvestigation` from `app/api/deps.py`. It's the same rule as `OwnedProject`: someone else's investigation gives the same 404 as a missing one.
+- The contract already has some fields the database doesn't yet: `ingest_status`, `ingest_error` and `last_indexed_at` on repositories, added with B-304.
+- An evaluation run's `metrics` and `cases` stay loose JSON until `evaluate.py`'s output shape is agreed.
 
 ## Investigation events (v1, agreed)
 
