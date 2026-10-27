@@ -93,6 +93,8 @@ Every route in [IMPLEMENTATION_PLAN.md §11](../docs/IMPLEMENTATION_PLAN.md#11-b
 
 The task id is the backlog item that fills it in. To build one, replace its `raise not_implemented(...)` with the real body, remove its row from `STUBS` in `tests/test_api_surface.py`, and add the route's own tests.
 
+After any change to a route or a request/response/event model, run `npm run gen:api` in `frontend/` and commit `frontend/openapi.json` and `frontend/src/api/schema.ts` with it. CI fails if they're out of date. `scripts/export_openapi.py` writes the schema without a server or database.
+
 | Area | Routes | Status |
 |---|---|---|
 | Auth | `POST /auth/register`, `/login`, `/refresh`, `/logout`, `GET /auth/me` | done |
