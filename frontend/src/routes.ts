@@ -1,35 +1,53 @@
 import type { RouteObject } from 'react-router'
 
 import { LoadingScreen } from '@/components/loading-screen'
+import { AppShell } from '@/layouts/app-shell'
+import { AuthLayout } from '@/layouts/auth-layout'
 import { ProtectedLayout } from '@/layouts/protected-layout'
-import { RootLayout } from '@/layouts/root-layout'
 import { guestOnly, requireSession } from '@/lib/auth'
-import { HomePage } from '@/pages/home-page'
+import { DashboardPage } from '@/pages/dashboard-page'
+import { EvaluationPage } from '@/pages/evaluation-page'
+import { KnowledgePage } from '@/pages/knowledge-page'
 import { LoginPage } from '@/pages/login-page'
 import { NotFoundPage } from '@/pages/not-found-page'
+import { ProjectsPage } from '@/pages/projects-page'
 import { RegisterPage } from '@/pages/register-page'
 
-// Kept apart from router.tsx so tests can mount the same routes in a memory router.
+// Kept apart from router.ts so tests can mount the same routes in a memory router.
 export const routes: RouteObject[] = [
   {
     path: '/',
-    Component: RootLayout,
     children: [
-      { path: 'login', Component: LoginPage, loader: guestOnly, HydrateFallback: LoadingScreen },
       {
-        path: 'register',
-        Component: RegisterPage,
-        loader: guestOnly,
-        HydrateFallback: LoadingScreen,
+        Component: AuthLayout,
+        children: [
+          { path: 'login', Component: LoginPage, loader: guestOnly, HydrateFallback: LoadingScreen },
+          {
+            path: 'register',
+            Component: RegisterPage,
+            loader: guestOnly,
+            HydrateFallback: LoadingScreen,
+          },
+          { path: '*', Component: NotFoundPage },
+        ],
       },
       {
-        // Every page that needs a login goes in here.
+        // Every page that needs a login goes in here, inside the app shell.
         Component: ProtectedLayout,
         loader: requireSession,
         HydrateFallback: LoadingScreen,
-        children: [{ index: true, Component: HomePage }],
+        children: [
+          {
+            Component: AppShell,
+            children: [
+              { index: true, Component: DashboardPage },
+              { path: 'projects', Component: ProjectsPage },
+              { path: 'knowledge', Component: KnowledgePage },
+              { path: 'evaluation', Component: EvaluationPage },
+            ],
+          },
+        ],
       },
-      { path: '*', Component: NotFoundPage },
     ],
   },
 ]

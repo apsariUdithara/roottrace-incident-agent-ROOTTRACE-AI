@@ -47,15 +47,27 @@ const investigation = await ok(
 ## Login and protected pages
 
 - `/login` and `/register` log in and go on to `?next=` (or home). `safeNext()` only follows a `next` that is a page of this app, so a link can't use the login page to send someone to another site.
-- **Every page that needs a login goes under the `ProtectedLayout` route** in `src/routes.ts`.
+- **Every page that needs a login goes under the `ProtectedLayout` route** in `src/routes.ts`, inside `AppShell`. Login, register and not-found use `AuthLayout`, a plain header with the name.
   - On arrival, its loader (`requireSession`) checks for a session. After a reload there isn't one in memory, so it tries the refresh cookie first, showing "Loading…" meanwhile. Otherwise it sends the visitor to `/login?next=<this page>`.
   - After that, the layout follows the session. When it ends, by logging out or because the refresh cookie has expired, the login page shows straight away, with the way back.
 - **Log out** is in the header. It clears the refresh cookie on the server, ends the session here even if the server can't be reached, and drops all cached query data, since another user may log in next.
 - `useSession()` (`src/lib/auth.ts`) gives any component the current user, or null.
 
+## App shell
+
+Logged-in pages render inside `AppShell` (`src/layouts/app-shell.tsx`):
+
+- **Sidebar** (`src/components/app-sidebar.tsx`): Dashboard, Projects, Knowledge and Evaluation. The current section is highlighted and marked `aria-current="page"`. It collapses to icons with the top bar's button or Ctrl/⌘+B, and becomes a slide-over drawer below 768 px.
+- **Top bar:** the project switcher, the user's email, and Log out.
+- **Project switcher** (`src/components/project-switcher.tsx`): the user's projects, from `GET /projects`. A page about one project reads the selection with `useCurrentProject()` (`src/lib/current-project.ts`).
+  - The choice is remembered in this browser. If it's missing, blocked, or isn't one of this user's projects, the switcher uses the first project.
+  - With no projects, the switcher becomes a link to create one.
+- **To add a page:** add a route under `AppShell` in `src/routes.ts`, and a `NAV` entry in `app-sidebar.tsx` if it belongs in the sidebar. Start the page with `PageHeader` (`src/components/page-header.tsx`).
+- Dashboard, Projects, Knowledge and Evaluation are placeholders for now (`PlannedPage`). Each one says which backlog task builds it, like the backend's 501 stubs.
+
 ## Tests
 
-`npm test` runs vitest. Tests run on Node by default. A test of components starts with `// @vitest-environment jsdom`, mounts the real `routes` in a memory router, and fakes the backend by stubbing `fetch` (see `src/pages/auth.test.tsx`).
+`npm test` runs vitest. Tests run on Node by default. A test of components starts with `// @vitest-environment jsdom`. It mounts the real `routes` in a memory router (`renderApp`) and fakes the backend by stubbing `fetch` (`backend()`); both come from `src/test/helpers.tsx`. Call `stubMatchMedia()` first, because jsdom has no `matchMedia` and the sidebar uses it.
 
 ## API types
 

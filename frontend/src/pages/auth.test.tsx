@@ -1,86 +1,12 @@
 // @vitest-environment jsdom
-import { QueryClientProvider } from '@tanstack/react-query'
-import { act, cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { createMemoryRouter, RouterProvider } from 'react-router'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { clearSession, getSession, setSession } from '@/api/session'
 import { safeNext } from '@/lib/auth'
 import { queryClient } from '@/lib/query-client'
-import { routes } from '@/routes'
-
-const ALICE = { email: 'alice@example.com', password: 'correct horse battery' }
-
-function tokens(email: string, accessToken: string) {
-  const user = { id: 'u1', email, created_at: '2026-10-27T10:00:00Z' }
-  return { access_token: accessToken, token_type: 'bearer' as const, expires_in: 900, user }
-}
-
-function json(status: number, body: unknown): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  })
-}
-
-/** A stand-in for the backend's auth routes: Alice has an account, and the refresh cookie is
- * valid once someone logs in or registers (or from the start, with `cookie: true`). */
-function backend({ cookie = false } = {}) {
-  const calls: string[] = []
-  vi.stubGlobal(
-    'fetch',
-    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      const request = input instanceof Request ? input : new Request(input, init)
-      const route = `${request.method} ${new URL(request.url).pathname.replace(/^\/api/, '')}`
-      calls.push(route)
-      const body = request.method === 'POST' ? await request.text() : ''
-      switch (route) {
-        case 'POST /auth/login': {
-          const { email, password } = JSON.parse(body)
-          if (email !== ALICE.email || password !== ALICE.password) {
-            return json(401, { detail: 'Incorrect email or password', code: 'unauthorized' })
-          }
-          cookie = true
-          return json(200, tokens(email, 'token-login'))
-        }
-        case 'POST /auth/register': {
-          const { email } = JSON.parse(body)
-          if (email === ALICE.email) {
-            return json(409, { detail: 'An account with this email already exists', code: 'conflict' })
-          }
-          cookie = true
-          return json(201, tokens(email, 'token-register'))
-        }
-        case 'POST /auth/refresh':
-          return cookie
-            ? json(200, tokens(ALICE.email, 'token-refreshed'))
-            : json(401, { detail: 'Not authenticated', code: 'unauthorized' })
-        case 'POST /auth/logout':
-          cookie = false
-          return new Response(null, { status: 204 })
-        case 'GET /health':
-          return json(200, { status: 'ok' })
-        default:
-          return json(404, { detail: 'Not Found', code: 'not_found' })
-      }
-    }),
-  )
-  return calls
-}
-
-function renderApp(path: string) {
-  const router = createMemoryRouter(routes, { initialEntries: [path] })
-  render(
-    <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-    </QueryClientProvider>,
-  )
-  return router
-}
-
-const here = (router: ReturnType<typeof renderApp>) =>
-  router.state.location.pathname + router.state.location.search
+import { ALICE, backend, here, project, renderApp, stubMatchMedia, tokens } from '@/test/helpers'
 
 async function logIn(email: string, password: string) {
   const user = userEvent.setup()
@@ -88,6 +14,8 @@ async function logIn(email: string, password: string) {
   await user.type(screen.getByLabelText('Password'), password)
   await user.click(screen.getByRole('button', { name: 'Log in' }))
 }
+
+beforeEach(() => stubMatchMedia())
 
 afterEach(() => {
   cleanup()
@@ -106,9 +34,9 @@ describe('logging in', () => {
 
     await logIn(ALICE.email, ALICE.password)
 
-    expect(await screen.findByText(ALICE.email)).toBeTruthy() // the header
+    expect(await screen.findByText(ALICE.email)).toBeTruthy() // the top bar
     expect(here(router)).toBe('/?tab=tests')
-    expect(await screen.findByText('ok')).toBeTruthy() // the page itself loaded its data
+    expect(screen.getByRole('heading', { name: 'Dashboard' })).toBeTruthy()
   })
 
   it('keeps a reloaded page logged in, using the refresh cookie', async () => {
@@ -171,9 +99,9 @@ describe('registering', () => {
 
 describe('leaving', () => {
   it('logs out: ends the session, drops cached data and shows the login page', async () => {
-    const calls = backend({ cookie: true })
+    const calls = backend({ cookie: true, projects: [project('p1', 'PayStream')] })
     const router = renderApp('/')
-    expect(await screen.findByText('ok')).toBeTruthy()
+    expect(await screen.findByRole('combobox', { name: 'Project' })).toBeTruthy()
     expect(queryClient.getQueryCache().getAll().length).toBeGreaterThan(0)
 
     await userEvent.setup().click(screen.getByRole('button', { name: 'Log out' }))
