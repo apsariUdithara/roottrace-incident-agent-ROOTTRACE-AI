@@ -9,7 +9,7 @@ are never echoed back, so a rejected password can't reappear in a response or a 
 from http import HTTPStatus
 from typing import Any
 
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -17,6 +17,15 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 def error_body(status_code: int, detail: str, code: str | None = None, **extra: Any) -> dict:
     return {"detail": detail, "code": code or _code_for(status_code), **extra}
+
+
+def not_implemented(task: str) -> HTTPException:
+    """For a route whose request and response models are final but whose body isn't written yet.
+
+    `task` is the backlog item that implements it, e.g. "B-301"; the 501 names it so the frontend
+    knows what it's waiting for. Raise it after the login and ownership checks.
+    """
+    return HTTPException(status.HTTP_501_NOT_IMPLEMENTED, f"Not implemented yet ({task})")
 
 
 def _code_for(status_code: int) -> str:

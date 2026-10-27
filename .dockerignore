@@ -1,0 +1,30 @@
+# Both images build from the repo root (docker build -f backend/Dockerfile .), so this keeps
+# secrets, local state and bulky folders out of every build.
+
+# Secrets: never in an image. Settings come from the environment at run time.
+**/.env
+**/.env.*
+!**/.env.example
+
+.git
+.github
+.claude
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+**/*.log
+
+# Built or installed where they're needed, never copied in
+**/.venv
+**/node_modules
+frontend/dist
+demo-target/build
+backend/data
+data
+
+# Not needed to run anything
+docs
+spikes
+eval/results

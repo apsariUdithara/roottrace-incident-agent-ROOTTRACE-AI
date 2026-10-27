@@ -29,7 +29,7 @@ from app.models.knowledge import (
     MemoryStatus,
 )
 from app.models.observability import EvaluationRun, ModelTier, SpanKind, SpanStatus, TraceSpan
-from app.models.project import Project, Repository, SandboxStatus
+from app.models.project import IngestStatus, Project, Repository, SandboxStatus
 from app.models.user import User
 
 __all__ = [
@@ -45,6 +45,7 @@ __all__ = [
     "Hypothesis",
     "Incident",
     "IncidentStatus",
+    "IngestStatus",
     "Investigation",
     "InvestigationEvent",
     "InvestigationStatus",

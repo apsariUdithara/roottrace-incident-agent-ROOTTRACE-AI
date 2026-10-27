@@ -1,6 +1,7 @@
 import { Link, Outlet } from 'react-router'
 
-export function RootLayout() {
+/** For the pages outside the app: login, register, and not found. */
+export function AuthLayout() {
   return (
     <div className="flex min-h-svh flex-col">
       <header className="border-b px-6 py-3">

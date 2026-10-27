@@ -11,19 +11,18 @@ import json
 import uuid
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
-from decimal import Decimal
-from typing import Annotated, Any
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from fastapi import APIRouter, Header, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select
 
 from app.agent import followup, run
 from app.agent.pr import PrError, open_pr
-from app.api.deps import CurrentUser, OwnedProject, owned_select
+from app.api.deps import CurrentUser, OwnedInvestigation, OwnedProject
 from app.core.config import get_settings
 from app.core.db import SessionDep, SessionLocal
+from app.core.errors import not_implemented
 from app.llm.router import get_router
 from app.models import (
     Investigation,
@@ -32,6 +31,15 @@ from app.models import (
     Patch,
     Repository,
 )
+from app.schemas.events import EVENT_CLASSES, Event
+from app.schemas.investigation import (
+    InvestigationCreate,
+    InvestigationOut,
+    MessageIn,
+    MessageOut,
+    PrOpenedOut,
+    Trace,
+)
 
 router = APIRouter(tags=["investigations"])
 
@@ -39,58 +47,34 @@ POLL_S = 0.5  # how often the stream checks for new events
 KEEPALIVE_S = 15  # an SSE comment this often keeps proxies from closing an idle stream
 RUNNING: dict[uuid.UUID, asyncio.Task] = {}  # background runs; kept so they aren't GC'd
 
-
-class InvestigationCreate(BaseModel):
-    question: str = Field(min_length=5, max_length=2000)
-    ref: str | None = Field(
-        default=None, max_length=200, description="Deployed version; default: the default branch"
-    )
-    reported_at: datetime | None = None
-
-
-class InvestigationOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: uuid.UUID
-    project_id: uuid.UUID
-    question: str
-    status: str
-    root_cause: str | None
-    confidence: float | None
-    report: dict[str, Any] | None
-    started_at: datetime
-    finished_at: datetime | None
-    total_tokens: int
-    total_cost_usd: Decimal
-
-
-class MessageIn(BaseModel):
-    content: str = Field(min_length=2, max_length=2000)
-
-
-class MessageOut(BaseModel):
-    id: uuid.UUID
-    role: str
-    content: str
-
-
-class PrOpenedOut(BaseModel):
-    url: str
-
-
-async def get_owned_investigation(
-    investigation_id: uuid.UUID, user: CurrentUser, session: SessionDep
-) -> Investigation:
-    """The `{investigation_id}` in the path, if it is in one of the user's projects (else 404)."""
-    found = await session.scalar(
-        owned_select(Investigation, user).where(Investigation.id == investigation_id)
-    )
-    if found is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Investigation not found")
-    return found
-
-
-OwnedInvestigation = Annotated[Investigation, Depends(get_owned_investigation)]
+# OpenAPI for /stream. A StreamingResponse has no schema of its own, so this documents each
+# frame's `data:` as one event, pointing at the same schemas `/events` declares.
+STREAM_RESPONSE = {
+    "description": "Server-Sent Events: `id: <seq>`, `event: <type>`, `data: <event JSON>`",
+    "content": {
+        "text/event-stream": {
+            "itemSchema": {
+                "type": "object",
+                "required": ["data"],
+                "properties": {
+                    "id": {"type": "string"},
+                    "event": {"type": "string"},
+                    "data": {
+                        "type": "string",
+                        "contentMediaType": "application/json",
+                        "contentSchema": {
+                            "oneOf": [
+                                {"$ref": f"#/components/schemas/{cls.__name__}"}
+                                for cls in EVENT_CLASSES
+                            ],
+                            "discriminator": {"propertyName": "type"},
+                        },
+                    },
+                },
+            }
+        }
+    },
+}
 
 
 def start_in_background(investigation_id: uuid.UUID, ref: str | None, reported_at) -> None:
@@ -189,7 +173,7 @@ async def events_after(session, investigation_id: uuid.UUID, after: int) -> list
 @router.get("/investigations/{investigation_id}/events")
 async def list_events(
     investigation: OwnedInvestigation, session: SessionDep, after: int = Query(0, ge=0)
-) -> list[dict]:
+) -> list[Event]:
     """Saved events after `seq` (all by default): for replaying a finished investigation."""
     return await events_after(session, investigation.id, after)
 
@@ -220,7 +204,11 @@ async def follow(investigation_id: uuid.UUID, after: int) -> AsyncIterator[str]:
         await asyncio.sleep(POLL_S)
 
 
-@router.get("/investigations/{investigation_id}/stream")
+@router.get(
+    "/investigations/{investigation_id}/stream",
+    response_class=StreamingResponse,
+    responses={200: STREAM_RESPONSE},
+)
 async def stream(
     investigation: OwnedInvestigation,
     last_event_id: Annotated[int | None, Header()] = None,
@@ -263,3 +251,24 @@ async def approve(investigation: OwnedInvestigation, session: SessionDep) -> PrO
         raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
     await session.commit()
     return PrOpenedOut(url=url)
+
+
+@router.get("/investigations/{investigation_id}/messages")
+async def list_messages(investigation: OwnedInvestigation) -> list[MessageOut]:
+    """The follow-up chat, oldest first."""
+    raise not_implemented("B-701")
+
+
+@router.post(
+    "/investigations/{investigation_id}/patches/{patch_id}/rerun",
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def rerun_patch(patch_id: uuid.UUID, investigation: OwnedInvestigation) -> InvestigationOut:
+    """Runs the baseline and patched tests again; the output streams as `test_output` events."""
+    raise not_implemented("B-604")
+
+
+@router.get("/investigations/{investigation_id}/trace")
+async def get_trace(investigation: OwnedInvestigation) -> Trace:
+    """Every LLM, tool, retrieval, memory, MCP and sandbox call in the run, with totals."""
+    raise not_implemented("B-803")

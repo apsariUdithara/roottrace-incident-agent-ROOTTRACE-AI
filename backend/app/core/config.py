@@ -49,6 +49,7 @@ class Settings(BaseSettings):
     investigation_cost_cap_usd: float = 0.50  # one run stops past this (normal: ~$0.05-0.10)
     daily_budget_usd: float = 5.00  # all investigations together, per UTC day
     investigations_per_hour: int = 3  # per user, and only one running at a time
+    chat_messages_per_hour: int = 30  # per user, for POST /chat
 
     # Agent
     tool_transport: Literal["direct", "mcp"] = "direct"

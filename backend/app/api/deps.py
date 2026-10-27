@@ -9,7 +9,7 @@ from sqlalchemy import Select, select
 
 from app.core.db import SessionDep
 from app.core.security import InvalidTokenError, TokenType, decode_token
-from app.models import Base, Project, User
+from app.models import Base, Investigation, Project, User
 
 # auto_error=False: we raise our own 401 (FastAPI's default for a missing header is 403).
 _bearer = HTTPBearer(auto_error=False)
@@ -73,3 +73,21 @@ async def get_owned_project(
 
 
 OwnedProject = Annotated[Project, Depends(get_owned_project)]
+
+
+async def get_owned_investigation(
+    investigation_id: uuid.UUID, user: CurrentUser, session: SessionDep
+) -> Investigation:
+    """The `{investigation_id}` in the path, if it is in one of the current user's projects.
+
+    Same rule as projects: someone else's investigation gives the same 404 as a missing one.
+    """
+    investigation = await session.scalar(
+        owned_select(Investigation, user).where(Investigation.id == investigation_id)
+    )
+    if investigation is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Investigation not found")
+    return investigation
+
+
+OwnedInvestigation = Annotated[Investigation, Depends(get_owned_investigation)]

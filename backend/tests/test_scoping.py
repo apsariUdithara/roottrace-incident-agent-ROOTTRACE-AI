@@ -6,7 +6,7 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_owned_project, owned_select
+from app.api.deps import get_owned_investigation, get_owned_project, owned_select
 from app.models import Incident, Investigation, Project, User
 
 
@@ -37,6 +37,25 @@ async def test_another_users_project_looks_like_a_missing_one(db_session: AsyncS
 
     assert someone_elses.value.status_code == missing.value.status_code == 404
     assert someone_elses.value.detail == missing.value.detail == "Project not found"
+
+
+async def test_another_users_investigation_looks_like_a_missing_one(
+    db_session: AsyncSession,
+) -> None:
+    alice, alice_project = await add_user_with_project(db_session, "alice@example.com")
+    bob, _ = await add_user_with_project(db_session, "bob@example.com")
+    investigation = Investigation(project_id=alice_project.id, user_id=alice.id, question="Why?")
+    db_session.add(investigation)
+    await db_session.flush()
+
+    assert await get_owned_investigation(investigation.id, alice, db_session) is investigation
+    with pytest.raises(HTTPException) as someone_elses:
+        await get_owned_investigation(investigation.id, bob, db_session)
+    with pytest.raises(HTTPException) as missing:
+        await get_owned_investigation(uuid.uuid4(), bob, db_session)
+
+    assert someone_elses.value.status_code == missing.value.status_code == 404
+    assert someone_elses.value.detail == missing.value.detail == "Investigation not found"
 
 
 async def test_owned_select_scopes_projects_and_their_rows(db_session: AsyncSession) -> None:

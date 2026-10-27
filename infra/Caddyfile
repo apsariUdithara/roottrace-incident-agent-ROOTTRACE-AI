@@ -1,0 +1,26 @@
+# The one public entry point: the built frontend, and /api proxied to the backend.
+#
+# SITE_ADDRESS is the public hostname in production (e.g. roottrace.example.com): Caddy then
+# gets and renews a TLS certificate by itself. Unset, it serves plain HTTP on port 80.
+# BACKEND_ADDRESS is where the API listens; the default is the compose service name.
+
+{$SITE_ADDRESS::80} {
+	# /api/auth/login -> backend /auth/login, the same rewrite as the Vite dev server.
+	handle_path /api/* {
+		reverse_proxy {$BACKEND_ADDRESS:backend:8000} {
+			# Pass each Server-Sent Event on the moment it's written, never buffered.
+			flush_interval -1
+		}
+	}
+
+	handle {
+		root * /srv
+		encode zstd gzip
+		# Built assets have a content hash in their names, so browsers may keep them for good.
+		@assets path /assets/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+		# Every other path is a page of the app: React Router reads it from index.html.
+		try_files {path} /index.html
+		file_server
+	}
+}
