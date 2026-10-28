@@ -4,6 +4,7 @@ import {
   FolderGit2,
   LayoutDashboard,
   MessageSquare,
+  ScrollText,
   type LucideIcon,
 } from 'lucide-react'
 import { Link, NavLink, useMatch } from 'react-router'
@@ -25,6 +26,7 @@ const NAV: NavItem[] = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/projects', label: 'Projects', icon: FolderGit2 },
   { to: '/knowledge', label: 'Knowledge', icon: BookOpen },
+  { to: '/logs', label: 'Logs', icon: ScrollText },
   { to: '/evaluation', label: 'Evaluation', icon: FlaskConical },
   { to: '/chat', label: 'Chat', icon: MessageSquare },
 ]

@@ -21,11 +21,14 @@ sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # Windows console
 
 from sqlalchemy import select, text  # noqa: E402
 
+from app.core.config import get_settings  # noqa: E402
 from app.core.db import SessionLocal  # noqa: E402
 from app.core.security import hash_password  # noqa: E402
 from app.llm.router import get_router  # noqa: E402
 from app.models import Project, Repository, User  # noqa: E402
+from app.rag.indexing import mark_indexed  # noqa: E402
 from app.rag.ingest import ingest_incidents, ingest_issues, ingest_logs, ingest_repo  # noqa: E402
+from app.tools.database import grant_readonly_access  # noqa: E402
 
 DEMO = Path(__file__).resolve().parents[2] / "demo-target"
 REPO = DEMO / "build" / "paystream"
@@ -50,14 +53,18 @@ async def get_or_create_project(session, name: str = "PayStream") -> Project:
     return project
 
 
-async def record_repository(session, project: Project) -> None:
-    """Remember where the clone lives, so the agent's git tools can find it."""
+async def record_repository(session, project: Project, ref: str) -> Repository:
+    """Remember where the clone lives, so the agent's git tools can find it. The indexed ref is
+    its default branch: investigations start from it, and re-indexing from the app keeps it
+    (PayStream's main is the healthy service, without the scenario's bug)."""
     repo = await session.scalar(select(Repository).where(Repository.project_id == project.id))
     if repo is None:
         repo = Repository(project_id=project.id, url="https://github.com/apsariUdithara/paystream")
         session.add(repo)
     repo.local_path = str(REPO)
+    repo.default_branch = ref
     await session.flush()
+    return repo
 
 
 # ponytail: one shared demo_app schema for the single demo project; per-project schemas (or a
@@ -87,8 +94,9 @@ async def load(session, router, ref: str, name: str = "PayStream") -> tuple[Proj
     subprocess.run([*git, "checkout", "-q", ref], check=True)
     sha = subprocess.run([*git, "rev-parse", "HEAD"], check=True, capture_output=True, text=True)
     project = await get_or_create_project(session, name)
-    await record_repository(session, project)
+    repository = await record_repository(session, project, ref)
     repo = await ingest_repo(session, router, project.id, REPO, sha.stdout.strip())
+    mark_indexed(repository, sha.stdout.strip())
     incidents = json.loads((FIXTURES / "incidents.json").read_text(encoding="utf-8"))
     issues = json.loads((FIXTURES / "issues.json").read_text(encoding="utf-8"))
     stats = {
@@ -105,6 +113,9 @@ async def load(session, router, ref: str, name: str = "PayStream") -> tuple[Proj
         rows = [json.loads(line) for line in file.read_text(encoding="utf-8").splitlines()]
         stats["logs"] += await ingest_logs(session, project.id, rows)
     stats["payments"] = await load_production_snapshot(session, project)
+    # Rebuilding demo_app dropped its grants: give the query_database role its SELECT back.
+    if url := get_settings().readonly_database_url:
+        stats["readonly_role"] = await grant_readonly_access(session, url)
     await session.commit()
     return project, stats
 
@@ -125,6 +136,8 @@ async def main(ref: str) -> None:
     print(f"  issues:      {stats['issues'][0]} indexed of {stats['issues'][1]}")
     print(f"  log lines:   {stats['logs']}")
     print(f"  payments:    {stats['payments']} rows in demo_app.payments (for query_database)")
+    if role := stats.get("readonly_role"):
+        print(f"  read-only:   {role} may SELECT from demo_app, and nothing else")
     print(f"  embeddings:  {len(router.spans)} calls, {tokens} tokens, ${cost:.6f}")
 
 

@@ -1,3 +1,4 @@
+import logging
 from collections.abc import AsyncIterator
 from contextlib import AsyncExitStack, asynccontextmanager
 
@@ -19,15 +20,22 @@ from app.api.routes import (
     stats,
 )
 from app.core.config import get_settings
-from app.core.db import SessionDep, engine
+from app.core.db import SessionDep, SessionLocal, engine
 from app.core.errors import install_error_handlers
 from app.mcp_servers import MOUNTS
+from app.rag import indexing
 
 settings = get_settings()  # also fails fast on invalid config
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    try:
+        async with SessionLocal() as session:
+            await indexing.mark_interrupted(session)
+    except (SQLAlchemyError, OSError) as exc:  # the readiness check reports the database
+        logger.warning("startup: couldn't mark interrupted indexing runs: %s", exc)
     async with AsyncExitStack() as stack:
         for mount in MOUNTS.values():  # each MCP server runs for the app's lifetime
             await stack.enter_async_context(mount.running())

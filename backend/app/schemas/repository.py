@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, SecretStr, StringConstraints
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, SecretStr, StringConstraints
 
 from app.models import IngestStatus, SandboxStatus
 
@@ -16,6 +16,12 @@ GitHubUrl = Annotated[
 ]
 Branch = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=255)]
 Command = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)]
+# Stripped, because a pasted token often ends with a newline.
+Token = Annotated[
+    SecretStr,
+    BeforeValidator(lambda value: value.strip() if isinstance(value, str) else value),
+    Field(min_length=1, max_length=255),
+]
 
 
 class RepositoryCreate(BaseModel):
@@ -23,21 +29,24 @@ class RepositoryCreate(BaseModel):
     url: GitHubUrl  # e.g. https://github.com/acme/payments
     default_branch: Branch = "main"
     # Write-only: stored encrypted, never returned. Needed for private repos and draft PRs.
-    token: SecretStr | None = None
+    token: Token | None = None
     setup_command: Command | None = None  # None: auto-detect (requirements.txt or pyproject)
     test_command: Command = "pytest -q"
 
 
 class RepositoryUpdate(BaseModel):
-    """Only the fields you send are changed. `setup_command: null` goes back to auto-detect."""
+    """Only the fields you send are changed. `setup_command: null` goes back to auto-detect,
+    `token: null` removes the stored token, and null leaves the other fields unchanged."""
 
     default_branch: Branch | None = None
-    token: SecretStr | None = None  # replaces the stored token
+    token: Token | None = None  # replaces the stored token
     setup_command: Command | None = None
     test_command: Command | None = None
 
 
 class RepositoryOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: uuid.UUID
     provider: str
     url: str

@@ -232,6 +232,74 @@ async def ingest_incidents(
     return indexed
 
 
+def incident_chunk(incident: Incident) -> Chunk:
+    """The searchable text of an incident row, laid out as for an ingested record."""
+    return chunk_incident(
+        {
+            "key": incident.key,
+            "title": incident.title,
+            "severity": incident.severity or "",
+            "date": incident.occurred_at.date().isoformat() if incident.occurred_at else "",
+            "symptoms": incident.symptoms or "",
+            "root_cause": incident.root_cause or "",
+            "fix": incident.fix or "",
+        }
+    )
+
+
+async def index_incident(session: AsyncSession, router: LLMRouter, incident: Incident) -> bool:
+    """Make an incident created or edited in the app searchable (search_previous_incidents).
+    Its text is the same as for an ingested record, so an unchanged incident isn't re-embedded."""
+    chunk = incident_chunk(incident)
+    return await store_document(
+        session,
+        router,
+        incident.project_id,
+        DocumentSourceType.INCIDENT,
+        incident.key,
+        incident.title,
+        sha256(chunk.content),
+        [chunk],
+    )
+
+
+class _Embedded:
+    """Answers embed() from texts embedded earlier, and asks the router only for new ones."""
+
+    def __init__(self, router: LLMRouter, known: dict[str, list[float]]):
+        self.router, self.known = router, known
+
+    async def embed(self, texts: list[str], name: str = "embed") -> list[list[float]]:
+        missing = [text for text in texts if text not in self.known]
+        if missing:
+            vectors = await self.router.embed(missing, name=name)
+            self.known.update(zip(missing, vectors, strict=True))
+        return [self.known[text] for text in texts]
+
+
+async def index_incidents(
+    session: AsyncSession, router: LLMRouter, incidents: list[Incident]
+) -> None:
+    """index_incident for many incidents (an upload), with their texts embedded together, in
+    the router's batches, rather than in one call each."""
+    texts = [text_to_embed(incident.key, incident_chunk(incident)) for incident in incidents]
+    known = dict(zip(texts, await router.embed(texts, name="embed incidents"), strict=True))
+    embedded = _Embedded(router, known)
+    for incident in incidents:
+        await index_incident(session, embedded, incident)  # type: ignore[arg-type]
+
+
+async def unindex_incident(session: AsyncSession, project_id: uuid.UUID, key: str) -> None:
+    """Remove an incident from the search index (its chunks go too: ON DELETE CASCADE)."""
+    await session.execute(
+        delete(Document).where(
+            Document.project_id == project_id,
+            Document.source_type == DocumentSourceType.INCIDENT,
+            Document.path == key,
+        )
+    )
+
+
 async def ingest_issues(
     session: AsyncSession, router: LLMRouter, project_id: uuid.UUID, records: list[dict]
 ) -> int:

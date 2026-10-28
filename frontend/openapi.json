@@ -597,7 +597,7 @@
           "repositories"
         ],
         "summary": "Disconnect Repository",
-        "description": "Also removes what was indexed from it.",
+        "description": "Also removes what was indexed from it (its docs and code), and RootTrace's clone of it.",
         "operationId": "disconnect_repository_projects__project_id__repositories__repository_id__delete",
         "security": [
           {
@@ -649,7 +649,7 @@
           "knowledge"
         ],
         "summary": "Ingest Project",
-        "description": "Re-indexes the project in the background. Poll the repositories' `ingest_status`.",
+        "description": "Re-indexes the project's repository in the background: its files at the default branch.\nPoll GET /projects/{id}/repositories until `ingest_status` is `indexed` or `failed`.\n\nA run that's already going isn't started again. 409 if there's no repository.",
         "operationId": "ingest_project_projects__project_id__ingest_post",
         "security": [
           {
@@ -696,13 +696,72 @@
         }
       }
     },
+    "/projects/{project_id}/uploads/preview": {
+      "post": {
+        "tags": [
+          "knowledge"
+        ],
+        "summary": "Preview Upload",
+        "description": "What uploading the file would do, without saving anything: its columns and first rows,\nthe mapping (the one sent, or one guessed from the column names) and the rows that would be\nimported, skipped or refused. Send it again with another mapping to see the difference.",
+        "operationId": "preview_upload_projects__project_id__uploads_preview_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_preview_upload_projects__project_id__uploads_preview_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadPreview"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/projects/{project_id}/uploads": {
       "post": {
         "tags": [
           "knowledge"
         ],
         "summary": "Upload File",
-        "description": "Imports logs (JSONL or CSV) or incidents (YAML, JSON or CSV).",
+        "description": "Imports logs (JSONL or CSV) or incidents (YAML, JSON or CSV), as the preview showed.\n\nRows with a problem are left out and listed; rows already in the project are skipped, and an\nincident is never overwritten. Uploaded incidents are embedded for the agent's search: if\nthat fails, nothing is saved (502). 422 if the mapping leaves out a required field.",
         "operationId": "upload_file_projects__project_id__uploads_post",
         "security": [
           {
@@ -761,6 +820,7 @@
           "knowledge"
         ],
         "summary": "List Knowledge",
+        "description": "What the agent can search: the indexed documents, by type and then path (ignoring case).",
         "operationId": "list_knowledge_projects__project_id__knowledge_get",
         "security": [
           {
@@ -965,7 +1025,7 @@
           "knowledge"
         ],
         "summary": "List Logs",
-        "description": "Newest first.",
+        "description": "The project's log lines, newest first. The filters match as in the agent's search_logs\ntool, so its evidence can be checked here.",
         "operationId": "list_logs_projects__project_id__logs_get",
         "security": [
           {
@@ -997,8 +1057,10 @@
                   "type": "null"
                 }
               ],
+              "description": "e.g. ERROR, any case",
               "title": "Level"
-            }
+            },
+            "description": "e.g. ERROR, any case"
           },
           {
             "name": "service",
@@ -1031,8 +1093,10 @@
                   "type": "null"
                 }
               ],
+              "description": "The route or part of it",
               "title": "Route"
-            }
+            },
+            "description": "The route or part of it"
           },
           {
             "name": "error_type",
@@ -1048,8 +1112,29 @@
                   "type": "null"
                 }
               ],
+              "description": "e.g. SlowQuery",
               "title": "Error Type"
-            }
+            },
+            "description": "e.g. SlowQuery"
+          },
+          {
+            "name": "text",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "In the message or error type, any case",
+              "title": "Text"
+            },
+            "description": "In the message or error type, any case"
           },
           {
             "name": "trace_id",
@@ -1082,8 +1167,10 @@
                   "type": "null"
                 }
               ],
+              "description": "Inclusive; UTC if no timezone",
               "title": "Since"
-            }
+            },
+            "description": "Inclusive; UTC if no timezone"
           },
           {
             "name": "until",
@@ -1099,8 +1186,10 @@
                   "type": "null"
                 }
               ],
+              "description": "Inclusive; UTC if no timezone",
               "title": "Until"
-            }
+            },
+            "description": "Inclusive; UTC if no timezone"
           },
           {
             "name": "limit",
@@ -1150,13 +1239,62 @@
         }
       }
     },
+    "/projects/{project_id}/logs/facets": {
+      "get": {
+        "tags": [
+          "knowledge"
+        ],
+        "summary": "Log Facets",
+        "description": "What the logs hold, for the explorer's filters: the values each field takes, with how\nmany lines have them, and the time the logs cover.",
+        "operationId": "log_facets_projects__project_id__logs_facets_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogFacets"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/projects/{project_id}/incidents": {
       "get": {
         "tags": [
           "incidents"
         ],
         "summary": "List Incidents",
-        "description": "Newest first.",
+        "description": "Newest first: by when it happened, or else when it was added.",
         "operationId": "list_incidents_projects__project_id__incidents_get",
         "security": [
           {
@@ -1388,6 +1526,7 @@
           "incidents"
         ],
         "summary": "Delete Incident",
+        "description": "Also removes it from the search index. Investigations that linked it keep their results.",
         "operationId": "delete_incident_projects__project_id__incidents__incident_id__delete",
         "security": [
           {
@@ -2595,6 +2734,43 @@
   },
   "components": {
     "schemas": {
+      "Body_preview_upload_projects__project_id__uploads_preview_post": {
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/UploadKind"
+          },
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          },
+          "mapping": {
+            "anyOf": [
+              {
+                "type": "string",
+                "contentMediaType": "application/json",
+                "contentSchema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mapping",
+            "description": "JSON: our field to your column, e.g. {\"ts\": \"timestamp\"}. Leave it out to use the mapping guessed from the column names (see /uploads/preview)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "file"
+        ],
+        "title": "Body_preview_upload_projects__project_id__uploads_preview_post"
+      },
       "Body_upload_file_projects__project_id__uploads_post": {
         "properties": {
           "kind": {
@@ -2622,7 +2798,7 @@
               }
             ],
             "title": "Mapping",
-            "description": "JSON: our field to your column, e.g. {\"ts\": \"timestamp\"}"
+            "description": "JSON: our field to your column, e.g. {\"ts\": \"timestamp\"}. Leave it out to use the mapping guessed from the column names (see /uploads/preview)."
           }
         },
         "type": "object",
@@ -2631,6 +2807,39 @@
           "file"
         ],
         "title": "Body_upload_file_projects__project_id__uploads_post"
+      },
+      "ChatCitation": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "source_type": {
+            "$ref": "#/components/schemas/DocumentSourceType"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "ref": {
+            "type": "string",
+            "title": "Ref"
+          },
+          "source_ref": {
+            "type": "string",
+            "title": "Source Ref"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label",
+          "source_type",
+          "path",
+          "ref",
+          "source_ref"
+        ],
+        "title": "ChatCitation",
+        "description": "A source the answer cites as [S1], [S2], ..."
       },
       "ChatMessage": {
         "properties": {
@@ -2675,6 +2884,18 @@
             ],
             "title": "Tier",
             "default": "nano"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
           }
         },
         "type": "object",
@@ -2716,6 +2937,13 @@
           "cached": {
             "type": "boolean",
             "title": "Cached"
+          },
+          "citations": {
+            "items": {
+              "$ref": "#/components/schemas/ChatCitation"
+            },
+            "type": "array",
+            "title": "Citations"
           }
         },
         "type": "object",
@@ -2727,7 +2955,8 @@
           "completion_tokens",
           "cost_usd",
           "latency_ms",
-          "cached"
+          "cached",
+          "citations"
         ],
         "title": "ChatResponse"
       },
@@ -3577,7 +3806,6 @@
           "key": {
             "type": "string",
             "maxLength": 50,
-            "minLength": 1,
             "title": "Key"
           },
           "title": {
@@ -3834,8 +4062,7 @@
             "anyOf": [
               {
                 "type": "string",
-                "maxLength": 50,
-                "minLength": 1
+                "maxLength": 50
               },
               {
                 "type": "null"
@@ -3959,7 +4186,7 @@
         },
         "type": "object",
         "title": "IncidentUpdate",
-        "description": "Only the fields you send are changed."
+        "description": "Only the fields you send are changed. Null clears an optional field (severity, symptoms,\nroot_cause, fix, commit_sha, occurred_at), and leaves key, title, tags and status unchanged."
       },
       "IngestStatus": {
         "type": "string",
@@ -3971,7 +4198,7 @@
           "failed"
         ],
         "title": "IngestStatus",
-        "description": "Indexing state of a repository, for the Knowledge page's re-ingest badge.\n\nAlready part of the API contract; the `ingest_status` column arrives with the ingest route."
+        "description": "Indexing state of a repository (POST /projects/{id}/ingest), for the re-ingest badge."
       },
       "InvestigationCreate": {
         "properties": {
@@ -4507,6 +4734,78 @@
         ],
         "title": "LogEntryOut"
       },
+      "LogFacets": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "first_ts": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Ts"
+          },
+          "last_ts": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Ts"
+          },
+          "levels": {
+            "items": {
+              "$ref": "#/components/schemas/LogValue"
+            },
+            "type": "array",
+            "title": "Levels"
+          },
+          "services": {
+            "items": {
+              "$ref": "#/components/schemas/LogValue"
+            },
+            "type": "array",
+            "title": "Services"
+          },
+          "routes": {
+            "items": {
+              "$ref": "#/components/schemas/LogValue"
+            },
+            "type": "array",
+            "title": "Routes"
+          },
+          "error_types": {
+            "items": {
+              "$ref": "#/components/schemas/LogValue"
+            },
+            "type": "array",
+            "title": "Error Types"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "first_ts",
+          "last_ts",
+          "levels",
+          "services",
+          "routes",
+          "error_types"
+        ],
+        "title": "LogFacets",
+        "description": "What the project's logs hold: the values to filter by, and the time they cover."
+      },
       "LogPage": {
         "properties": {
           "items": {
@@ -4569,6 +4868,24 @@
           "entries"
         ],
         "title": "LogSource"
+      },
+      "LogValue": {
+        "properties": {
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "value",
+          "count"
+        ],
+        "title": "LogValue"
       },
       "LoginRequest": {
         "properties": {
@@ -5492,6 +5809,8 @@
             "anyOf": [
               {
                 "type": "string",
+                "maxLength": 255,
+                "minLength": 1,
                 "format": "password",
                 "writeOnly": true
               },
@@ -5649,6 +5968,8 @@
             "anyOf": [
               {
                 "type": "string",
+                "maxLength": 255,
+                "minLength": 1,
                 "format": "password",
                 "writeOnly": true
               },
@@ -5687,7 +6008,7 @@
         },
         "type": "object",
         "title": "RepositoryUpdate",
-        "description": "Only the fields you send are changed. `setup_command: null` goes back to auto-detect."
+        "description": "Only the fields you send are changed. `setup_command: null` goes back to auto-detect,\n`token: null` removes the stored token, and null leaves the other fields unchanged."
       },
       "SandboxStatus": {
         "type": "string",
@@ -6551,6 +6872,40 @@
         ],
         "title": "TraceTotals"
       },
+      "UploadField": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "required": {
+            "type": "boolean",
+            "title": "Required"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "required",
+          "description"
+        ],
+        "title": "UploadField",
+        "description": "One of our fields that a column of the file can fill."
+      },
+      "UploadFormat": {
+        "type": "string",
+        "enum": [
+          "csv",
+          "jsonl",
+          "json",
+          "yaml"
+        ],
+        "title": "UploadFormat"
+      },
       "UploadKind": {
         "type": "string",
         "enum": [
@@ -6558,6 +6913,94 @@
           "incidents"
         ],
         "title": "UploadKind"
+      },
+      "UploadPreview": {
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/UploadKind"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "format": {
+            "$ref": "#/components/schemas/UploadFormat"
+          },
+          "rows": {
+            "type": "integer",
+            "title": "Rows"
+          },
+          "columns": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Columns",
+            "description": "In the order they first appear; nested keys as a.b"
+          },
+          "sample": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Sample",
+            "description": "The first rows, by column"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/UploadField"
+            },
+            "type": "array",
+            "title": "Fields"
+          },
+          "mapping": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Mapping",
+            "description": "Our field to the file's column: the one sent, or one guessed from the column names. Columns left out are kept with each log line (attrs)."
+          },
+          "mapping_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mapping Error",
+            "description": "Why the file can't be imported this way"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UploadResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What importing would do; null if it can't"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "filename",
+          "format",
+          "rows",
+          "columns",
+          "sample",
+          "fields",
+          "mapping",
+          "mapping_error",
+          "result"
+        ],
+        "title": "UploadPreview",
+        "description": "What a file holds, and what importing it would do. Nothing is saved."
       },
       "UploadResult": {
         "properties": {
@@ -6574,7 +7017,13 @@
           },
           "skipped": {
             "type": "integer",
-            "title": "Skipped"
+            "title": "Skipped",
+            "description": "Rows already in the project, so not imported again"
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed",
+            "description": "Rows with a problem, not imported"
           },
           "errors": {
             "items": {
@@ -6591,6 +7040,7 @@
           "filename",
           "imported",
           "skipped",
+          "failed",
           "errors"
         ],
         "title": "UploadResult"

@@ -183,7 +183,7 @@ export interface paths {
         post?: never;
         /**
          * Disconnect Repository
-         * @description Also removes what was indexed from it.
+         * @description Also removes what was indexed from it (its docs and code), and RootTrace's clone of it.
          */
         delete: operations["disconnect_repository_projects__project_id__repositories__repository_id__delete"];
         options?: never;
@@ -203,9 +203,34 @@ export interface paths {
         put?: never;
         /**
          * Ingest Project
-         * @description Re-indexes the project in the background. Poll the repositories' `ingest_status`.
+         * @description Re-indexes the project's repository in the background: its files at the default branch.
+         *     Poll GET /projects/{id}/repositories until `ingest_status` is `indexed` or `failed`.
+         *
+         *     A run that's already going isn't started again. 409 if there's no repository.
          */
         post: operations["ingest_project_projects__project_id__ingest_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project_id}/uploads/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Upload
+         * @description What uploading the file would do, without saving anything: its columns and first rows,
+         *     the mapping (the one sent, or one guessed from the column names) and the rows that would be
+         *     imported, skipped or refused. Send it again with another mapping to see the difference.
+         */
+        post: operations["preview_upload_projects__project_id__uploads_preview_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -223,7 +248,11 @@ export interface paths {
         put?: never;
         /**
          * Upload File
-         * @description Imports logs (JSONL or CSV) or incidents (YAML, JSON or CSV).
+         * @description Imports logs (JSONL or CSV) or incidents (YAML, JSON or CSV), as the preview showed.
+         *
+         *     Rows with a problem are left out and listed; rows already in the project are skipped, and an
+         *     incident is never overwritten. Uploaded incidents are embedded for the agent's search: if
+         *     that fails, nothing is saved (502). 422 if the mapping leaves out a required field.
          */
         post: operations["upload_file_projects__project_id__uploads_post"];
         delete?: never;
@@ -239,7 +268,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Knowledge */
+        /**
+         * List Knowledge
+         * @description What the agent can search: the indexed documents, by type and then path (ignoring case).
+         */
         get: operations["list_knowledge_projects__project_id__knowledge_get"];
         put?: never;
         post?: never;
@@ -278,9 +310,31 @@ export interface paths {
         };
         /**
          * List Logs
-         * @description Newest first.
+         * @description The project's log lines, newest first. The filters match as in the agent's search_logs
+         *     tool, so its evidence can be checked here.
          */
         get: operations["list_logs_projects__project_id__logs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project_id}/logs/facets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Log Facets
+         * @description What the logs hold, for the explorer's filters: the values each field takes, with how
+         *     many lines have them, and the time the logs cover.
+         */
+        get: operations["log_facets_projects__project_id__logs_facets_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -298,7 +352,7 @@ export interface paths {
         };
         /**
          * List Incidents
-         * @description Newest first.
+         * @description Newest first: by when it happened, or else when it was added.
          */
         get: operations["list_incidents_projects__project_id__incidents_get"];
         put?: never;
@@ -324,7 +378,10 @@ export interface paths {
         get: operations["get_incident_projects__project_id__incidents__incident_id__get"];
         put?: never;
         post?: never;
-        /** Delete Incident */
+        /**
+         * Delete Incident
+         * @description Also removes it from the search index. Investigations that linked it keep their results.
+         */
         delete: operations["delete_incident_projects__project_id__incidents__incident_id__delete"];
         options?: never;
         head?: never;
@@ -644,6 +701,17 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** Body_preview_upload_projects__project_id__uploads_preview_post */
+        Body_preview_upload_projects__project_id__uploads_preview_post: {
+            kind: components["schemas"]["UploadKind"];
+            /** File */
+            file: string;
+            /**
+             * Mapping
+             * @description JSON: our field to your column, e.g. {"ts": "timestamp"}. Leave it out to use the mapping guessed from the column names (see /uploads/preview).
+             */
+            mapping?: string | null;
+        };
         /** Body_upload_file_projects__project_id__uploads_post */
         Body_upload_file_projects__project_id__uploads_post: {
             kind: components["schemas"]["UploadKind"];
@@ -651,9 +719,24 @@ export interface components {
             file: string;
             /**
              * Mapping
-             * @description JSON: our field to your column, e.g. {"ts": "timestamp"}
+             * @description JSON: our field to your column, e.g. {"ts": "timestamp"}. Leave it out to use the mapping guessed from the column names (see /uploads/preview).
              */
             mapping?: string | null;
+        };
+        /**
+         * ChatCitation
+         * @description A source the answer cites as [S1], [S2], ...
+         */
+        ChatCitation: {
+            /** Label */
+            label: string;
+            source_type: components["schemas"]["DocumentSourceType"];
+            /** Path */
+            path: string;
+            /** Ref */
+            ref: string;
+            /** Source Ref */
+            source_ref: string;
         };
         /** ChatMessage */
         ChatMessage: {
@@ -678,6 +761,8 @@ export interface components {
              * @enum {string}
              */
             tier: "nano" | "super";
+            /** Project Id */
+            project_id?: string | null;
         };
         /** ChatResponse */
         ChatResponse: {
@@ -696,6 +781,8 @@ export interface components {
             latency_ms: number;
             /** Cached */
             cached: boolean;
+            /** Citations */
+            citations: components["schemas"]["ChatCitation"][];
         };
         /** CommitSource */
         CommitSource: {
@@ -1140,7 +1227,8 @@ export interface components {
         IncidentStatus: "open" | "investigating" | "resolved";
         /**
          * IncidentUpdate
-         * @description Only the fields you send are changed.
+         * @description Only the fields you send are changed. Null clears an optional field (severity, symptoms,
+         *     root_cause, fix, commit_sha, occurred_at), and leaves key, title, tags and status unchanged.
          */
         IncidentUpdate: {
             /** Key */
@@ -1165,9 +1253,7 @@ export interface components {
         };
         /**
          * IngestStatus
-         * @description Indexing state of a repository, for the Knowledge page's re-ingest badge.
-         *
-         *     Already part of the API contract; the `ingest_status` column arrives with the ingest route.
+         * @description Indexing state of a repository (POST /projects/{id}/ingest), for the re-ingest badge.
          * @enum {string}
          */
         IngestStatus: "not_indexed" | "queued" | "running" | "indexed" | "failed";
@@ -1356,6 +1442,26 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /**
+         * LogFacets
+         * @description What the project's logs hold: the values to filter by, and the time they cover.
+         */
+        LogFacets: {
+            /** Total */
+            total: number;
+            /** First Ts */
+            first_ts: string | null;
+            /** Last Ts */
+            last_ts: string | null;
+            /** Levels */
+            levels: components["schemas"]["LogValue"][];
+            /** Services */
+            services: components["schemas"]["LogValue"][];
+            /** Routes */
+            routes: components["schemas"]["LogValue"][];
+            /** Error Types */
+            error_types: components["schemas"]["LogValue"][];
+        };
         /** LogPage */
         LogPage: {
             /** Items */
@@ -1380,6 +1486,13 @@ export interface components {
             trace_id: string;
             /** Entries */
             entries: components["schemas"]["LogEntryOut"][];
+        };
+        /** LogValue */
+        LogValue: {
+            /** Value */
+            value: string;
+            /** Count */
+            count: number;
         };
         /** LoginRequest */
         LoginRequest: {
@@ -1864,7 +1977,8 @@ export interface components {
         };
         /**
          * RepositoryUpdate
-         * @description Only the fields you send are changed. `setup_command: null` goes back to auto-detect.
+         * @description Only the fields you send are changed. `setup_command: null` goes back to auto-detect,
+         *     `token: null` removes the stored token, and null leaves the other fields unchanged.
          */
         RepositoryUpdate: {
             /** Default Branch */
@@ -2267,10 +2381,67 @@ export interface components {
             duration_ms: number;
         };
         /**
+         * UploadField
+         * @description One of our fields that a column of the file can fill.
+         */
+        UploadField: {
+            /** Name */
+            name: string;
+            /** Required */
+            required: boolean;
+            /** Description */
+            description: string;
+        };
+        /**
+         * UploadFormat
+         * @enum {string}
+         */
+        UploadFormat: "csv" | "jsonl" | "json" | "yaml";
+        /**
          * UploadKind
          * @enum {string}
          */
         UploadKind: "logs" | "incidents";
+        /**
+         * UploadPreview
+         * @description What a file holds, and what importing it would do. Nothing is saved.
+         */
+        UploadPreview: {
+            kind: components["schemas"]["UploadKind"];
+            /** Filename */
+            filename: string;
+            format: components["schemas"]["UploadFormat"];
+            /** Rows */
+            rows: number;
+            /**
+             * Columns
+             * @description In the order they first appear; nested keys as a.b
+             */
+            columns: string[];
+            /**
+             * Sample
+             * @description The first rows, by column
+             */
+            sample: {
+                [key: string]: unknown;
+            }[];
+            /** Fields */
+            fields: components["schemas"]["UploadField"][];
+            /**
+             * Mapping
+             * @description Our field to the file's column: the one sent, or one guessed from the column names. Columns left out are kept with each log line (attrs).
+             */
+            mapping: {
+                [key: string]: string;
+            };
+            /**
+             * Mapping Error
+             * @description Why the file can't be imported this way
+             */
+            mapping_error: string | null;
+            /** @description What importing would do; null if it can't */
+            result: components["schemas"]["UploadResult"] | null;
+        };
         /** UploadResult */
         UploadResult: {
             kind: components["schemas"]["UploadKind"];
@@ -2278,8 +2449,16 @@ export interface components {
             filename: string;
             /** Imported */
             imported: number;
-            /** Skipped */
+            /**
+             * Skipped
+             * @description Rows already in the project, so not imported again
+             */
             skipped: number;
+            /**
+             * Failed
+             * @description Rows with a problem, not imported
+             */
+            failed: number;
             /**
              * Errors
              * @description The first problems found, at most 20
@@ -2842,6 +3021,41 @@ export interface operations {
             };
         };
     };
+    preview_upload_projects__project_id__uploads_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_preview_upload_projects__project_id__uploads_preview_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadPreview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     upload_file_projects__project_id__uploads_post: {
         parameters: {
             query?: never;
@@ -2950,12 +3164,19 @@ export interface operations {
     list_logs_projects__project_id__logs_get: {
         parameters: {
             query?: {
+                /** @description e.g. ERROR, any case */
                 level?: string | null;
                 service?: string | null;
+                /** @description The route or part of it */
                 route?: string | null;
+                /** @description e.g. SlowQuery */
                 error_type?: string | null;
+                /** @description In the message or error type, any case */
+                text?: string | null;
                 trace_id?: string | null;
+                /** @description Inclusive; UTC if no timezone */
                 since?: string | null;
+                /** @description Inclusive; UTC if no timezone */
                 until?: string | null;
                 limit?: number;
                 offset?: number;
@@ -2975,6 +3196,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LogPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    log_facets_projects__project_id__logs_facets_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogFacets"];
                 };
             };
             /** @description Validation Error */

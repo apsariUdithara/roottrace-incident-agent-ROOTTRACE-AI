@@ -45,9 +45,11 @@ ROUTES = {
     ("DELETE", PROJECT + "/repositories/{repository_id}"),
     ("POST", PROJECT + "/ingest"),
     ("POST", PROJECT + "/uploads"),
+    ("POST", PROJECT + "/uploads/preview"),
     ("GET", PROJECT + "/knowledge"),
     ("GET", PROJECT + "/sources"),
     ("GET", PROJECT + "/logs"),
+    ("GET", PROJECT + "/logs/facets"),
     ("GET", PROJECT + "/incidents"),
     ("POST", PROJECT + "/incidents"),
     ("GET", PROJECT + "/incidents/{incident_id}"),
@@ -75,43 +77,7 @@ ROUTES = {
 # {investigation_id} are the owner's; {other_id} is a random id for rows that don't exist yet.
 STUBS: list[tuple[str, str, str, dict[str, Any]]] = [
     ("POST", "/auth/demo", "B-1001", {}),
-    ("GET", PROJECT + "/repositories", "B-301", {}),
-    (
-        "POST",
-        PROJECT + "/repositories",
-        "B-301",
-        {"json": {"url": "https://github.com/acme/payments"}},
-    ),
-    (
-        "PATCH",
-        PROJECT + "/repositories/{other_id}",
-        "B-301",
-        {"json": {"test_command": "pytest -q"}},
-    ),
-    ("DELETE", PROJECT + "/repositories/{other_id}", "B-301", {}),
-    ("POST", PROJECT + "/ingest", "B-304", {}),
-    (
-        "POST",
-        PROJECT + "/uploads",
-        "B-310",
-        {
-            "data": {"kind": "logs", "mapping": '{"ts": "timestamp"}'},
-            "files": {"file": ("app.jsonl", b'{"level": "ERROR"}\n', "application/x-ndjson")},
-        },
-    ),
-    ("GET", PROJECT + "/knowledge?type=doc&q=pool", "B-304", {}),
     ("GET", PROJECT + "/sources?ref=commit:a3f9c21", "B-401", {}),
-    ("GET", PROJECT + "/logs?level=ERROR&since=2026-10-19T00:00:00Z", "B-309", {}),
-    ("GET", PROJECT + "/incidents", "B-303", {}),
-    (
-        "POST",
-        PROJECT + "/incidents",
-        "B-303",
-        {"json": {"key": "INC-017", "title": "Pool exhaustion"}},
-    ),
-    ("GET", PROJECT + "/incidents/{other_id}", "B-303", {}),
-    ("PATCH", PROJECT + "/incidents/{other_id}", "B-303", {"json": {"status": "resolved"}}),
-    ("DELETE", PROJECT + "/incidents/{other_id}", "B-303", {}),
     ("GET", PROJECT + "/memories?category=project_fact&status=active", "B-703", {}),
     ("PATCH", PROJECT + "/memories/{other_id}", "B-703", {"json": {"status": "archived"}}),
     ("DELETE", PROJECT + "/memories/{other_id}", "B-703", {}),
@@ -232,20 +198,12 @@ def test_stub_hides_other_users_projects_and_investigations(
 def test_stubs_still_validate_requests(client: TestClient, owner: dict[str, Any]):
     headers, project_id = owner["headers"], owner["ids"]["project_id"]
 
-    for response in (
-        client.post(
-            f"/projects/{project_id}/investigations", headers=headers, json={"question": "why"}
-        ),
-        client.post(
-            f"/projects/{project_id}/repositories",
-            headers=headers,
-            json={"url": "https://gitlab.com/acme/payments"},
-        ),
-        client.get(f"/projects/{project_id}/knowledge?type=video", headers=headers),
-        client.get(f"/projects/{project_id}/logs?limit=0", headers=headers),
-    ):
-        assert response.status_code == 422, response.text
-        assert response.json()["code"] == "validation_error"
+    response = client.post(
+        f"/projects/{project_id}/investigations", headers=headers, json={"question": "why"}
+    )
+
+    assert response.status_code == 422, response.text
+    assert response.json()["code"] == "validation_error"
 
 
 def event_refs(schema: dict) -> set[str]:
@@ -287,8 +245,8 @@ def test_investigation_responses_are_typed(client: TestClient):
 def test_github_token_is_write_only(client: TestClient):
     schemas = client.get("/openapi.json").json()["components"]["schemas"]
 
-    assert {"type": "string", "format": "password", "writeOnly": True} in schemas[
-        "RepositoryCreate"
-    ]["properties"]["token"]["anyOf"]
+    for body in ("RepositoryCreate", "RepositoryUpdate"):
+        token = schemas[body]["properties"]["token"]["anyOf"][0]
+        assert (token["type"], token["format"], token["writeOnly"]) == ("string", "password", True)
     assert "token" not in schemas["RepositoryOut"]["properties"]
     assert "encrypted_token" not in schemas["RepositoryOut"]["properties"]

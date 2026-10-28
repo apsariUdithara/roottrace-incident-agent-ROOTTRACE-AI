@@ -6,10 +6,13 @@ import { api, ApiError, ok } from '@/api/client'
 import type { Schemas } from '@/api/types'
 import { Markdown } from '@/components/markdown'
 import { PageHeader } from '@/components/page-header'
+import { CitationChip } from '@/components/source-chip'
 import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { Textarea } from '@/components/ui/textarea'
 import { historyForRequest, type ChatTurn as Turn } from '@/lib/chat'
+import { useCurrentProject } from '@/lib/current-project'
 
 type ChatTier = Schemas['ChatRequest']['tier']
 type Answer = Schemas['ChatResponse']
@@ -24,11 +27,19 @@ export function ChatPage() {
   const [turns, setTurns] = useState<Turn[]>([])
   const [draft, setDraft] = useState('')
   const [tier, setTier] = useState<ChatTier>('nano')
+  // On by default: answers from the project's own knowledge, with their sources.
+  const [searchProject, setSearchProject] = useState(true)
+  const { project } = useCurrentProject()
+  const projectId = project && searchProject ? project.id : undefined
   const end = useRef<HTMLDivElement>(null)
 
   const send = useMutation({
     mutationFn: (history: Turn[]) =>
-      ok(api.POST('/chat', { body: { messages: historyForRequest(history), tier } })),
+      ok(
+        api.POST('/chat', {
+          body: { messages: historyForRequest(history), tier, project_id: projectId },
+        }),
+      ),
     onSuccess: (answer) =>
       setTurns((current) => [...current, { role: 'assistant', content: answer.content, answer }]),
   })
@@ -65,7 +76,7 @@ export function ChatPage() {
     <div className="flex max-w-3xl flex-1 flex-col">
       <PageHeader
         title="Chat"
-        description="Ask Nemotron on Nebius directly. This chat can't see your projects: start an investigation for that."
+        description="Ask Nemotron on Nebius. With the project search on, it answers from the project's docs, code, issues and past incidents, and shows the sources it used."
       />
 
       <div role="log" aria-label="Conversation" className="flex flex-1 flex-col gap-4">
@@ -87,6 +98,7 @@ export function ChatPage() {
           ) : (
             <div key={index} className="flex flex-col gap-1">
               <Markdown>{turn.content}</Markdown>
+              <Sources citations={turn.answer.citations} />
               <AnswerDetails answer={turn.answer} />
             </div>
           ),
@@ -124,6 +136,17 @@ export function ChatPage() {
             <NativeSelectOption value="nano">Nemotron Nano: fast</NativeSelectOption>
             <NativeSelectOption value="super">Nemotron Super: stronger</NativeSelectOption>
           </NativeSelect>
+          {project && (
+            <Label className="gap-1.5 font-normal">
+              <input
+                type="checkbox"
+                checked={searchProject}
+                onChange={(event) => setSearchProject(event.target.checked)}
+                className="accent-primary"
+              />
+              Search {project.name}
+            </Label>
+          )}
           {turns.length > 0 && (
             <Button type="button" variant="ghost" size="sm" onClick={startOver}>
               New chat
@@ -136,6 +159,20 @@ export function ChatPage() {
         </div>
       </form>
     </div>
+  )
+}
+
+/** The sources an answer cites, as chips; the answer refers to them by label, e.g. [S1]. */
+function Sources({ citations }: { citations: Answer['citations'] }) {
+  if (citations.length === 0) return null
+  return (
+    <ul aria-label="Sources" className="flex flex-wrap gap-1.5">
+      {citations.map((citation) => (
+        <li key={citation.label} className="max-w-full">
+          <CitationChip citation={citation} />
+        </li>
+      ))}
+    </ul>
   )
 }
 

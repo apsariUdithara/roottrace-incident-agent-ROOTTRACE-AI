@@ -57,20 +57,63 @@ const investigation = await ok(
 
 Logged-in pages render inside `AppShell` (`src/layouts/app-shell.tsx`):
 
-- **Sidebar** (`src/components/app-sidebar.tsx`): Dashboard, Projects, Knowledge, Evaluation and Chat. The current section is highlighted and marked `aria-current="page"`. It collapses to icons with the top bar's button or Ctrl/⌘+B, and becomes a slide-over drawer below 768 px.
+- **Sidebar** (`src/components/app-sidebar.tsx`): Dashboard, Projects, Knowledge, Logs, Evaluation and Chat. The current section is highlighted and marked `aria-current="page"`. It collapses to icons with the top bar's button or Ctrl/⌘+B, and becomes a slide-over drawer below 768 px.
 - **Top bar:** the project switcher, the user's email, and Log out.
 - **Project switcher** (`src/components/project-switcher.tsx`): the user's projects, from `GET /projects`. A page about one project reads the selection with `useCurrentProject()` (`src/lib/current-project.ts`).
   - The choice is remembered in this browser. If it's missing, blocked, or isn't one of this user's projects, the switcher uses the first project.
   - With no projects, the switcher becomes a link to create one.
 - **To add a page:** add a route under `AppShell` in `src/routes.ts`, and a `NAV` entry in `app-sidebar.tsx` if it belongs in the sidebar. Start the page with `PageHeader` (`src/components/page-header.tsx`).
-- Dashboard, Projects, Knowledge and Evaluation are placeholders for now (`PlannedPage`). Each one says which backlog task builds it, like the backend's 501 stubs.
+- Dashboard and Evaluation are placeholders for now (`PlannedPage`). Each one says which backlog task builds it, like the backend's 501 stubs.
 - **To keep a heavy page out of the first download**, give its route `lazy` instead of `Component` (as `/chat` does). Its code then loads when it's first opened.
+
+## Projects
+
+- **`/projects`** (`src/pages/projects-page.tsx`) lists the user's projects, newest first, and marks the current one. Its form creates a project, makes it the current one, and opens its settings.
+- **`/projects/:projectId`** (`src/pages/project-settings-page.tsx`) edits the name and description, and holds the repository (`src/components/repository-settings.tsx`):
+  - With none, a form connects a GitHub repository: URL, default branch, an optional access token, the setup command (empty: auto-detect) and the test command.
+  - Once connected, it shows whether the tests can run in the sandbox, and the indexing status. The same settings can be changed there.
+  - **The access token is write-only:** the field is a password field, it's never filled in, and it's emptied once saved. Leaving it empty keeps the saved token; Remove token deletes it.
+  - Disconnect asks first, because the repository's docs and code leave the knowledge base with it.
+- A project has one repository, because the agent investigates one codebase (a second gives 409).
+
+## Knowledge
+
+`/knowledge` (`src/pages/knowledge-page.tsx`) is what the agent searches in the current project.
+
+- **The repository card** shows its indexing status, and Index now / Re-index (`POST /projects/{id}/ingest`). The button is disabled while a run is going.
+  - While a run is queued or running, the repository query polls every 2 s (`useRepositories` in `src/lib/repositories.ts`). The project settings use the same query, so they follow the run too.
+  - A failed run shows the backend's reason, and which commit the agent still searches.
+  - When a run ends, the list reloads by itself: `last_indexed_at` is part of its query key.
+- **Tabs:** Docs, Code, Issues and Incidents, with a search of titles and paths. It searches once typing pauses (300 ms), not on every key. 50 items a page.
+- The tab, search and page are in the URL (`?type=code&q=pool&offset=50`), so a view can be shared or reloaded. `src/lib/search-params.ts` has the helpers: `withChanges` for the URL, and `useDebouncedParam` for a search box.
+- Items don't open anywhere yet: the source viewer comes with B-403.
+- `IngestBadge` (`src/components/ingest-status.tsx`) shows an indexing status anywhere.
+
+## Logs
+
+`/logs` (`src/pages/logs-page.tsx`) is the current project's structured logs, newest first: the lines the agent's `search_logs` tool reads.
+
+- **Filters:** level, service (only when there's more than one) and error type, from the values the logs hold (`GET /projects/{id}/logs/facets`, with counts); route (suggestions from the logs) and message text, once typing pauses; and a From/To window. They match as in the agent's tool, so the same filters find the same lines as its evidence.
+- **Times are UTC**, in the table and the window, as in the agent's evidence.
+- **A trace id** shows every line of that trace, whatever else was filtered.
+- The filters and page are in the URL (`?level=ERROR&route=/payments&since=2026-10-06T14:20:00Z`), so a link can open the lines behind a finding. 100 lines a page.
+- A window whose From is after its To is pointed out on the page, without asking the backend.
+
+## Upload
+
+`/upload` (`src/pages/upload-page.tsx`) brings logs or incident history into the current project. The Logs page and the Knowledge page's Incidents tab link to it (`?kind=logs`, `?kind=incidents`).
+
+1. **Choose** what the file holds and the file. It's checked at once (`POST /projects/{id}/uploads/preview`), which saves nothing.
+2. **Match** its columns to our fields. The backend guesses first; each field shows its value in the file's first row. Changing a column checks the file again.
+3. **See** what importing would do: how many rows will be imported, how many the project already has, and the rows with a problem (the first 20).
+4. **Import** sends the same file with the mapping that was checked. Afterwards the logs and knowledge lists reload.
 
 ## Chat
 
 `/chat` (`src/pages/chat-page.tsx`) talks to Nemotron through `POST /chat`.
 
 - Each request sends the conversation so far, at most the latest 20 messages, starting with a question (`historyForRequest` in `src/lib/chat.ts`). The Model picker chooses Nano (fast) or Super (stronger).
+- **Search <project>** (on by default, when there is a current project) sends its `project_id`: the answer then comes from the project's docs, code, issues and past incidents. The sources it cites appear under it as chips (`CitationChip`, `src/components/source-chip.tsx`), and the answer refers to them inline as [S1], [S2]. The chips don't open anything yet: the source viewer comes with B-403.
 - Under each answer: the model that answered, the time it took, the tokens and the cost.
 - Enter sends and Shift+Enter starts a new line. An empty chat offers example questions, and New chat starts over.
 - On an error, the backend's own message is shown (for example the hourly limit), with Try again.
@@ -82,7 +125,9 @@ Logged-in pages render inside `AppShell` (`src/layouts/app-shell.tsx`):
 
 ## Tests
 
-`npm test` runs vitest. Tests run on Node by default. A test of components starts with `// @vitest-environment jsdom`. It mounts the real `routes` in a memory router (`renderApp`) and fakes the backend by stubbing `fetch` (`backend()`); both come from `src/test/helpers.tsx`. Call `stubMatchMedia()` first, because jsdom has no `matchMedia` and the sidebar uses it.
+`npm test` runs vitest. Tests run on Node by default. A test of components starts with `// @vitest-environment jsdom`. It mounts the real `routes` in a memory router (`renderApp`) and fakes the backend by stubbing `fetch` (`backend()`); both come from `src/test/helpers.tsx`. Call `stubMatchMedia()` first, because jsdom has no `matchMedia` and the sidebar uses it. `backend()` knows login, projects and chat; give it `handle` to answer other routes, with the parsed body (an upload's `FormData`) and the query string (see `fakeBackend` in `projects-page.test.tsx`). jsdom's `File` loses its name on the way through Node's fetch, so a stand-in for uploads names the file itself (`upload-page.test.tsx`). For polling, use `vi.useFakeTimers({ shouldAdvanceTime: true })` and advance by `POLL_MS` (as in `knowledge-page.test.tsx`).
+
+`src/test/fixtures/scenario-1-events.json` is a whole investigation's events (scenario 1, from `backend/scripts/scenario1_replay.py`), as `GET /investigations/{id}/events` returns them. Use it to test the Investigation page. Don't edit it: regenerate it with `uv run python scripts/seed_fake_investigation.py --json` in `backend/`.
 
 ## API types
 
@@ -100,6 +145,8 @@ npm run gen:types   # just openapi.json → src/api/schema.ts
 - `openapi-typescript` 7 only declares TypeScript 5 as a peer. The `overrides` entry in `package.json` makes it use this project's TypeScript 6, which it works with.
 
 ## Conventions
+
+- **Forms:** wrap each control in `FormField` (`src/components/form-field.tsx`) for its label and hint. Show a failed request with `errorMessage()` (`src/lib/errors.ts`): the backend's own words, or the field errors of a 422.
 
 - Import from `src/` with the `@/` alias, e.g. `import { Button } from '@/components/ui/button'`.
 - Add shadcn components with `npx shadcn@latest add <name>`. They land in `src/components/ui/`.

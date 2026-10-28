@@ -7,11 +7,19 @@ import { clearSession } from '@/api/session'
 import type { Schemas } from '@/api/types'
 import { historyForRequest, type ChatTurn } from '@/lib/chat'
 import { queryClient } from '@/lib/query-client'
-import { backend, json, renderApp, stubMatchMedia } from '@/test/helpers'
+import { backend, json, project, renderApp, stubMatchMedia } from '@/test/helpers'
+// Loaded up front: the route imports it lazily, and on a cold start (as in CI) loading it and
+// react-markdown can take longer than findBy waits.
+import '@/pages/chat-page'
 
 type ChatRequest = Schemas['ChatRequest']
+type Citation = Schemas['ChatCitation']
 
-function answer(content: string, tier: 'nano' | 'super' = 'nano'): Schemas['ChatResponse'] {
+function answer(
+  content: string,
+  tier: 'nano' | 'super' = 'nano',
+  citations: Citation[] = [],
+): Schemas['ChatResponse'] {
   return {
     content,
     model: tier === 'nano' ? 'nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B' : 'nvidia/nemotron-3-super-120b-a12b',
@@ -21,15 +29,20 @@ function answer(content: string, tier: 'nano' | 'super' = 'nano'): Schemas['Chat
     cost_usd: 0.00042,
     latency_ms: 1234,
     cached: false,
+    citations,
   }
 }
 
 /** Opens the chat page with a backend whose POST /chat answers with `reply`; returns the
- * requests it received. */
-async function openChat(reply: (request: ChatRequest) => Response) {
+ * requests it received. Alice has `projects`, none by default. */
+async function openChat(
+  reply: (request: ChatRequest) => Response,
+  { projects = [] as Schemas['ProjectOut'][] } = {},
+) {
   const requests: ChatRequest[] = []
   backend({
     cookie: true,
+    projects,
     chat: (request) => {
       requests.push(request)
       return reply(request)
@@ -48,6 +61,7 @@ afterEach(() => {
   cleanup()
   clearSession()
   queryClient.clear()
+  localStorage.clear()
   vi.unstubAllGlobals()
 })
 
@@ -145,6 +159,76 @@ describe('chat', () => {
     expect(await conversation().findByText('An example answer.')).toBeTruthy()
     expect(requests[0].messages[0].content).toBe(example.textContent)
     expect(screen.queryByRole('button', { name: /too many connections/ })).toBeNull()
+  })
+})
+
+describe('chat with project search', () => {
+  const PAYSTREAM = project('p1', 'PayStream')
+  const CITATIONS: Citation[] = [
+    {
+      label: 'S1',
+      source_type: 'doc',
+      path: 'docs/pool.md',
+      ref: 'docs/pool.md § Pool @ f89f6df',
+      source_ref: 'doc:docs/pool.md',
+    },
+    {
+      label: 'S2',
+      source_type: 'incident',
+      path: 'INC-017',
+      ref: 'INC-017',
+      source_ref: 'incident:INC-017',
+    },
+  ]
+
+  async function ask(question: string) {
+    const user = userEvent.setup()
+    await user.type(screen.getByRole('textbox', { name: 'Message' }), question)
+    await user.click(screen.getByRole('button', { name: 'Send' }))
+    return user
+  }
+
+  it('answers from the current project, and shows the sources it cites as chips', async () => {
+    const reply = answer('Keep the pool at 20 [S1]. Raising it broke payments before [S2].')
+    const requests = await openChat(() => json(200, { ...reply, citations: CITATIONS }), {
+      projects: [PAYSTREAM],
+    })
+    const search = await screen.findByRole('checkbox', { name: 'Search PayStream' })
+    expect((search as HTMLInputElement).checked).toBe(true)
+
+    await ask('How big should the pool be?')
+
+    const sources = within(await conversation().findByRole('list', { name: 'Sources' }))
+    expect(sources.getAllByRole('listitem').map((chip) => chip.textContent)).toEqual([
+      'S1docs/pool.md § Pool @ f89f6df',
+      'S2INC-017',
+    ])
+    expect(requests[0].project_id).toBe('p1')
+    expect(conversation().getByText(/Keep the pool at 20 \[S1\]/)).toBeTruthy() // labels stay inline
+  })
+
+  it('leaves the project out when its search is off', async () => {
+    const requests = await openChat(() => json(200, answer('A general answer.')), {
+      projects: [PAYSTREAM],
+    })
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('checkbox', { name: 'Search PayStream' }))
+
+    await ask('What is a connection pool?')
+
+    expect(await conversation().findByText('A general answer.')).toBeTruthy()
+    expect(requests[0]).not.toHaveProperty('project_id')
+    expect(conversation().queryByRole('list', { name: 'Sources' })).toBeNull()
+  })
+
+  it('without a project, has no project search', async () => {
+    const requests = await openChat(() => json(200, answer('A general answer.')))
+
+    await ask('What is a connection pool?')
+
+    expect(await conversation().findByText('A general answer.')).toBeTruthy()
+    expect(screen.queryByRole('checkbox')).toBeNull()
+    expect(requests[0]).not.toHaveProperty('project_id')
   })
 })
 

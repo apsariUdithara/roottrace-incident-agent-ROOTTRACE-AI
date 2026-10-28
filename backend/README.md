@@ -29,7 +29,7 @@ The Docker image (`backend/Dockerfile`, built from the repo root) is described i
 
 ### Demo data and a first investigation
 
-The agent needs an indexed repository. There's no API to connect one yet, so the scripts load PayStream:
+The agent needs an indexed repository. The app connects and indexes one (see the Repositories and Knowledge APIs below); for the demo, the scripts load PayStream with its past incidents, issues and logs too:
 
 ```bash
 python ../demo-target/scripts/build_history.py   # builds demo-target/build/paystream (git only, free)
@@ -37,12 +37,16 @@ uv run python scripts/seed_demo.py               # demo user + PayStream indexed
 uv run python scripts/investigate.py             # one investigation in the terminal (~$0.05-0.15)
 uv run python scripts/ask.py "Which commit introduced this?"
 uv run python scripts/open_pr.py                 # approve the verified fix: opens a draft PR
+uv run python scripts/seed_fake_investigation.py # a free replay of scenario 1 (no models, no sandbox)
 ```
 
 - `seed_demo.py` creates `demo@roottrace.dev` with `DEMO_PASSWORD`, or prints a generated password once. Running it again is safe.
+- The seed records the indexed release (`v1.4.8`) as PayStream's default branch. Investigations start from it, and re-indexing from the app keeps it: PayStream's `main` is the healthy service, without the bug.
 - Sandbox runs use the ConTree CLI's saved login (`contree auth`), or `NEBIUS_API_KEY` plus `NEBIUS_AI_PROJECT`.
 - `open_pr.py` needs `GITHUB_TOKEN`: a fine-grained token for the demo repo only.
 - In development, model answers are cached, so re-running the same investigation costs nothing.
+- **Without a Nebius key**, `seed_fake_investigation.py` adds a finished scenario-1 investigation to the demo project: 89 hand-written events (`scripts/scenario1_replay.py`) that `/events` and `/stream` serve like a real run's. It waits for approval but has no patch, so it can never open a PR. Its test runs don't claim a sandbox. Running it again replaces it. `--json` writes the events to `frontend/src/test/fixtures/scenario-1-events.json` for the frontend's tests; a backend test fails if that file is out of date.
+- With `READONLY_DATABASE_URL` set, the seed also creates that role (or updates its password) and lets it SELECT from `demo_app`, and nothing else. The agent's `query_database` tool then runs as it, a fifth safety layer after the SQL checks, the read-only transaction, the timeout and the row limit (`app/tools/database.py`). The grants are made again on every seed, because rebuilding `demo_app` drops them.
 
 ## Database sessions
 
@@ -64,6 +68,67 @@ Routes get a session with the `SessionDep` dependency from `app/core/db.py`. The
 - **Scoping (every data route):** under `/projects/{project_id}/...`, take a `project: OwnedProject` parameter. It returns the project only if the caller owns it, and gives the same 404 for "someone else's" and "doesn't exist". For other queries, start from `owned_select(Model, user)`, which works for `Project` and any table with a `project_id`. For example, `owned_select(Investigation, user).where(Investigation.id == investigation_id)`. Never query a project-scoped table without it.
 - Wrong password and unknown email give the same 401 in the same time (argon2 runs either way).
 - Not yet done: rate limiting on login (planned with the demo endpoint), and server-side token revocation. Logout clears the cookie, and an access token already issued stays valid until it expires.
+
+## Repositories API
+
+`app/api/routes/repositories.py`. A project has one repository for now, because the agent investigates a single codebase.
+
+| Route | Does |
+|---|---|
+| `GET /projects/{id}/repositories` | The project's repository, as a list (empty, or one item). |
+| `POST /projects/{id}/repositories` | `{url, default_branch?, token?, setup_command?, test_command?}`. Connects a GitHub repository (`https://github.com/<owner>/<repo>`). 409 if the project already has one. |
+| `PATCH …/{repository_id}` | Changes only the fields you send. `setup_command: null` goes back to auto-detect, and `token: null` removes the token. Changing a command sets `sandbox_status` back to `unknown`, to be checked again. |
+| `DELETE …/{repository_id}` | Disconnects it, and removes its docs and code from the knowledge base. Incidents, issues and logs stay. |
+
+- **The token is write-only.** It's encrypted with `FERNET_KEY` before it's stored, and never returned: responses only say `has_token`. Spaces and line breaks around it are trimmed.
+- **Connecting doesn't clone or index.** `POST /projects/{id}/ingest` does (see below). An investigation can start once the repository has been indexed.
+- The stored token is used to clone and fetch. Opening a PR still uses `GITHUB_TOKEN` from the environment.
+
+## Knowledge API
+
+`app/api/routes/knowledge.py`.
+
+| Route | Does |
+|---|---|
+| `POST /projects/{id}/ingest` | 202, with the repository as `queued`. Indexes it in the background; poll `GET …/repositories` until `ingest_status` is `indexed` or `failed` (with `ingest_error`, a readable reason). A run already going isn't started twice. 409 without a repository. |
+| `GET /projects/{id}/knowledge?type=&q=&limit=&offset=` | What the agent can search: the indexed docs, code, issues and incidents, by type and then path. `q` matches the title or path, as plain text. Each item has its `chunk_count` and a `source_ref` for the source viewer. |
+| `GET /projects/{id}/logs?level=&service=&route=&error_type=&text=&trace_id=&since=&until=&limit=&offset=` | The project's log lines, newest first, 100 a page (at most 500). The filters match as in the agent's `search_logs` tool, so its evidence can be checked: `level` in any case, `route` and `text` (message or error type) as part of the value, the rest exactly. `since` and `until` are included; a time without a timezone is UTC. 422 if `since` is after `until`. |
+| `GET /projects/{id}/logs/facets` | What the logs hold, for the explorer's filters: the levels, services, routes and error types with how many lines have each (the 100 most frequent per field), and the first and last time. |
+| `POST /projects/{id}/uploads/preview` | Multipart: `kind` (`logs` or `incidents`), `file`, and optionally `mapping` (JSON, our field to the file's column). Saves nothing. Returns the file's columns and first rows, our `fields`, the `mapping` (the one sent, or one guessed from the column names), and what importing would do: `imported`, `skipped`, `failed` and the first 20 `errors`. A mapping without a required field gives `mapping_error` instead, so the mapping can be fixed. |
+| `POST /projects/{id}/uploads` | The same form; 201 with what was imported. 413 over 20 MB, 422 for a file it can't read or a mapping without a required field, 502 if uploaded incidents can't be embedded (then nothing is saved). |
+
+**Uploads** (`app/rag/uploads.py`) put your own data where the agent looks: log lines into `log_entries` (for `search_logs`), incidents into `incidents` and the search index (for `search_previous_incidents`).
+- **Formats:** CSV with a header row (commas, semicolons, tabs or pipes), JSONL, JSON or YAML (a list, or an object holding one such as `{"incidents": [...]}`). Nested keys become columns like `http.status`. YAML anchors and aliases are refused: they can make a small file expand without end.
+- **Logs** need `ts` and `level`. Times are ISO 8601 (UTC without a timezone) or seconds or milliseconds since 1970. Columns that aren't mapped are kept on each line, in `attrs`. A line the project already has is skipped, so a file can be uploaded again: at most 100,000 rows a file.
+- **Incidents** need `key` and `title`, and are checked as when they're added in the app. They're `resolved` unless the file says otherwise, because they're history. A key the project already has is skipped, never overwritten. They're embedded together, in a few calls: at most 500 a file.
+- A row with a problem is left out and listed; the rest are imported. Uploading logs needs no Nebius key.
+
+A run (`app/rag/indexing.py`):
+1. **Clone** the repository, bare, into `DATA_DIR/repos/<id>.git` (default `backend/data`), or fetch what's new. The token goes in a header for each command, through the environment: it's never written to the clone's config. A repository without a remote, like the demo's local PayStream build, is used as it is.
+2. **Export** its files at the default branch with `git archive`. The clone itself never changes, so a running investigation can keep reading it.
+3. **Index** them with `ingest_repo` (unchanged files cost no embedding calls), then record the commit (`last_indexed_sha`, `last_indexed_at`) and the clone (`local_path`). All of it is saved together: a failed run leaves the previous index as it was.
+
+- At most 2000 files to index (docs, code and config) per repository, to keep a public demo's embedding spend small.
+- Runs live in the server process, like investigations. When the server starts, runs that a restart cut off are marked failed.
+- Disconnecting a repository deletes the clone RootTrace made (never a repository it didn't clone).
+
+## Incidents API
+
+`app/api/routes/incidents.py`: a project's incident history, which the agent searches for similar past incidents.
+
+| Route | Does |
+|---|---|
+| `GET /projects/{id}/incidents` | Newest first: by `occurred_at`, or else by when it was added. |
+| `POST /projects/{id}/incidents` | `{key, title, severity?, symptoms?, root_cause?, fix?, commit_sha?, tags?, status?, occurred_at?}`. 409 if the project already has the key. |
+| `GET …/{incident_id}` | One incident. |
+| `PATCH …/{incident_id}` | Changes only the fields you send. Null clears an optional field, and leaves `key`, `title`, `tags` and `status` unchanged. |
+| `DELETE …/{incident_id}` | Deletes it. Investigations that linked it keep their results. |
+
+- **Keys look like `INC-017`:** letters, a dash and a number, the form the agent's `get_incident` tool looks up. `inc-17` is accepted as `INC-17`.
+- **Every change also updates the search index**, in the same transaction, so `search_previous_incidents` finds exactly the incidents listed here. The text is the same as for an ingested incident (`index_incident()` in `app/rag/ingest.py`).
+  - Indexing embeds the text: one small call to the embedding model. It's skipped when the searchable text (key, title, severity, date, symptoms, root cause, fix) didn't change, so a change of status or tags costs nothing.
+  - If the model can't be reached, nothing is saved, and the answer is a 502 with a readable `detail`.
+- A time without a timezone is read as UTC.
 
 ## Investigations API
 
@@ -87,7 +152,15 @@ The MCP servers are mounted at `/mcp/github`, `/mcp/docs` and `/mcp/incidents`. 
 
 ## Chat
 
-`POST /chat` (`app/api/routes/chat.py`) is a plain conversation with Nemotron: `{messages, tier}` in, the answer plus `model`, `tier`, tokens, cost and latency out. It has no access to projects; investigations do that.
+`POST /chat` (`app/api/routes/chat.py`) is a conversation with Nemotron: `{messages, tier, project_id?}` in, the answer plus `model`, `tier`, tokens, cost, latency and `citations` out.
+
+- **With a `project_id`** (one of the user's projects, else 404), the answer comes from that project's knowledge:
+  - The question is searched with the same hybrid search the agent uses (`app/rag/retrieve.py`).
+  - The best 5 chunks go to the model in a system message, as sources labelled `[S1]`…`[S5]`, and it's told to cite the ones it uses.
+  - `citations` lists only the sources the answer cites in square brackets, in label order. Each has its `label`, `source_type`, `path`, a readable `ref` (`docs/pool.md § Pool @ f89f6df`) and a `source_ref` for the source viewer.
+  - When nothing matches, the model is told so, and to say that its answer is general knowledge.
+- Without one, it's a plain conversation, and `citations` is empty.
+- The reported cost is the answer's; the search adds one embedding call, plus a Nano rerank when there are more than 5 candidates.
 
 - It needs a login. Each user may send `CHAT_MESSAGES_PER_HOUR` messages (default 30), then gets 429 until the hour has passed. The counts are kept in the process, so a restart resets them.
 - `tier` is `nano` (default) or `super`. Ultra is refused (422), because it's the expensive tier. Answers stop at 512 tokens, and a request holds at most 20 messages.
@@ -98,7 +171,7 @@ The MCP servers are mounted at `/mcp/github`, `/mcp/docs` and `/mcp/incidents`. 
 Every route in [IMPLEMENTATION_PLAN.md §11](../docs/IMPLEMENTATION_PLAN.md#11-backend-api-surface-fastapi), plus the ones the backlog adds, exists with its final request and response models. So `/openapi.json` (and `/docs`) is the whole contract, and the frontend types are generated from it. A route that isn't built yet answers, after the login, ownership and validation checks:
 
 ```json
-501 {"detail": "Not implemented yet (B-301)", "code": "not_implemented"}
+501 {"detail": "Not implemented yet (B-401)", "code": "not_implemented"}
 ```
 
 The task id is the backlog item that fills it in. To build one, replace its `raise not_implemented(...)` with the real body, remove its row from `STUBS` in `tests/test_api_surface.py`, and add the route's own tests.
@@ -114,19 +187,16 @@ After any change to a route or a request/response/event model, run `npm run gen:
 | | `GET /investigations/{id}/messages` | B-701 |
 | | `POST /investigations/{id}/patches/{patch_id}/rerun` | B-604 |
 | | `GET /investigations/{id}/trace` | B-803 |
-| Repositories | `GET/POST /projects/{id}/repositories`, `PATCH/DELETE …/{repository_id}` | B-301 |
-| Knowledge | `POST /projects/{id}/ingest`, `GET /projects/{id}/knowledge?type=&q=` | B-304 |
-| | `POST /projects/{id}/uploads` (multipart: `kind`, `file`, `mapping`) | B-310 |
+| Repositories | `GET/POST /projects/{id}/repositories`, `PATCH/DELETE …/{repository_id}` | done (see above) |
+| Knowledge | `POST /projects/{id}/ingest`, `GET /projects/{id}/knowledge?type=&q=`, `GET /projects/{id}/logs`, `/logs/facets`, `POST /projects/{id}/uploads`, `/uploads/preview` | done (see above) |
 | | `GET /projects/{id}/sources?ref=` | B-401 |
-| | `GET /projects/{id}/logs?level=&service=&route=&error_type=&trace_id=&since=&until=` | B-309 |
-| Incidents | `GET/POST /projects/{id}/incidents`, `GET/PATCH/DELETE …/{incident_id}` | B-303 |
+| Incidents | `GET/POST /projects/{id}/incidents`, `GET/PATCH/DELETE …/{incident_id}` | done (see above) |
 | Memories | `GET /projects/{id}/memories?category=&status=`, `PATCH/DELETE …/{memory_id}` | B-703 |
 | Evaluation | `GET /evaluation/runs`, `GET /evaluation/runs/{id}` | B-901 |
 | Dashboard | `GET /stats/dashboard?project_id=` | B-804 |
 | Chat | `POST /chat` | done |
 
 - `/investigations/{investigation_id}` routes take `investigation: OwnedInvestigation` from `app/api/deps.py`. It's the same rule as `OwnedProject`: someone else's investigation gives the same 404 as a missing one.
-- The contract already has some fields the database doesn't yet: `ingest_status`, `ingest_error` and `last_indexed_at` on repositories, added with B-304.
 - An evaluation run's `metrics` and `cases` stay loose JSON until `evaluate.py`'s output shape is agreed.
 
 ## Investigation events (v1, agreed)

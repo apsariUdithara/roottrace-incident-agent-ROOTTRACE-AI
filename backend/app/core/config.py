@@ -1,6 +1,7 @@
 """Application settings, loaded from environment variables and `.env`."""
 
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal, Self
 
 from cryptography.fernet import Fernet
@@ -50,6 +51,9 @@ class Settings(BaseSettings):
     daily_budget_usd: float = 5.00  # all investigations together, per UTC day
     investigations_per_hour: int = 3  # per user, and only one running at a time
     chat_messages_per_hour: int = 30  # per user, for POST /chat
+
+    # Clones of connected repositories go in <data_dir>/repos. Relative to backend/.
+    data_dir: Path = Path("data")
 
     # Agent
     tool_transport: Literal["direct", "mcp"] = "direct"
