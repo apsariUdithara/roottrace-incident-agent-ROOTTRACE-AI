@@ -8,6 +8,9 @@ import type { Schemas } from '@/api/types'
 import { historyForRequest, type ChatTurn } from '@/lib/chat'
 import { queryClient } from '@/lib/query-client'
 import { backend, json, renderApp, stubMatchMedia } from '@/test/helpers'
+// Loaded up front: the route imports it lazily, and on a cold start (as in CI) loading it and
+// react-markdown can take longer than findBy waits.
+import '@/pages/chat-page'
 
 type ChatRequest = Schemas['ChatRequest']
 

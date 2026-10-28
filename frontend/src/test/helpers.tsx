@@ -29,8 +29,12 @@ export function json(status: number, body: unknown): Response {
 
 type ChatHandler = (body: Schemas['ChatRequest']) => Response
 /** Answers a route the stand-in doesn't know, e.g. "PATCH /projects/p1"; undefined for a 404.
- * `body` is the parsed JSON body, if there is one. */
-export type RouteHandler = (route: string, body: unknown) => Response | undefined
+ * `body` is the parsed JSON body, if there is one; `query` the URL's query string. */
+export type RouteHandler = (
+  route: string,
+  body: unknown,
+  query: URLSearchParams,
+) => Response | undefined
 
 /** A stand-in for the backend: Alice has an account and `projects`. The refresh cookie is valid
  * once someone logs in or registers, or from the start with `cookie: true`. `chat` answers
@@ -80,7 +84,7 @@ export function backend({
           return chat(JSON.parse(body))
         default:
           return (
-            handle(route, body ? JSON.parse(body) : undefined) ??
+            handle(route, body ? JSON.parse(body) : undefined, new URL(request.url).searchParams) ??
             json(404, { detail: 'Not Found', code: 'not_found' })
           )
       }

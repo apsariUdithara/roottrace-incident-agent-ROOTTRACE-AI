@@ -1,11 +1,12 @@
 // A project's GitHub repository: the connect form, or what's connected with its settings.
 // The backend allows one repository per project, because the agent investigates one codebase.
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, type ComponentProps, type FormEvent } from 'react'
 
 import { api, ok } from '@/api/client'
 import type { Schemas } from '@/api/types'
 import { FormField } from '@/components/form-field'
+import { IngestBadge } from '@/components/ingest-status'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -19,8 +20,13 @@ import {
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { errorMessage } from '@/lib/errors'
+import {
+  repositoriesKey,
+  repositoryName,
+  useRepositories,
+  type Repository,
+} from '@/lib/repositories'
 
-type Repository = Schemas['RepositoryOut']
 type BadgeVariant = ComponentProps<typeof Badge>['variant']
 
 const SANDBOX: Record<
@@ -45,16 +51,6 @@ const SANDBOX: Record<
   },
 }
 
-const INGEST: Record<Schemas['IngestStatus'], { label: string; variant: BadgeVariant }> = {
-  not_indexed: { label: 'Not indexed yet', variant: 'outline' },
-  queued: { label: 'Waiting to index', variant: 'outline' },
-  running: { label: 'Indexing…', variant: 'secondary' },
-  indexed: { label: 'Indexed', variant: 'secondary' },
-  failed: { label: 'Indexing failed', variant: 'destructive' },
-}
-
-const repositoriesKey = (projectId: string) => ['projects', projectId, 'repositories']
-
 /** Mutations answer with the repository as it now is: put that in the cache. */
 function useSetRepositories(projectId: string) {
   const queryClient = useQueryClient()
@@ -63,11 +59,7 @@ function useSetRepositories(projectId: string) {
 }
 
 export function RepositorySettings({ projectId }: { projectId: string }) {
-  const repositories = useQuery({
-    queryKey: repositoriesKey(projectId),
-    queryFn: () =>
-      ok(api.GET('/projects/{project_id}/repositories', { params: { path: { project_id: projectId } } })),
-  })
+  const repositories = useRepositories(projectId)
   const repository = repositories.data?.[0]
 
   return (
@@ -245,7 +237,6 @@ function CommandFields({ repository }: { repository?: Repository }) {
 
 function RepositoryFacts({ repository }: { repository: Repository }) {
   const sandbox = SANDBOX[repository.sandbox_status]
-  const ingest = INGEST[repository.ingest_status]
 
   return (
     <CardContent>
@@ -253,7 +244,7 @@ function RepositoryFacts({ repository }: { repository: Repository }) {
         <dt className="text-muted-foreground">GitHub</dt>
         <dd>
           <a href={repository.url} target="_blank" rel="noreferrer" className="text-primary hover:underline">
-            {repository.url.replace('https://github.com/', '')}
+            {repositoryName(repository)}
           </a>
         </dd>
         <dt className="text-muted-foreground">Access token</dt>
@@ -265,7 +256,7 @@ function RepositoryFacts({ repository }: { repository: Repository }) {
         </dd>
         <dt className="text-muted-foreground">Knowledge</dt>
         <dd className="flex flex-col items-start gap-1">
-          <Badge variant={ingest.variant}>{ingest.label}</Badge>
+          <IngestBadge status={repository.ingest_status} />
           {repository.ingest_error && <span className="text-destructive">{repository.ingest_error}</span>}
           {repository.last_indexed_sha && (
             <span className="text-muted-foreground">
@@ -367,14 +358,13 @@ function DisconnectRepository({ projectId, repository }: { projectId: string; re
       ),
     onSuccess: () => setRepositories([]),
   })
-  const name = repository.url.replace('https://github.com/', '')
 
   return (
     <CardFooter className="mt-4 flex-col items-start gap-3 border-t">
       {confirming ? (
         <div role="group" aria-label="Disconnect the repository" className="flex flex-col gap-3">
           <p className="text-xs">
-            Disconnect {name}? Its docs and code are removed from the knowledge base. Incidents and
+            Disconnect {repositoryName(repository)}? Its docs and code are removed from the knowledge base. Incidents and
             logs stay.
           </p>
           <div className="flex gap-2">

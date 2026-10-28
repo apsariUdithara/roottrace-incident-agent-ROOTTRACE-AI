@@ -63,7 +63,7 @@ Logged-in pages render inside `AppShell` (`src/layouts/app-shell.tsx`):
   - The choice is remembered in this browser. If it's missing, blocked, or isn't one of this user's projects, the switcher uses the first project.
   - With no projects, the switcher becomes a link to create one.
 - **To add a page:** add a route under `AppShell` in `src/routes.ts`, and a `NAV` entry in `app-sidebar.tsx` if it belongs in the sidebar. Start the page with `PageHeader` (`src/components/page-header.tsx`).
-- Dashboard, Knowledge and Evaluation are placeholders for now (`PlannedPage`). Each one says which backlog task builds it, like the backend's 501 stubs.
+- Dashboard and Evaluation are placeholders for now (`PlannedPage`). Each one says which backlog task builds it, like the backend's 501 stubs.
 - **To keep a heavy page out of the first download**, give its route `lazy` instead of `Component` (as `/chat` does). Its code then loads when it's first opened.
 
 ## Projects
@@ -75,6 +75,19 @@ Logged-in pages render inside `AppShell` (`src/layouts/app-shell.tsx`):
   - **The access token is write-only:** the field is a password field, it's never filled in, and it's emptied once saved. Leaving it empty keeps the saved token; Remove token deletes it.
   - Disconnect asks first, because the repository's docs and code leave the knowledge base with it.
 - A project has one repository, because the agent investigates one codebase (a second gives 409).
+
+## Knowledge
+
+`/knowledge` (`src/pages/knowledge-page.tsx`) is what the agent searches in the current project.
+
+- **The repository card** shows its indexing status, and Index now / Re-index (`POST /projects/{id}/ingest`). The button is disabled while a run is going.
+  - While a run is queued or running, the repository query polls every 2 s (`useRepositories` in `src/lib/repositories.ts`). The project settings use the same query, so they follow the run too.
+  - A failed run shows the backend's reason, and which commit the agent still searches.
+  - When a run ends, the list reloads by itself: `last_indexed_at` is part of its query key.
+- **Tabs:** Docs, Code, Issues and Incidents, with a search of titles and paths. It searches once typing pauses (300 ms), not on every key. 50 items a page.
+- The tab, search and page are in the URL (`?type=code&q=pool&offset=50`), so a view can be shared or reloaded.
+- Items don't open anywhere yet: the source viewer comes with B-403.
+- `IngestBadge` (`src/components/ingest-status.tsx`) shows an indexing status anywhere.
 
 ## Chat
 
@@ -92,7 +105,7 @@ Logged-in pages render inside `AppShell` (`src/layouts/app-shell.tsx`):
 
 ## Tests
 
-`npm test` runs vitest. Tests run on Node by default. A test of components starts with `// @vitest-environment jsdom`. It mounts the real `routes` in a memory router (`renderApp`) and fakes the backend by stubbing `fetch` (`backend()`); both come from `src/test/helpers.tsx`. Call `stubMatchMedia()` first, because jsdom has no `matchMedia` and the sidebar uses it. `backend()` knows login, projects and chat; give it `handle` to answer other routes (see `fakeBackend` in `projects-page.test.tsx`).
+`npm test` runs vitest. Tests run on Node by default. A test of components starts with `// @vitest-environment jsdom`. It mounts the real `routes` in a memory router (`renderApp`) and fakes the backend by stubbing `fetch` (`backend()`); both come from `src/test/helpers.tsx`. Call `stubMatchMedia()` first, because jsdom has no `matchMedia` and the sidebar uses it. `backend()` knows login, projects and chat; give it `handle` to answer other routes, with the parsed body and the query string (see `fakeBackend` in `projects-page.test.tsx`). For polling, use `vi.useFakeTimers({ shouldAdvanceTime: true })` and advance by `POLL_MS` (as in `knowledge-page.test.tsx`).
 
 ## API types
 
