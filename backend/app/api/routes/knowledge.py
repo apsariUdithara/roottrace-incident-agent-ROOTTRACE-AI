@@ -1,10 +1,15 @@
 """What the agent knows about a project: indexing, uploads, browsing, logs and evidence sources."""
 
+import logging
+from collections.abc import Callable
+from pathlib import PurePath
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Query, UploadFile, status
+import openai
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, UploadFile, status
 from pydantic import Json
 from sqlalchemy import func, or_, select
+from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import OwnedProject
 from app.core.db import SessionDep
@@ -16,9 +21,10 @@ from app.models import (
     DocumentSourceType,
     IngestStatus,
     LogEntry,
+    Project,
     Repository,
 )
-from app.rag import indexing
+from app.rag import indexing, uploads
 from app.schemas.knowledge import (
     KnowledgeItem,
     KnowledgePage,
@@ -28,7 +34,9 @@ from app.schemas.knowledge import (
     LogQuery,
     LogValue,
     Source,
+    UploadField,
     UploadKind,
+    UploadPreview,
     UploadResult,
     source_ref,
 )
@@ -36,7 +44,16 @@ from app.schemas.repository import RepositoryOut
 from app.tools.logs import LogSearchArgs, log_filters
 
 router = APIRouter(prefix="/projects/{project_id}", tags=["knowledge"])
+logger = logging.getLogger(__name__)
 RouterDep = Annotated[LLMRouter, Depends(get_router)]
+
+
+def router_when_needed(request: Request) -> Callable[[], LLMRouter]:
+    """get_router, to call only if the model is needed: making it needs a Nebius key, which
+    uploading logs doesn't. Tests' override of get_router still applies."""
+    return request.app.dependency_overrides.get(get_router, get_router)
+
+
 FACET_SIZE = 100  # values per field: the most frequent
 
 
@@ -73,18 +90,107 @@ async def ingest_project(
     return [RepositoryOut.model_validate(repository) for repository in repositories]
 
 
+KindForm = Annotated[UploadKind, Form()]
+MappingForm = Annotated[
+    Json[dict[str, str]] | None,
+    Form(
+        description='JSON: our field to your column, e.g. {"ts": "timestamp"}. Leave it out to '
+        "use the mapping guessed from the column names (see /uploads/preview)."
+    ),
+]
+
+
+async def _plan(
+    session: SessionDep,
+    project: OwnedProject,
+    kind: UploadKind,
+    file: UploadFile,
+    mapping: dict[str, str] | None,
+) -> tuple[str, uploads.Plan]:
+    """The file's name and what importing it would do. 413 if it's too big, 422 if it can't be
+    read."""
+    filename = PurePath(file.filename or "upload").name[:255]
+    data = await file.read(uploads.MAX_BYTES + 1)
+    if len(data) > uploads.MAX_BYTES:
+        raise HTTPException(
+            status.HTTP_413_CONTENT_TOO_LARGE,
+            f"The file is larger than {uploads.MAX_BYTES // 2**20} MB. Split it, and upload "
+            "the parts one by one.",
+        )
+    try:
+        return filename, await uploads.plan(session, project.id, kind, filename, data, mapping)
+    except uploads.UploadError as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from None
+
+
+@router.post("/uploads/preview")
+async def preview_upload(
+    project: OwnedProject,
+    kind: KindForm,
+    file: UploadFile,
+    mapping: MappingForm = None,
+    *,
+    session: SessionDep,
+) -> UploadPreview:
+    """What uploading the file would do, without saving anything: its columns and first rows,
+    the mapping (the one sent, or one guessed from the column names) and the rows that would be
+    imported, skipped or refused. Send it again with another mapping to see the difference."""
+    filename, found = await _plan(session, project, kind, file, mapping)
+    return UploadPreview(
+        kind=kind,
+        filename=filename,
+        format=found.format,
+        rows=found.rows,
+        columns=found.columns,
+        sample=found.sample,
+        fields=[
+            UploadField(name=t.name, required=t.required, description=t.description)
+            for t in uploads.FIELDS[kind]
+        ],
+        mapping=found.mapping,
+        mapping_error=found.mapping_error,
+        result=found.result,
+    )
+
+
 @router.post("/uploads", status_code=status.HTTP_201_CREATED)
 async def upload_file(
     project: OwnedProject,
-    kind: Annotated[UploadKind, Form()],
+    kind: KindForm,
     file: UploadFile,
-    mapping: Annotated[
-        Json[dict[str, str]] | None,
-        Form(description='JSON: our field to your column, e.g. {"ts": "timestamp"}'),
-    ] = None,
+    mapping: MappingForm = None,
+    *,
+    session: SessionDep,
+    llm: Annotated[Callable[[], LLMRouter], Depends(router_when_needed)],
 ) -> UploadResult:
-    """Imports logs (JSONL or CSV) or incidents (YAML, JSON or CSV)."""
-    raise not_implemented("B-310")
+    """Imports logs (JSONL or CSV) or incidents (YAML, JSON or CSV), as the preview showed.
+
+    Rows with a problem are left out and listed; rows already in the project are skipped, and an
+    incident is never overwritten. Uploaded incidents are embedded for the agent's search: if
+    that fails, nothing is saved (502). 422 if the mapping leaves out a required field.
+    """
+    # Locks the project row: two uploads at once could otherwise both add the same lines.
+    await session.execute(select(Project.id).where(Project.id == project.id).with_for_update())
+    filename, found = await _plan(session, project, kind, file, mapping)
+    if found.mapping_error:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, found.mapping_error)
+    try:
+        await uploads.save(session, llm, project.id, kind, found)  # calls llm() for incidents
+        await session.commit()
+    except (openai.APIError, TimeoutError) as exc:
+        logger.warning("uploads: indexing %s failed: %s: %s", filename, type(exc).__name__, exc)
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            "Couldn't index the incidents for search, so none were saved. "
+            "Please try again in a moment.",
+        ) from exc
+    except IntegrityError as exc:  # an incident with one of the keys was added meanwhile
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "An incident in the file was added to the project meanwhile. Upload it again.",
+        ) from exc
+    assert found.result is not None
+    return found.result
 
 
 @router.get("/knowledge")

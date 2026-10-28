@@ -99,6 +99,15 @@ Logged-in pages render inside `AppShell` (`src/layouts/app-shell.tsx`):
 - The filters and page are in the URL (`?level=ERROR&route=/payments&since=2026-10-06T14:20:00Z`), so a link can open the lines behind a finding. 100 lines a page.
 - A window whose From is after its To is pointed out on the page, without asking the backend.
 
+## Upload
+
+`/upload` (`src/pages/upload-page.tsx`) brings logs or incident history into the current project. The Logs page and the Knowledge page's Incidents tab link to it (`?kind=logs`, `?kind=incidents`).
+
+1. **Choose** what the file holds and the file. It's checked at once (`POST /projects/{id}/uploads/preview`), which saves nothing.
+2. **Match** its columns to our fields. The backend guesses first; each field shows its value in the file's first row. Changing a column checks the file again.
+3. **See** what importing would do: how many rows will be imported, how many the project already has, and the rows with a problem (the first 20).
+4. **Import** sends the same file with the mapping that was checked. Afterwards the logs and knowledge lists reload.
+
 ## Chat
 
 `/chat` (`src/pages/chat-page.tsx`) talks to Nemotron through `POST /chat`.
@@ -116,7 +125,7 @@ Logged-in pages render inside `AppShell` (`src/layouts/app-shell.tsx`):
 
 ## Tests
 
-`npm test` runs vitest. Tests run on Node by default. A test of components starts with `// @vitest-environment jsdom`. It mounts the real `routes` in a memory router (`renderApp`) and fakes the backend by stubbing `fetch` (`backend()`); both come from `src/test/helpers.tsx`. Call `stubMatchMedia()` first, because jsdom has no `matchMedia` and the sidebar uses it. `backend()` knows login, projects and chat; give it `handle` to answer other routes, with the parsed body and the query string (see `fakeBackend` in `projects-page.test.tsx`). For polling, use `vi.useFakeTimers({ shouldAdvanceTime: true })` and advance by `POLL_MS` (as in `knowledge-page.test.tsx`).
+`npm test` runs vitest. Tests run on Node by default. A test of components starts with `// @vitest-environment jsdom`. It mounts the real `routes` in a memory router (`renderApp`) and fakes the backend by stubbing `fetch` (`backend()`); both come from `src/test/helpers.tsx`. Call `stubMatchMedia()` first, because jsdom has no `matchMedia` and the sidebar uses it. `backend()` knows login, projects and chat; give it `handle` to answer other routes, with the parsed body (an upload's `FormData`) and the query string (see `fakeBackend` in `projects-page.test.tsx`). jsdom's `File` loses its name on the way through Node's fetch, so a stand-in for uploads names the file itself (`upload-page.test.tsx`). For polling, use `vi.useFakeTimers({ shouldAdvanceTime: true })` and advance by `POLL_MS` (as in `knowledge-page.test.tsx`).
 
 `src/test/fixtures/scenario-1-events.json` is a whole investigation's events (scenario 1, from `backend/app/demo/scenario1.py`), as `GET /investigations/{id}/events` returns them. Use it to test the Investigation page. Don't edit it: regenerate it with `uv run python scripts/seed_fake_investigation.py --json` in `backend/`.
 

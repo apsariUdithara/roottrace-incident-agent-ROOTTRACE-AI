@@ -94,6 +94,14 @@ Routes get a session with the `SessionDep` dependency from `app/core/db.py`. The
 | `GET /projects/{id}/knowledge?type=&q=&limit=&offset=` | What the agent can search: the indexed docs, code, issues and incidents, by type and then path. `q` matches the title or path, as plain text. Each item has its `chunk_count` and a `source_ref` for the source viewer. |
 | `GET /projects/{id}/logs?level=&service=&route=&error_type=&text=&trace_id=&since=&until=&limit=&offset=` | The project's log lines, newest first, 100 a page (at most 500). The filters match as in the agent's `search_logs` tool, so its evidence can be checked: `level` in any case, `route` and `text` (message or error type) as part of the value, the rest exactly. `since` and `until` are included; a time without a timezone is UTC. 422 if `since` is after `until`. |
 | `GET /projects/{id}/logs/facets` | What the logs hold, for the explorer's filters: the levels, services, routes and error types with how many lines have each (the 100 most frequent per field), and the first and last time. |
+| `POST /projects/{id}/uploads/preview` | Multipart: `kind` (`logs` or `incidents`), `file`, and optionally `mapping` (JSON, our field to the file's column). Saves nothing. Returns the file's columns and first rows, our `fields`, the `mapping` (the one sent, or one guessed from the column names), and what importing would do: `imported`, `skipped`, `failed` and the first 20 `errors`. A mapping without a required field gives `mapping_error` instead, so the mapping can be fixed. |
+| `POST /projects/{id}/uploads` | The same form; 201 with what was imported. 413 over 20 MB, 422 for a file it can't read or a mapping without a required field, 502 if uploaded incidents can't be embedded (then nothing is saved). |
+
+**Uploads** (`app/rag/uploads.py`) put your own data where the agent looks: log lines into `log_entries` (for `search_logs`), incidents into `incidents` and the search index (for `search_previous_incidents`).
+- **Formats:** CSV with a header row (commas, semicolons, tabs or pipes), JSONL, JSON or YAML (a list, or an object holding one such as `{"incidents": [...]}`). Nested keys become columns like `http.status`. YAML anchors and aliases are refused: they can make a small file expand without end.
+- **Logs** need `ts` and `level`. Times are ISO 8601 (UTC without a timezone) or seconds or milliseconds since 1970. Columns that aren't mapped are kept on each line, in `attrs`. A line the project already has is skipped, so a file can be uploaded again: at most 100,000 rows a file.
+- **Incidents** need `key` and `title`, and are checked as when they're added in the app. They're `resolved` unless the file says otherwise, because they're history. A key the project already has is skipped, never overwritten. They're embedded together, in a few calls: at most 500 a file.
+- A row with a problem is left out and listed; the rest are imported. Uploading logs needs no Nebius key.
 
 A run (`app/rag/indexing.py`):
 1. **Clone** the repository, bare, into `DATA_DIR/repos/<id>.git` (default `backend/data`), or fetch what's new. The token goes in a header for each command, through the environment: it's never written to the clone's config. A repository without a remote, like the demo's local PayStream build, is used as it is.
@@ -163,7 +171,7 @@ The MCP servers are mounted at `/mcp/github`, `/mcp/docs` and `/mcp/incidents`. 
 Every route in [IMPLEMENTATION_PLAN.md §11](../docs/IMPLEMENTATION_PLAN.md#11-backend-api-surface-fastapi), plus the ones the backlog adds, exists with its final request and response models. So `/openapi.json` (and `/docs`) is the whole contract, and the frontend types are generated from it. A route that isn't built yet answers, after the login, ownership and validation checks:
 
 ```json
-501 {"detail": "Not implemented yet (B-310)", "code": "not_implemented"}
+501 {"detail": "Not implemented yet (B-401)", "code": "not_implemented"}
 ```
 
 The task id is the backlog item that fills it in. To build one, replace its `raise not_implemented(...)` with the real body, remove its row from `STUBS` in `tests/test_api_surface.py`, and add the route's own tests.
@@ -180,8 +188,7 @@ After any change to a route or a request/response/event model, run `npm run gen:
 | | `POST /investigations/{id}/patches/{patch_id}/rerun` | B-604 |
 | | `GET /investigations/{id}/trace` | B-803 |
 | Repositories | `GET/POST /projects/{id}/repositories`, `PATCH/DELETE …/{repository_id}` | done (see above) |
-| Knowledge | `POST /projects/{id}/ingest`, `GET /projects/{id}/knowledge?type=&q=`, `GET /projects/{id}/logs`, `/logs/facets` | done (see above) |
-| | `POST /projects/{id}/uploads` (multipart: `kind`, `file`, `mapping`) | B-310 |
+| Knowledge | `POST /projects/{id}/ingest`, `GET /projects/{id}/knowledge?type=&q=`, `GET /projects/{id}/logs`, `/logs/facets`, `POST /projects/{id}/uploads`, `/uploads/preview` | done (see above) |
 | | `GET /projects/{id}/sources?ref=` | B-401 |
 | Incidents | `GET/POST /projects/{id}/incidents`, `GET/PATCH/DELETE …/{incident_id}` | done (see above) |
 | Memories | `GET /projects/{id}/memories?category=&status=`, `PATCH/DELETE …/{memory_id}` | B-703 |

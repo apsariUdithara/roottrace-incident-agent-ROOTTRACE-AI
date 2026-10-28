@@ -45,6 +45,7 @@ ROUTES = {
     ("DELETE", PROJECT + "/repositories/{repository_id}"),
     ("POST", PROJECT + "/ingest"),
     ("POST", PROJECT + "/uploads"),
+    ("POST", PROJECT + "/uploads/preview"),
     ("GET", PROJECT + "/knowledge"),
     ("GET", PROJECT + "/sources"),
     ("GET", PROJECT + "/logs"),
@@ -76,15 +77,6 @@ ROUTES = {
 # {investigation_id} are the owner's; {other_id} is a random id for rows that don't exist yet.
 STUBS: list[tuple[str, str, str, dict[str, Any]]] = [
     ("POST", "/auth/demo", "B-1001", {}),
-    (
-        "POST",
-        PROJECT + "/uploads",
-        "B-310",
-        {
-            "data": {"kind": "logs", "mapping": '{"ts": "timestamp"}'},
-            "files": {"file": ("app.jsonl", b'{"level": "ERROR"}\n', "application/x-ndjson")},
-        },
-    ),
     ("GET", PROJECT + "/sources?ref=commit:a3f9c21", "B-401", {}),
     ("GET", PROJECT + "/memories?category=project_fact&status=active", "B-703", {}),
     ("PATCH", PROJECT + "/memories/{other_id}", "B-703", {"json": {"status": "archived"}}),

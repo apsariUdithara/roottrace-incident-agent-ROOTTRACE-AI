@@ -215,6 +215,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{project_id}/uploads/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Upload
+         * @description What uploading the file would do, without saving anything: its columns and first rows,
+         *     the mapping (the one sent, or one guessed from the column names) and the rows that would be
+         *     imported, skipped or refused. Send it again with another mapping to see the difference.
+         */
+        post: operations["preview_upload_projects__project_id__uploads_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/projects/{project_id}/uploads": {
         parameters: {
             query?: never;
@@ -226,7 +248,11 @@ export interface paths {
         put?: never;
         /**
          * Upload File
-         * @description Imports logs (JSONL or CSV) or incidents (YAML, JSON or CSV).
+         * @description Imports logs (JSONL or CSV) or incidents (YAML, JSON or CSV), as the preview showed.
+         *
+         *     Rows with a problem are left out and listed; rows already in the project are skipped, and an
+         *     incident is never overwritten. Uploaded incidents are embedded for the agent's search: if
+         *     that fails, nothing is saved (502). 422 if the mapping leaves out a required field.
          */
         post: operations["upload_file_projects__project_id__uploads_post"];
         delete?: never;
@@ -675,6 +701,17 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** Body_preview_upload_projects__project_id__uploads_preview_post */
+        Body_preview_upload_projects__project_id__uploads_preview_post: {
+            kind: components["schemas"]["UploadKind"];
+            /** File */
+            file: string;
+            /**
+             * Mapping
+             * @description JSON: our field to your column, e.g. {"ts": "timestamp"}. Leave it out to use the mapping guessed from the column names (see /uploads/preview).
+             */
+            mapping?: string | null;
+        };
         /** Body_upload_file_projects__project_id__uploads_post */
         Body_upload_file_projects__project_id__uploads_post: {
             kind: components["schemas"]["UploadKind"];
@@ -682,7 +719,7 @@ export interface components {
             file: string;
             /**
              * Mapping
-             * @description JSON: our field to your column, e.g. {"ts": "timestamp"}
+             * @description JSON: our field to your column, e.g. {"ts": "timestamp"}. Leave it out to use the mapping guessed from the column names (see /uploads/preview).
              */
             mapping?: string | null;
         };
@@ -2344,10 +2381,67 @@ export interface components {
             duration_ms: number;
         };
         /**
+         * UploadField
+         * @description One of our fields that a column of the file can fill.
+         */
+        UploadField: {
+            /** Name */
+            name: string;
+            /** Required */
+            required: boolean;
+            /** Description */
+            description: string;
+        };
+        /**
+         * UploadFormat
+         * @enum {string}
+         */
+        UploadFormat: "csv" | "jsonl" | "json" | "yaml";
+        /**
          * UploadKind
          * @enum {string}
          */
         UploadKind: "logs" | "incidents";
+        /**
+         * UploadPreview
+         * @description What a file holds, and what importing it would do. Nothing is saved.
+         */
+        UploadPreview: {
+            kind: components["schemas"]["UploadKind"];
+            /** Filename */
+            filename: string;
+            format: components["schemas"]["UploadFormat"];
+            /** Rows */
+            rows: number;
+            /**
+             * Columns
+             * @description In the order they first appear; nested keys as a.b
+             */
+            columns: string[];
+            /**
+             * Sample
+             * @description The first rows, by column
+             */
+            sample: {
+                [key: string]: unknown;
+            }[];
+            /** Fields */
+            fields: components["schemas"]["UploadField"][];
+            /**
+             * Mapping
+             * @description Our field to the file's column: the one sent, or one guessed from the column names. Columns left out are kept with each log line (attrs).
+             */
+            mapping: {
+                [key: string]: string;
+            };
+            /**
+             * Mapping Error
+             * @description Why the file can't be imported this way
+             */
+            mapping_error: string | null;
+            /** @description What importing would do; null if it can't */
+            result: components["schemas"]["UploadResult"] | null;
+        };
         /** UploadResult */
         UploadResult: {
             kind: components["schemas"]["UploadKind"];
@@ -2355,8 +2449,16 @@ export interface components {
             filename: string;
             /** Imported */
             imported: number;
-            /** Skipped */
+            /**
+             * Skipped
+             * @description Rows already in the project, so not imported again
+             */
             skipped: number;
+            /**
+             * Failed
+             * @description Rows with a problem, not imported
+             */
+            failed: number;
             /**
              * Errors
              * @description The first problems found, at most 20
@@ -2906,6 +3008,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RepositoryOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_upload_projects__project_id__uploads_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_preview_upload_projects__project_id__uploads_preview_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadPreview"];
                 };
             };
             /** @description Validation Error */

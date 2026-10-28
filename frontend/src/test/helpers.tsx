@@ -29,7 +29,8 @@ export function json(status: number, body: unknown): Response {
 
 type ChatHandler = (body: Schemas['ChatRequest']) => Response
 /** Answers a route the stand-in doesn't know, e.g. "PATCH /projects/p1"; undefined for a 404.
- * `body` is the parsed JSON body, if there is one; `query` the URL's query string. */
+ * `body` is the parsed JSON body, if there is one, or an upload's FormData; `query` the URL's
+ * query string. */
 export type RouteHandler = (
   route: string,
   body: unknown,
@@ -53,7 +54,10 @@ export function backend({
       const request = input instanceof Request ? input : new Request(input, init)
       const route = `${request.method} ${new URL(request.url).pathname.replace(/^\/api/, '')}`
       calls.push(route)
-      const body = await request.text()
+      // A file upload's form goes to `handle` as FormData; any other body as text (JSON).
+      const multipart = request.headers.get('content-type')?.startsWith('multipart/form-data')
+      const form = multipart ? await request.formData() : undefined
+      const body = multipart ? '' : await request.text()
       switch (route) {
         case 'POST /auth/login': {
           const { email, password } = JSON.parse(body)
@@ -84,7 +88,7 @@ export function backend({
           return chat(JSON.parse(body))
         default:
           return (
-            handle(route, body ? JSON.parse(body) : undefined, new URL(request.url).searchParams) ??
+            handle(route, form ?? (body ? JSON.parse(body) : undefined), new URL(request.url).searchParams) ??
             json(404, { detail: 'Not Found', code: 'not_found' })
           )
       }

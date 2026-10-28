@@ -143,6 +143,8 @@ describe('knowledge page', () => {
     expect(list().getByText('INC-017')).toBeTruthy() // the key under its title
     expect(here(router)).toBe('/knowledge?type=incident')
     expect(screen.getByRole('tab', { name: 'Incidents' }).getAttribute('aria-selected')).toBe('true')
+    const upload = screen.getByRole('link', { name: 'Upload incident history' })
+    expect(upload.getAttribute('href')).toBe('/upload?kind=incidents')
   })
 
   it('opens on the tab and search in the link', async () => {

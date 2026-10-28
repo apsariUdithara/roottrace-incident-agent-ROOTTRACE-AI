@@ -8,8 +8,10 @@ from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
 
-# The PayStream logs of 6 Oct, the day of the hero scenario.
-REAL_LOGS = Path(__file__).resolve().parents[2] / "demo-target/fixtures/logs/2026-10-06.jsonl"
+# PayStream's logs of 6 Oct (the day of the hero scenario), and its past incidents.
+FIXTURES = Path(__file__).resolve().parents[2] / "demo-target/fixtures"
+REAL_LOGS = FIXTURES / "logs/2026-10-06.jsonl"
+REAL_INCIDENTS = FIXTURES / "incidents.json"
 
 
 def db[T](work: Callable[[AsyncSession], Awaitable[T]]) -> T:
@@ -34,11 +36,13 @@ class FakeEmbedder:
 
     def __init__(self):
         self.texts: list[str] = []
+        self.calls = 0
         self.fail: Exception | None = None
 
     async def embed(self, texts, name="embed"):
         if self.fail:
             raise self.fail
+        self.calls += 1
         self.texts += texts
         return [[0.1] * 1024 for _ in texts]
 

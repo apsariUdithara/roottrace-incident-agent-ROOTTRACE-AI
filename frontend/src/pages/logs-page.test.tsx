@@ -185,6 +185,7 @@ describe('logs page', () => {
     expect(rows()[3].slice(4, 6)).toEqual(['', '']) // a deploy has no status or latency
     expect(screen.queryByLabelText('Service')).toBeNull() // only one service
     expect([...queries[0]]).toEqual([['limit', '100'], ['offset', '0']]) // no filters
+    expect(screen.getByRole('link', { name: 'Upload logs' }).getAttribute('href')).toBe('/upload?kind=logs')
   })
 
   it('filters by the values the logs hold', async () => {
@@ -326,6 +327,7 @@ describe('logs page', () => {
     renderApp('/logs')
 
     expect(await screen.findByText('No logs yet')).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Upload a log file' }).getAttribute('href')).toBe('/upload?kind=logs')
     expect(queries).toEqual([])
   })
 })

@@ -226,6 +226,11 @@ function KnowledgeList({ projectId, repository }: { projectId: string; repositor
           onChange={(event) => setDraft(event.target.value)}
           className="w-64"
         />
+        {type === 'incident' && (
+          <Link to="/upload?kind=incidents" className="ml-auto text-xs text-primary hover:underline">
+            Upload incident history
+          </Link>
+        )}
       </div>
       <TabsContent value={type} className="flex flex-col gap-3">
         {items.isPending && <Skeleton className="h-40" />}

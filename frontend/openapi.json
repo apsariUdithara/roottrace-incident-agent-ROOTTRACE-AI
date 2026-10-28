@@ -696,13 +696,72 @@
         }
       }
     },
+    "/projects/{project_id}/uploads/preview": {
+      "post": {
+        "tags": [
+          "knowledge"
+        ],
+        "summary": "Preview Upload",
+        "description": "What uploading the file would do, without saving anything: its columns and first rows,\nthe mapping (the one sent, or one guessed from the column names) and the rows that would be\nimported, skipped or refused. Send it again with another mapping to see the difference.",
+        "operationId": "preview_upload_projects__project_id__uploads_preview_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_preview_upload_projects__project_id__uploads_preview_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadPreview"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/projects/{project_id}/uploads": {
       "post": {
         "tags": [
           "knowledge"
         ],
         "summary": "Upload File",
-        "description": "Imports logs (JSONL or CSV) or incidents (YAML, JSON or CSV).",
+        "description": "Imports logs (JSONL or CSV) or incidents (YAML, JSON or CSV), as the preview showed.\n\nRows with a problem are left out and listed; rows already in the project are skipped, and an\nincident is never overwritten. Uploaded incidents are embedded for the agent's search: if\nthat fails, nothing is saved (502). 422 if the mapping leaves out a required field.",
         "operationId": "upload_file_projects__project_id__uploads_post",
         "security": [
           {
@@ -2675,6 +2734,43 @@
   },
   "components": {
     "schemas": {
+      "Body_preview_upload_projects__project_id__uploads_preview_post": {
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/UploadKind"
+          },
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          },
+          "mapping": {
+            "anyOf": [
+              {
+                "type": "string",
+                "contentMediaType": "application/json",
+                "contentSchema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mapping",
+            "description": "JSON: our field to your column, e.g. {\"ts\": \"timestamp\"}. Leave it out to use the mapping guessed from the column names (see /uploads/preview)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "file"
+        ],
+        "title": "Body_preview_upload_projects__project_id__uploads_preview_post"
+      },
       "Body_upload_file_projects__project_id__uploads_post": {
         "properties": {
           "kind": {
@@ -2702,7 +2798,7 @@
               }
             ],
             "title": "Mapping",
-            "description": "JSON: our field to your column, e.g. {\"ts\": \"timestamp\"}"
+            "description": "JSON: our field to your column, e.g. {\"ts\": \"timestamp\"}. Leave it out to use the mapping guessed from the column names (see /uploads/preview)."
           }
         },
         "type": "object",
@@ -6776,6 +6872,40 @@
         ],
         "title": "TraceTotals"
       },
+      "UploadField": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "required": {
+            "type": "boolean",
+            "title": "Required"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "required",
+          "description"
+        ],
+        "title": "UploadField",
+        "description": "One of our fields that a column of the file can fill."
+      },
+      "UploadFormat": {
+        "type": "string",
+        "enum": [
+          "csv",
+          "jsonl",
+          "json",
+          "yaml"
+        ],
+        "title": "UploadFormat"
+      },
       "UploadKind": {
         "type": "string",
         "enum": [
@@ -6783,6 +6913,94 @@
           "incidents"
         ],
         "title": "UploadKind"
+      },
+      "UploadPreview": {
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/UploadKind"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "format": {
+            "$ref": "#/components/schemas/UploadFormat"
+          },
+          "rows": {
+            "type": "integer",
+            "title": "Rows"
+          },
+          "columns": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Columns",
+            "description": "In the order they first appear; nested keys as a.b"
+          },
+          "sample": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Sample",
+            "description": "The first rows, by column"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/UploadField"
+            },
+            "type": "array",
+            "title": "Fields"
+          },
+          "mapping": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Mapping",
+            "description": "Our field to the file's column: the one sent, or one guessed from the column names. Columns left out are kept with each log line (attrs)."
+          },
+          "mapping_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mapping Error",
+            "description": "Why the file can't be imported this way"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UploadResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What importing would do; null if it can't"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "filename",
+          "format",
+          "rows",
+          "columns",
+          "sample",
+          "fields",
+          "mapping",
+          "mapping_error",
+          "result"
+        ],
+        "title": "UploadPreview",
+        "description": "What a file holds, and what importing it would do. Nothing is saved."
       },
       "UploadResult": {
         "properties": {
@@ -6799,7 +7017,13 @@
           },
           "skipped": {
             "type": "integer",
-            "title": "Skipped"
+            "title": "Skipped",
+            "description": "Rows already in the project, so not imported again"
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed",
+            "description": "Rows with a problem, not imported"
           },
           "errors": {
             "items": {
@@ -6816,6 +7040,7 @@
           "filename",
           "imported",
           "skipped",
+          "failed",
           "errors"
         ],
         "title": "UploadResult"

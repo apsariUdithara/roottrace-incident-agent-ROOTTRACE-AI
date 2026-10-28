@@ -35,7 +35,15 @@ export function LogsPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Logs"
-        description="This project's structured logs, newest first: the lines the agent's log search reads. Times are UTC."
+        description={
+          <>
+            This project's structured logs, newest first: the lines the agent's log search reads.
+            Times are UTC.{' '}
+            <Link to="/upload?kind=logs" className="text-primary hover:underline">
+              Upload logs
+            </Link>
+          </>
+        }
       />
       {isPending && <Skeleton className="h-24" />}
       {isError && (
@@ -80,7 +88,12 @@ function ProjectLogs({ projectId }: { projectId: string }) {
       <Card>
         <CardHeader>
           <CardTitle>No logs yet</CardTitle>
-          <CardDescription>This project has no log lines for the agent to search.</CardDescription>
+          <CardDescription>
+            This project has no log lines for the agent to search.{' '}
+            <Link to="/upload?kind=logs" className="text-primary hover:underline">
+              Upload a log file
+            </Link>
+          </CardDescription>
         </CardHeader>
       </Card>
     )

@@ -42,8 +42,15 @@ class UploadKind(StrEnum):
     INCIDENTS = "incidents"  # YAML, JSON or CSV
 
 
+class UploadFormat(StrEnum):
+    CSV = "csv"  # with a header row
+    JSONL = "jsonl"  # one JSON object per line
+    JSON = "json"  # a list of objects
+    YAML = "yaml"  # a list of mappings
+
+
 class UploadRowError(BaseModel):
-    row: int  # 1-based, not counting a CSV header
+    row: int  # 1-based, not counting a CSV header; a JSONL file's line number
     message: str
 
 
@@ -51,8 +58,35 @@ class UploadResult(BaseModel):
     kind: UploadKind
     filename: str
     imported: int
-    skipped: int
+    skipped: int = Field(description="Rows already in the project, so not imported again")
+    failed: int = Field(description="Rows with a problem, not imported")
     errors: list[UploadRowError] = Field(description="The first problems found, at most 20")
+
+
+class UploadField(BaseModel):
+    """One of our fields that a column of the file can fill."""
+
+    name: str  # e.g. "ts"
+    required: bool
+    description: str
+
+
+class UploadPreview(BaseModel):
+    """What a file holds, and what importing it would do. Nothing is saved."""
+
+    kind: UploadKind
+    filename: str
+    format: UploadFormat
+    rows: int
+    columns: list[str] = Field(description="In the order they first appear; nested keys as a.b")
+    sample: list[dict[str, Any]] = Field(description="The first rows, by column")
+    fields: list[UploadField]
+    mapping: dict[str, str] = Field(
+        description="Our field to the file's column: the one sent, or one guessed from the "
+        "column names. Columns left out are kept with each log line (attrs)."
+    )
+    mapping_error: str | None = Field(description="Why the file can't be imported this way")
+    result: UploadResult | None = Field(description="What importing would do; null if it can't")
 
 
 # --- Logs --------------------------------------------------------------------------------------
