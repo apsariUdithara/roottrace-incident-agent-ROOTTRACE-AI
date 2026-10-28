@@ -108,6 +108,8 @@ Logged-in pages render inside `AppShell` (`src/layouts/app-shell.tsx`):
 
 `npm test` runs vitest. Tests run on Node by default. A test of components starts with `// @vitest-environment jsdom`. It mounts the real `routes` in a memory router (`renderApp`) and fakes the backend by stubbing `fetch` (`backend()`); both come from `src/test/helpers.tsx`. Call `stubMatchMedia()` first, because jsdom has no `matchMedia` and the sidebar uses it. `backend()` knows login, projects and chat; give it `handle` to answer other routes, with the parsed body and the query string (see `fakeBackend` in `projects-page.test.tsx`). For polling, use `vi.useFakeTimers({ shouldAdvanceTime: true })` and advance by `POLL_MS` (as in `knowledge-page.test.tsx`).
 
+`src/test/fixtures/scenario-1-events.json` is a whole investigation's events (scenario 1, from `backend/app/demo/scenario1.py`), as `GET /investigations/{id}/events` returns them. Use it to test the Investigation page. Don't edit it: regenerate it with `uv run python scripts/seed_fake_investigation.py --json` in `backend/`.
+
 ## API types
 
 The types for every route, request, response and investigation event are generated from the backend, so a backend change can't silently break the UI:

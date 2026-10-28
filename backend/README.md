@@ -37,6 +37,7 @@ uv run python scripts/seed_demo.py               # demo user + PayStream indexed
 uv run python scripts/investigate.py             # one investigation in the terminal (~$0.05-0.15)
 uv run python scripts/ask.py "Which commit introduced this?"
 uv run python scripts/open_pr.py                 # approve the verified fix: opens a draft PR
+uv run python scripts/seed_fake_investigation.py # a free replay of scenario 1 (no models, no sandbox)
 ```
 
 - `seed_demo.py` creates `demo@roottrace.dev` with `DEMO_PASSWORD`, or prints a generated password once. Running it again is safe.
@@ -44,6 +45,7 @@ uv run python scripts/open_pr.py                 # approve the verified fix: ope
 - Sandbox runs use the ConTree CLI's saved login (`contree auth`), or `NEBIUS_API_KEY` plus `NEBIUS_AI_PROJECT`.
 - `open_pr.py` needs `GITHUB_TOKEN`: a fine-grained token for the demo repo only.
 - In development, model answers are cached, so re-running the same investigation costs nothing.
+- **Without a Nebius key**, `seed_fake_investigation.py` adds a finished scenario-1 investigation to the demo project: 89 hand-written events (`app/demo/scenario1.py`) that `/events` and `/stream` serve like a real run's. It waits for approval but has no patch, so it can never open a PR. Its test runs don't claim a sandbox. Running it again replaces it. `--json` writes the events to `frontend/src/test/fixtures/scenario-1-events.json` for the frontend's tests; a backend test fails if that file is out of date.
 - With `READONLY_DATABASE_URL` set, the seed also creates that role (or updates its password) and lets it SELECT from `demo_app`, and nothing else. The agent's `query_database` tool then runs as it, a fifth safety layer after the SQL checks, the read-only transaction, the timeout and the row limit (`app/tools/database.py`). The grants are made again on every seed, because rebuilding `demo_app` drops them.
 
 ## Database sessions
