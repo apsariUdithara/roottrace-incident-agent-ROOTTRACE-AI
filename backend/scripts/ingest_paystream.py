@@ -21,12 +21,14 @@ sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # Windows console
 
 from sqlalchemy import select, text  # noqa: E402
 
+from app.core.config import get_settings  # noqa: E402
 from app.core.db import SessionLocal  # noqa: E402
 from app.core.security import hash_password  # noqa: E402
 from app.llm.router import get_router  # noqa: E402
 from app.models import Project, Repository, User  # noqa: E402
 from app.rag.indexing import mark_indexed  # noqa: E402
 from app.rag.ingest import ingest_incidents, ingest_issues, ingest_logs, ingest_repo  # noqa: E402
+from app.tools.database import grant_readonly_access  # noqa: E402
 
 DEMO = Path(__file__).resolve().parents[2] / "demo-target"
 REPO = DEMO / "build" / "paystream"
@@ -111,6 +113,9 @@ async def load(session, router, ref: str, name: str = "PayStream") -> tuple[Proj
         rows = [json.loads(line) for line in file.read_text(encoding="utf-8").splitlines()]
         stats["logs"] += await ingest_logs(session, project.id, rows)
     stats["payments"] = await load_production_snapshot(session, project)
+    # Rebuilding demo_app dropped its grants: give the query_database role its SELECT back.
+    if url := get_settings().readonly_database_url:
+        stats["readonly_role"] = await grant_readonly_access(session, url)
     await session.commit()
     return project, stats
 
@@ -131,6 +136,8 @@ async def main(ref: str) -> None:
     print(f"  issues:      {stats['issues'][0]} indexed of {stats['issues'][1]}")
     print(f"  log lines:   {stats['logs']}")
     print(f"  payments:    {stats['payments']} rows in demo_app.payments (for query_database)")
+    if role := stats.get("readonly_role"):
+        print(f"  read-only:   {role} may SELECT from demo_app, and nothing else")
     print(f"  embeddings:  {len(router.spans)} calls, {tokens} tokens, ${cost:.6f}")
 
 

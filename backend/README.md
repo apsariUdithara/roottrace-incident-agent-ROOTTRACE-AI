@@ -44,6 +44,7 @@ uv run python scripts/open_pr.py                 # approve the verified fix: ope
 - Sandbox runs use the ConTree CLI's saved login (`contree auth`), or `NEBIUS_API_KEY` plus `NEBIUS_AI_PROJECT`.
 - `open_pr.py` needs `GITHUB_TOKEN`: a fine-grained token for the demo repo only.
 - In development, model answers are cached, so re-running the same investigation costs nothing.
+- With `READONLY_DATABASE_URL` set, the seed also creates that role (or updates its password) and lets it SELECT from `demo_app`, and nothing else. The agent's `query_database` tool then runs as it, a fifth safety layer after the SQL checks, the read-only transaction, the timeout and the row limit (`app/tools/database.py`). The grants are made again on every seed, because rebuilding `demo_app` drops them.
 
 ## Database sessions
 

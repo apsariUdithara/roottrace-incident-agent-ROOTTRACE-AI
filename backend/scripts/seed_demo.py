@@ -46,6 +46,10 @@ async def main() -> None:
     repo = stats["repo"]
     print(f"Demo ready: project {project.name} ({project.id}) at {DEMO_REF}")
     print(f"  files {repo['indexed']} indexed, {repo['unchanged']} unchanged; logs {stats['logs']}")
+    if role := stats.get("readonly_role"):
+        print(f"  query_database runs as {role} (SELECT on demo_app only)")
+    else:
+        print("  READONLY_DATABASE_URL is not set: query_database uses the app's own login")
     print(f"  login: {ingest.OWNER_EMAIL}")
     if generated:
         print(f"  password (generated, shown once; set DEMO_PASSWORD to choose one): {password}")
