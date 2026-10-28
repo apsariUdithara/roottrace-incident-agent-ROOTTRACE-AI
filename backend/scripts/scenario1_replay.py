@@ -1,6 +1,8 @@
 """A hand-written replay of the hero scenario: PayStream v1.4.8, payment API 500s after a deploy.
 
-For building and testing the Investigation page without credits or a sandbox. It publishes what
+For building and testing the Investigation page without credits or a sandbox. Used by
+seed_fake_investigation.py and the tests; it lives here, not in app/, because app code must not
+know the demo repository (CI checks). It publishes what
 a real run publishes, in the same order (app/agent/graph.py), and every event is built from the
 real payload classes, so it can't drift from the contract without a test failing.
 

@@ -2,7 +2,7 @@
 
 One run, in the background:
 1. Clone the repository (bare, into <data_dir>/repos/<id>.git), or fetch what's new. A
-   repository without a remote, like the demo's local PayStream build, is used as it is.
+   repository without a remote, like a local build of a demo repository, is used as it is.
 2. Export its files at the default branch with `git archive`. The clone itself never changes,
    so an investigation can keep reading it meanwhile.
 3. Index them with ingest_repo (unchanged files cost nothing), and record the commit.

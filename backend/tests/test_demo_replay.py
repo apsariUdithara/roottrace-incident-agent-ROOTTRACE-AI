@@ -1,4 +1,4 @@
-"""The hand-written scenario-1 replay (app/demo/scenario1.py) must look like a real run."""
+"""The hand-written scenario-1 replay (scripts/scenario1_replay.py) must look like a real run."""
 
 import json
 import re
@@ -13,11 +13,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.routes import investigations as investigations_route
 from app.core.config import get_settings
-from app.demo import scenario1
 from app.models import InvestigationEvent, Patch, Project
 from app.rag.ingest import ingest_logs
 from app.schemas.events import Step, event_adapter
 from app.tools import TOOLS, ToolContext, call_tool
+from scripts import scenario1_replay as scenario1
 from tests.support import REAL_LOGS, db, new_project
 
 NewUser = Callable[[], dict[str, str]]

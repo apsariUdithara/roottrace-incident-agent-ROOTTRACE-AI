@@ -1,4 +1,4 @@
-"""Insert the hand-written scenario-1 replay (app/demo/scenario1.py) into the demo project.
+"""Insert the hand-written scenario-1 replay (scripts/scenario1_replay.py) into the demo project.
 
 For building the Investigation page without credits or a sandbox: the replay is a finished
 investigation, waiting for approval, whose events /events and /stream serve like a real run's.
@@ -23,8 +23,8 @@ sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # Windows console
 from sqlalchemy import select  # noqa: E402
 
 from app.core.db import SessionLocal  # noqa: E402
-from app.demo import scenario1  # noqa: E402
 from app.models import Project, User  # noqa: E402
+from scripts import scenario1_replay as scenario1  # noqa: E402
 
 OWNER_EMAIL = "demo@roottrace.dev"
 FIXTURE = Path(__file__).resolve().parents[2] / "frontend/src/test/fixtures/scenario-1-events.json"
