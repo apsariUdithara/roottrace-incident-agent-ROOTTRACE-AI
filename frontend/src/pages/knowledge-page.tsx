@@ -1,7 +1,6 @@
 // /knowledge: what the agent searches in the current project, and (re-)indexing its repository.
 // The tab, search and page live in the URL (?type=code&q=pool&offset=50), so a view can be shared.
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CircleDot, FileCode, FileText, Siren, type LucideIcon } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 
@@ -9,6 +8,7 @@ import { api, ok } from '@/api/client'
 import type { Schemas } from '@/api/types'
 import { IngestBadge } from '@/components/ingest-status'
 import { PageHeader } from '@/components/page-header'
+import { SOURCE_ICONS } from '@/components/source-chip'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -34,11 +34,11 @@ import {
 type SourceType = Schemas['DocumentSourceType']
 type Item = Schemas['KnowledgeItem']
 
-const TABS: { type: SourceType; label: string; icon: LucideIcon; empty: string }[] = [
-  { type: 'doc', label: 'Docs', icon: FileText, empty: 'No docs indexed.' },
-  { type: 'code', label: 'Code', icon: FileCode, empty: 'No code indexed.' },
-  { type: 'issue', label: 'Issues', icon: CircleDot, empty: 'No issues indexed.' },
-  { type: 'incident', label: 'Incidents', icon: Siren, empty: 'No past incidents yet.' },
+const TABS: { type: SourceType; label: string; empty: string }[] = [
+  { type: 'doc', label: 'Docs', empty: 'No docs indexed.' },
+  { type: 'code', label: 'Code', empty: 'No code indexed.' },
+  { type: 'issue', label: 'Issues', empty: 'No issues indexed.' },
+  { type: 'incident', label: 'Incidents', empty: 'No past incidents yet.' },
 ]
 const PAGE_SIZE = 50
 const SEARCH_DELAY_MS = 300
@@ -219,12 +219,15 @@ function KnowledgeList({ projectId, repository }: { projectId: string; repositor
     <Tabs value={type} onValueChange={(value) => update({ type: value as SourceType, offset: null })}>
       <div className="flex flex-wrap items-center gap-3">
         <TabsList>
-          {TABS.map((tab) => (
-            <TabsTrigger key={tab.type} value={tab.type}>
-              <tab.icon data-icon="inline-start" />
-              {tab.label}
-            </TabsTrigger>
-          ))}
+          {TABS.map((tab) => {
+            const Icon = SOURCE_ICONS[tab.type]
+            return (
+              <TabsTrigger key={tab.type} value={tab.type}>
+                <Icon data-icon="inline-start" />
+                {tab.label}
+              </TabsTrigger>
+            )
+          })}
         </TabsList>
         <Input
           type="search"
@@ -325,7 +328,7 @@ function ItemList({
 }
 
 function ItemRow({ item }: { item: Item }) {
-  const Icon = TABS.find((tab) => tab.type === item.source_type)!.icon
+  const Icon = SOURCE_ICONS[item.source_type]
   // A file's title is just its name: show the path instead. Issues and incidents have real titles.
   const title = item.title && !item.path.endsWith(item.title) ? item.title : item.path
   const chunks = `${item.chunk_count} ${item.chunk_count === 1 ? 'chunk' : 'chunks'}`

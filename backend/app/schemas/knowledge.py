@@ -103,6 +103,26 @@ class LogPage(Page[LogEntryOut]):
 # Evidence from the `database` source type has no ref to resolve: the viewer shows its excerpt.
 
 
+def source_ref(
+    source_type: DocumentSourceType,
+    path: str,
+    commit_sha: str | None,
+    start_line: int | None = None,
+    end_line: int | None = None,
+) -> str:
+    """The ref that opens an indexed document (or some of its lines) in the source viewer."""
+    match source_type:
+        case DocumentSourceType.DOC:
+            return f"doc:{path}"
+        case DocumentSourceType.CODE:
+            lines = f"#L{start_line}-L{end_line}" if start_line and end_line else ""
+            return f"file:{path}{lines}@{commit_sha or 'HEAD'}"
+        case DocumentSourceType.INCIDENT:
+            return f"incident:{path}"
+        case DocumentSourceType.ISSUE:
+            return path  # already "issue:<number>"
+
+
 class _Source(BaseModel):
     ref: str  # the source_ref that was resolved
 

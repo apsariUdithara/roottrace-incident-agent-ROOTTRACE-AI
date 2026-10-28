@@ -139,7 +139,15 @@ The MCP servers are mounted at `/mcp/github`, `/mcp/docs` and `/mcp/incidents`. 
 
 ## Chat
 
-`POST /chat` (`app/api/routes/chat.py`) is a plain conversation with Nemotron: `{messages, tier}` in, the answer plus `model`, `tier`, tokens, cost and latency out. It has no access to projects; investigations do that.
+`POST /chat` (`app/api/routes/chat.py`) is a conversation with Nemotron: `{messages, tier, project_id?}` in, the answer plus `model`, `tier`, tokens, cost, latency and `citations` out.
+
+- **With a `project_id`** (one of the user's projects, else 404), the answer comes from that project's knowledge:
+  - The question is searched with the same hybrid search the agent uses (`app/rag/retrieve.py`).
+  - The best 5 chunks go to the model in a system message, as sources labelled `[S1]`…`[S5]`, and it's told to cite the ones it uses.
+  - `citations` lists only the sources the answer cites in square brackets, in label order. Each has its `label`, `source_type`, `path`, a readable `ref` (`docs/pool.md § Pool @ f89f6df`) and a `source_ref` for the source viewer.
+  - When nothing matches, the model is told so, and to say that its answer is general knowledge.
+- Without one, it's a plain conversation, and `citations` is empty.
+- The reported cost is the answer's; the search adds one embedding call, plus a Nano rerank when there are more than 5 candidates.
 
 - It needs a login. Each user may send `CHAT_MESSAGES_PER_HOUR` messages (default 30), then gets 429 until the hour has passed. The counts are kept in the process, so a restart resets them.
 - `tier` is `nano` (default) or `super`. Ultra is refused (422), because it's the expensive tier. Answers stop at 512 tokens, and a request holds at most 20 messages.

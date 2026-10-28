@@ -664,6 +664,21 @@ export interface components {
              */
             mapping?: string | null;
         };
+        /**
+         * ChatCitation
+         * @description A source the answer cites as [S1], [S2], ...
+         */
+        ChatCitation: {
+            /** Label */
+            label: string;
+            source_type: components["schemas"]["DocumentSourceType"];
+            /** Path */
+            path: string;
+            /** Ref */
+            ref: string;
+            /** Source Ref */
+            source_ref: string;
+        };
         /** ChatMessage */
         ChatMessage: {
             /**
@@ -687,6 +702,8 @@ export interface components {
              * @enum {string}
              */
             tier: "nano" | "super";
+            /** Project Id */
+            project_id?: string | null;
         };
         /** ChatResponse */
         ChatResponse: {
@@ -705,6 +722,8 @@ export interface components {
             latency_ms: number;
             /** Cached */
             cached: boolean;
+            /** Citations */
+            citations: components["schemas"]["ChatCitation"][];
         };
         /** CommitSource */
         CommitSource: {

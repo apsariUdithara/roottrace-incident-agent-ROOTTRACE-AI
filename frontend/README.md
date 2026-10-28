@@ -94,6 +94,7 @@ Logged-in pages render inside `AppShell` (`src/layouts/app-shell.tsx`):
 `/chat` (`src/pages/chat-page.tsx`) talks to Nemotron through `POST /chat`.
 
 - Each request sends the conversation so far, at most the latest 20 messages, starting with a question (`historyForRequest` in `src/lib/chat.ts`). The Model picker chooses Nano (fast) or Super (stronger).
+- **Search <project>** (on by default, when there is a current project) sends its `project_id`: the answer then comes from the project's docs, code, issues and past incidents. The sources it cites appear under it as chips (`CitationChip`, `src/components/source-chip.tsx`), and the answer refers to them inline as [S1], [S2]. The chips don't open anything yet: the source viewer comes with B-403.
 - Under each answer: the model that answered, the time it took, the tokens and the cost.
 - Enter sends and Shift+Enter starts a new line. An empty chat offers example questions, and New chat starts over.
 - On an error, the backend's own message is shown (for example the hourly limit), with Try again.

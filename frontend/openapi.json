@@ -2634,6 +2634,39 @@
         ],
         "title": "Body_upload_file_projects__project_id__uploads_post"
       },
+      "ChatCitation": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "source_type": {
+            "$ref": "#/components/schemas/DocumentSourceType"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "ref": {
+            "type": "string",
+            "title": "Ref"
+          },
+          "source_ref": {
+            "type": "string",
+            "title": "Source Ref"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label",
+          "source_type",
+          "path",
+          "ref",
+          "source_ref"
+        ],
+        "title": "ChatCitation",
+        "description": "A source the answer cites as [S1], [S2], ..."
+      },
       "ChatMessage": {
         "properties": {
           "role": {
@@ -2677,6 +2710,18 @@
             ],
             "title": "Tier",
             "default": "nano"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
           }
         },
         "type": "object",
@@ -2718,6 +2763,13 @@
           "cached": {
             "type": "boolean",
             "title": "Cached"
+          },
+          "citations": {
+            "items": {
+              "$ref": "#/components/schemas/ChatCitation"
+            },
+            "type": "array",
+            "title": "Citations"
           }
         },
         "type": "object",
@@ -2729,7 +2781,8 @@
           "completion_tokens",
           "cost_usd",
           "latency_ms",
-          "cached"
+          "cached",
+          "citations"
         ],
         "title": "ChatResponse"
       },

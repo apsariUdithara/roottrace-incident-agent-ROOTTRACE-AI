@@ -20,6 +20,7 @@ from app.schemas.knowledge import (
     Source,
     UploadKind,
     UploadResult,
+    source_ref,
 )
 from app.schemas.repository import RepositoryOut
 
@@ -117,25 +118,12 @@ async def list_knowledge(
             title=document.title,
             commit_sha=document.commit_sha,
             chunk_count=chunk_count,
-            source_ref=source_ref(document),
+            source_ref=source_ref(document.source_type, document.path, document.commit_sha),
             created_at=document.created_at,
         )
         for document, chunk_count in rows
     ]
     return KnowledgePage(items=items, total=total, limit=limit, offset=offset)
-
-
-def source_ref(document: Document) -> str:
-    """The ref that opens a document in the source viewer (formats in app/schemas/knowledge.py)."""
-    match document.source_type:
-        case DocumentSourceType.DOC:
-            return f"doc:{document.path}"
-        case DocumentSourceType.CODE:
-            return f"file:{document.path}@{document.commit_sha or 'HEAD'}"
-        case DocumentSourceType.INCIDENT:
-            return f"incident:{document.path}"
-        case DocumentSourceType.ISSUE:
-            return document.path  # already "issue:<number>"
 
 
 @router.get("/sources")
