@@ -618,7 +618,7 @@
       "arguments": {
         "route": "/payments",
         "since": "2026-10-06T14:20:00Z",
-        "until": "2026-10-06T14:26:27Z"
+        "until": "2026-10-06T14:26:26Z"
       },
       "transport": "direct"
     }
@@ -632,8 +632,8 @@
       "tool": "search_logs",
       "ok": true,
       "duration_ms": 310,
-      "summary": "49 log lines",
-      "output_preview": "{\"total\": 49, \"by_level\": {\"INFO\": 49}, \"by_error_type\": [{\"error_type\": \"Deploy\", \"count\": 1}], \"by_route\": [{\"route\": \"/payments\", \"status\": 200, \"count\": 10}], \"samples\": [{\"ref\": \"log trace_id=d8f16adf91b7584a\", \"message\": \"deploy started: release v1.4.8 (rolling, 5 instances)\"}]}",
+      "summary": "10 log lines",
+      "output_preview": "{\"total\": 10, \"by_level\": {\"INFO\": 10}, \"by_error_type\": [], \"by_route\": [{\"route\": \"/payments\", \"status\": 200, \"count\": 10}], \"deploys\": [{\"ref\": \"log deploy at 2026-10-06T14:20:00+00:00\", \"message\": \"deploy started: release v1.4.8 (rolling, 5 instances)\"}], \"samples\": [{\"ref\": \"log trace_id=4ecb5ffc3e4ec068\", \"instance\": \"api-1\", \"route\": \"/payments\", \"status\": 200, \"latency_ms\": 64, \"message\": \"request completed\"}]}",
       "error": null
     }
   },
@@ -648,8 +648,8 @@
       "statement": "For the first 6 minutes of the rollout (14:20 to 14:26), POST /payments still succeeded: the 10 payments in that window all returned 200.",
       "tool": "search_logs",
       "source_type": "log",
-      "source_ref": "log trace_id=d8f16adf91b7584a",
-      "excerpt": "deploy started: release v1.4.8 (rolling, 5 instances)",
+      "source_ref": "log trace_id=4ecb5ffc3e4ec068",
+      "excerpt": "\"instance\": \"api-1\", \"route\": \"/payments\", \"status\": 200, \"latency_ms\": 64, \"message\": \"request completed\"",
       "cites": [],
       "stance": "neutral",
       "weight": 1.0,

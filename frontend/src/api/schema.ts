@@ -284,9 +284,31 @@ export interface paths {
         };
         /**
          * List Logs
-         * @description Newest first.
+         * @description The project's log lines, newest first. The filters match as in the agent's search_logs
+         *     tool, so its evidence can be checked here.
          */
         get: operations["list_logs_projects__project_id__logs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project_id}/logs/facets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Log Facets
+         * @description What the logs hold, for the explorer's filters: the values each field takes, with how
+         *     many lines have them, and the time the logs cover.
+         */
+        get: operations["log_facets_projects__project_id__logs_facets_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1383,6 +1405,26 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /**
+         * LogFacets
+         * @description What the project's logs hold: the values to filter by, and the time they cover.
+         */
+        LogFacets: {
+            /** Total */
+            total: number;
+            /** First Ts */
+            first_ts: string | null;
+            /** Last Ts */
+            last_ts: string | null;
+            /** Levels */
+            levels: components["schemas"]["LogValue"][];
+            /** Services */
+            services: components["schemas"]["LogValue"][];
+            /** Routes */
+            routes: components["schemas"]["LogValue"][];
+            /** Error Types */
+            error_types: components["schemas"]["LogValue"][];
+        };
         /** LogPage */
         LogPage: {
             /** Items */
@@ -1407,6 +1449,13 @@ export interface components {
             trace_id: string;
             /** Entries */
             entries: components["schemas"]["LogEntryOut"][];
+        };
+        /** LogValue */
+        LogValue: {
+            /** Value */
+            value: string;
+            /** Count */
+            count: number;
         };
         /** LoginRequest */
         LoginRequest: {
@@ -2978,12 +3027,19 @@ export interface operations {
     list_logs_projects__project_id__logs_get: {
         parameters: {
             query?: {
+                /** @description e.g. ERROR, any case */
                 level?: string | null;
                 service?: string | null;
+                /** @description The route or part of it */
                 route?: string | null;
+                /** @description e.g. SlowQuery */
                 error_type?: string | null;
+                /** @description In the message or error type, any case */
+                text?: string | null;
                 trace_id?: string | null;
+                /** @description Inclusive; UTC if no timezone */
                 since?: string | null;
+                /** @description Inclusive; UTC if no timezone */
                 until?: string | null;
                 limit?: number;
                 offset?: number;
@@ -3003,6 +3059,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LogPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    log_facets_projects__project_id__logs_facets_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogFacets"];
                 };
             };
             /** @description Validation Error */

@@ -485,14 +485,16 @@ def _build() -> _Run:
         {
             "route": "/payments",
             "since": "2026-10-06T14:20:00Z",
-            "until": "2026-10-06T14:26:27Z",
+            "until": "2026-10-06T14:26:26Z",  # just before the first error
         },
         0.31,
-        "49 log lines",
-        '{"total": 49, "by_level": {"INFO": 49}, "by_error_type": [{"error_type": "Deploy", '
-        '"count": 1}], "by_route": [{"route": "/payments", "status": 200, "count": 10}], '
-        '"samples": [{"ref": "log trace_id=d8f16adf91b7584a", "message": "deploy started: '
-        'release v1.4.8 (rolling, 5 instances)"}]}',
+        "10 log lines",
+        '{"total": 10, "by_level": {"INFO": 10}, "by_error_type": [], "by_route": [{"route": '
+        '"/payments", "status": 200, "count": 10}], "deploys": [{"ref": "log deploy at '
+        '2026-10-06T14:20:00+00:00", "message": "deploy started: release v1.4.8 (rolling, 5 '
+        'instances)"}], "samples": [{"ref": "log trace_id=4ecb5ffc3e4ec068", "instance": '
+        '"api-1", "route": "/payments", "status": 200, "latency_ms": 64, "message": "request '
+        'completed"}]}',
     )
     run.fact(
         "F8",
@@ -500,8 +502,9 @@ def _build() -> _Run:
         "the 10 payments in that window all returned 200.",
         "search_logs",
         EvidenceSourceType.LOG,
-        "log trace_id=d8f16adf91b7584a",
-        "deploy started: release v1.4.8 (rolling, 5 instances)",
+        "log trace_id=4ecb5ffc3e4ec068",
+        '"instance": "api-1", "route": "/payments", "status": 200, "latency_ms": 64, "message": '
+        '"request completed"',
     )
     for label in ("F1", "F2", "F3", "F4", "F5", "F6", "F7"):
         run.facts[label]["stance"] = Stance.SUPPORTS

@@ -10,22 +10,34 @@ from app.api.deps import OwnedProject
 from app.core.db import SessionDep
 from app.core.errors import not_implemented
 from app.llm.router import LLMRouter, get_router
-from app.models import Document, DocumentChunk, DocumentSourceType, IngestStatus, Repository
+from app.models import (
+    Document,
+    DocumentChunk,
+    DocumentSourceType,
+    IngestStatus,
+    LogEntry,
+    Repository,
+)
 from app.rag import indexing
 from app.schemas.knowledge import (
     KnowledgeItem,
     KnowledgePage,
+    LogEntryOut,
+    LogFacets,
     LogPage,
     LogQuery,
+    LogValue,
     Source,
     UploadKind,
     UploadResult,
     source_ref,
 )
 from app.schemas.repository import RepositoryOut
+from app.tools.logs import LogSearchArgs, log_filters
 
 router = APIRouter(prefix="/projects/{project_id}", tags=["knowledge"])
 RouterDep = Annotated[LLMRouter, Depends(get_router)]
+FACET_SIZE = 100  # values per field: the most frequent
 
 
 @router.post("/ingest", status_code=status.HTTP_202_ACCEPTED)
@@ -136,6 +148,60 @@ async def resolve_source(
 
 
 @router.get("/logs")
-async def list_logs(project: OwnedProject, query: Annotated[LogQuery, Query()]) -> LogPage:
-    """Newest first."""
-    raise not_implemented("B-309")
+async def list_logs(
+    project: OwnedProject, query: Annotated[LogQuery, Query()], session: SessionDep
+) -> LogPage:
+    """The project's log lines, newest first. The filters match as in the agent's search_logs
+    tool, so its evidence can be checked here."""
+    search = LogSearchArgs.model_validate(query.model_dump(include=set(LogSearchArgs.model_fields)))
+    filters = log_filters(project.id, search)
+    if query.trace_id:
+        filters.append(LogEntry.trace_id == query.trace_id)
+    total = await session.scalar(select(func.count()).select_from(LogEntry).where(*filters))
+    entries = await session.scalars(
+        select(LogEntry)
+        .where(*filters)
+        .order_by(LogEntry.ts.desc(), LogEntry.id.desc())
+        .limit(query.limit)
+        .offset(query.offset)
+    )
+    return LogPage(
+        items=[LogEntryOut.model_validate(entry) for entry in entries],
+        total=total,
+        limit=query.limit,
+        offset=query.offset,
+    )
+
+
+@router.get("/logs/facets")
+async def log_facets(project: OwnedProject, session: SessionDep) -> LogFacets:
+    """What the logs hold, for the explorer's filters: the values each field takes, with how
+    many lines have them, and the time the logs cover."""
+    mine = LogEntry.project_id == project.id
+    total, first_ts, last_ts = (
+        await session.execute(
+            select(func.count(), func.min(LogEntry.ts), func.max(LogEntry.ts)).where(mine)
+        )
+    ).one()
+
+    async def values(column) -> list[LogValue]:
+        rows = await session.execute(
+            select(column, func.count())
+            .where(mine, column.is_not(None), column != "")
+            .group_by(column)
+            .order_by(func.count().desc(), column)
+            .limit(FACET_SIZE)
+        )
+        found = [LogValue(value=value, count=count) for value, count in rows]
+        return sorted(found, key=lambda item: (item.value.lower(), item.value))
+
+    return LogFacets(
+        total=total,
+        first_ts=first_ts,
+        last_ts=last_ts,
+        # The level filter ignores case, so "error" and "ERROR" are one value.
+        levels=await values(func.upper(LogEntry.level)),
+        services=await values(LogEntry.service),
+        routes=await values(LogEntry.route),
+        error_types=await values(LogEntry.error_type),
+    )

@@ -5,6 +5,7 @@ the tool returns what an engineer looks at first: how many of each error, where,
 started, plus a handful of real lines (errors first) to cite.
 """
 
+import uuid
 from datetime import datetime, timedelta
 
 from pydantic import BaseModel, Field
@@ -31,8 +32,10 @@ class LogSearchArgs(BaseModel):
     service: str | None = Field(default=None, description="Service name.")
 
 
-def _filters(ctx: ToolContext, args: LogSearchArgs) -> list:
-    f = [LogEntry.project_id == ctx.project_id]
+def log_filters(project_id: uuid.UUID, args: LogSearchArgs) -> list:
+    """The WHERE clauses for `args`. The logs explorer (GET /projects/{id}/logs) uses them too,
+    so a person checking the agent's evidence finds the same lines with the same filters."""
+    f = [LogEntry.project_id == project_id]
     if args.since:
         f.append(LogEntry.ts >= args.since)
     if args.until:
@@ -40,14 +43,18 @@ def _filters(ctx: ToolContext, args: LogSearchArgs) -> list:
     if args.level:
         f.append(func.upper(LogEntry.level) == args.level.upper())
     if args.route:
-        f.append(LogEntry.route.ilike(f"%{args.route}%"))
+        f.append(LogEntry.route.icontains(args.route, autoescape=True))
     if args.error_type:
         f.append(LogEntry.error_type == args.error_type)
     if args.text:
         # Case-insensitive, in the message OR the error type: "ReconciliationMismatch" is the
         # error type of lines whose message says "reconciliation mismatch".
-        pattern = f"%{args.text}%"
-        f.append(or_(LogEntry.message.ilike(pattern), LogEntry.error_type.ilike(pattern)))
+        f.append(
+            or_(
+                LogEntry.message.icontains(args.text, autoescape=True),
+                LogEntry.error_type.icontains(args.text, autoescape=True),
+            )
+        )
     if args.service:
         f.append(LogEntry.service == args.service)
     return f
@@ -92,7 +99,7 @@ async def available_values(ctx: ToolContext) -> dict:
     LogSearchArgs,
 )
 async def search_logs(ctx: ToolContext, args: LogSearchArgs) -> dict:
-    where = _filters(ctx, args)
+    where = log_filters(ctx.project_id, args)
     s = ctx.session
 
     total = await s.scalar(select(func.count()).select_from(LogEntry).where(*where))

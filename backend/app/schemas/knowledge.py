@@ -3,12 +3,12 @@
 import uuid
 from datetime import datetime
 from enum import StrEnum
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.models import DocumentSourceType
-from app.schemas.common import Page
+from app.schemas.common import Page, UtcDatetime
 from app.schemas.incident import IncidentOut
 from app.schemas.memory import MemoryOut
 
@@ -59,17 +59,29 @@ class UploadResult(BaseModel):
 
 
 class LogQuery(BaseModel):
-    """Filters for GET /projects/{id}/logs. All are optional and combine with AND."""
+    """Filters for GET /projects/{id}/logs. All are optional and combine with AND.
 
-    level: str | None = Field(default=None, max_length=16)  # as logged, e.g. ERROR
+    They match as in the agent's search_logs tool, so the same filters find the same lines.
+    """
+
+    level: str | None = Field(default=None, max_length=16, description="e.g. ERROR, any case")
     service: str | None = Field(default=None, max_length=200)
-    route: str | None = Field(default=None, max_length=500)
-    error_type: str | None = Field(default=None, max_length=200)
+    route: str | None = Field(default=None, max_length=500, description="The route or part of it")
+    error_type: str | None = Field(default=None, max_length=200, description="e.g. SlowQuery")
+    text: str | None = Field(
+        default=None, max_length=200, description="In the message or error type, any case"
+    )
     trace_id: str | None = Field(default=None, max_length=100)
-    since: datetime | None = None
-    until: datetime | None = None
+    since: UtcDatetime | None = Field(default=None, description="Inclusive; UTC if no timezone")
+    until: UtcDatetime | None = Field(default=None, description="Inclusive; UTC if no timezone")
     limit: int = Field(default=100, ge=1, le=500)
     offset: int = Field(default=0, ge=0)
+
+    @model_validator(mode="after")
+    def _window(self) -> Self:
+        if self.since and self.until and self.since > self.until:
+            raise ValueError("since must not be after until")
+        return self
 
 
 class LogEntryOut(BaseModel):
@@ -91,6 +103,24 @@ class LogEntryOut(BaseModel):
 
 class LogPage(Page[LogEntryOut]):
     pass
+
+
+class LogValue(BaseModel):
+    value: str
+    count: int  # lines with this value
+
+
+class LogFacets(BaseModel):
+    """What the project's logs hold: the values to filter by, and the time they cover."""
+
+    total: int
+    first_ts: datetime | None  # None when there are no logs
+    last_ts: datetime | None
+    # Each list is the most frequent values (at most 100), in alphabetical order.
+    levels: list[LogValue]
+    services: list[LogValue]
+    routes: list[LogValue]
+    error_types: list[LogValue]
 
 
 # --- Evidence sources --------------------------------------------------------------------------

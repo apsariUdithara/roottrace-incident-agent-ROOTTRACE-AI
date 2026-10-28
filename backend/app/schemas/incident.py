@@ -1,11 +1,10 @@
 """Request and response bodies for /projects/{id}/incidents."""
 
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Annotated
 
 from pydantic import (
-    AfterValidator,
     BaseModel,
     BeforeValidator,
     ConfigDict,
@@ -14,6 +13,7 @@ from pydantic import (
 )
 
 from app.models import IncidentStatus
+from app.schemas.common import UtcDatetime
 
 # Letters, a dash and a number, e.g. INC-017: the form the agent's get_incident tool looks up.
 # " inc-17 " is accepted as "INC-17".
@@ -27,10 +27,6 @@ Severity = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1,
 LongText = Annotated[str, StringConstraints(strip_whitespace=True, max_length=20_000)]
 CommitSha = Annotated[str, StringConstraints(strip_whitespace=True, pattern=r"^[0-9a-f]{7,64}$")]
 Tag = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=50)]
-# A time without a timezone is UTC, as when incidents are ingested.
-OccurredAt = Annotated[
-    datetime, AfterValidator(lambda value: value if value.tzinfo else value.replace(tzinfo=UTC))
-]
 
 
 class IncidentCreate(BaseModel):
@@ -43,7 +39,7 @@ class IncidentCreate(BaseModel):
     commit_sha: CommitSha | None = None
     tags: list[Tag] = Field(default_factory=list, max_length=20)
     status: IncidentStatus = IncidentStatus.OPEN
-    occurred_at: OccurredAt | None = None
+    occurred_at: UtcDatetime | None = None
 
 
 class IncidentUpdate(BaseModel):
@@ -59,7 +55,7 @@ class IncidentUpdate(BaseModel):
     commit_sha: CommitSha | None = None
     tags: list[Tag] | None = Field(default=None, max_length=20)
     status: IncidentStatus | None = None
-    occurred_at: OccurredAt | None = None
+    occurred_at: UtcDatetime | None = None
 
 
 class IncidentOut(BaseModel):

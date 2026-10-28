@@ -1,7 +1,6 @@
 // /knowledge: what the agent searches in the current project, and (re-)indexing its repository.
 // The tab, search and page live in the URL (?type=code&q=pool&offset=50), so a view can be shared.
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 
 import { api, ok } from '@/api/client'
@@ -30,6 +29,7 @@ import {
   useRepositories,
   type Repository,
 } from '@/lib/repositories'
+import { useDebouncedParam, withChanges, type Changes } from '@/lib/search-params'
 
 type SourceType = Schemas['DocumentSourceType']
 type Item = Schemas['KnowledgeItem']
@@ -41,7 +41,6 @@ const TABS: { type: SourceType; label: string; empty: string }[] = [
   { type: 'incident', label: 'Incidents', empty: 'No past incidents yet.' },
 ]
 const PAGE_SIZE = 50
-const SEARCH_DELAY_MS = 300
 
 export function KnowledgePage() {
   const { project, isPending, isError } = useCurrentProject()
@@ -181,19 +180,8 @@ function KnowledgeList({ projectId, repository }: { projectId: string; repositor
   const type = TABS.find((tab) => tab.type === params.get('type'))?.type ?? 'doc'
   const q = params.get('q') ?? ''
   const offset = Math.max(0, Number(params.get('offset')) || 0)
-  const [draft, setDraft] = useState(q)
+  const [draft, setDraft] = useDebouncedParam('q') // searches once typing pauses
   const update = (changes: Changes) => setParams(withChanges(changes), { replace: true })
-
-  // Search once typing pauses, not on every key.
-  useEffect(() => {
-    const search = draft.trim()
-    if (search === q) return
-    const timer = setTimeout(
-      () => setParams(withChanges({ q: search, offset: null }), { replace: true }),
-      SEARCH_DELAY_MS,
-    )
-    return () => clearTimeout(timer)
-  }, [draft, q, setParams])
 
   const items = useQuery({
     // A finished run changes last_indexed_at, and so the key: the list then reloads by itself.
@@ -256,20 +244,6 @@ function KnowledgeList({ projectId, repository }: { projectId: string; repositor
       </TabsContent>
     </Tabs>
   )
-}
-
-type Changes = Record<string, string | number | null>
-
-/** The search params with `changes` applied; an empty value (or offset 0) removes the param. */
-function withChanges(changes: Changes) {
-  return (current: URLSearchParams) => {
-    const next = new URLSearchParams(current)
-    for (const [key, value] of Object.entries(changes)) {
-      if (value === null || value === '' || value === 0) next.delete(key)
-      else next.set(key, String(value))
-    }
-    return next
-  }
 }
 
 function emptyMessage(type: SourceType, q: string, repository?: Repository): string {

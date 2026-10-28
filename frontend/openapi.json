@@ -966,7 +966,7 @@
           "knowledge"
         ],
         "summary": "List Logs",
-        "description": "Newest first.",
+        "description": "The project's log lines, newest first. The filters match as in the agent's search_logs\ntool, so its evidence can be checked here.",
         "operationId": "list_logs_projects__project_id__logs_get",
         "security": [
           {
@@ -998,8 +998,10 @@
                   "type": "null"
                 }
               ],
+              "description": "e.g. ERROR, any case",
               "title": "Level"
-            }
+            },
+            "description": "e.g. ERROR, any case"
           },
           {
             "name": "service",
@@ -1032,8 +1034,10 @@
                   "type": "null"
                 }
               ],
+              "description": "The route or part of it",
               "title": "Route"
-            }
+            },
+            "description": "The route or part of it"
           },
           {
             "name": "error_type",
@@ -1049,8 +1053,29 @@
                   "type": "null"
                 }
               ],
+              "description": "e.g. SlowQuery",
               "title": "Error Type"
-            }
+            },
+            "description": "e.g. SlowQuery"
+          },
+          {
+            "name": "text",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "In the message or error type, any case",
+              "title": "Text"
+            },
+            "description": "In the message or error type, any case"
           },
           {
             "name": "trace_id",
@@ -1083,8 +1108,10 @@
                   "type": "null"
                 }
               ],
+              "description": "Inclusive; UTC if no timezone",
               "title": "Since"
-            }
+            },
+            "description": "Inclusive; UTC if no timezone"
           },
           {
             "name": "until",
@@ -1100,8 +1127,10 @@
                   "type": "null"
                 }
               ],
+              "description": "Inclusive; UTC if no timezone",
               "title": "Until"
-            }
+            },
+            "description": "Inclusive; UTC if no timezone"
           },
           {
             "name": "limit",
@@ -1134,6 +1163,55 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/LogPage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_id}/logs/facets": {
+      "get": {
+        "tags": [
+          "knowledge"
+        ],
+        "summary": "Log Facets",
+        "description": "What the logs hold, for the explorer's filters: the values each field takes, with how\nmany lines have them, and the time the logs cover.",
+        "operationId": "log_facets_projects__project_id__logs_facets_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogFacets"
                 }
               }
             }
@@ -4560,6 +4638,78 @@
         ],
         "title": "LogEntryOut"
       },
+      "LogFacets": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "first_ts": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Ts"
+          },
+          "last_ts": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Ts"
+          },
+          "levels": {
+            "items": {
+              "$ref": "#/components/schemas/LogValue"
+            },
+            "type": "array",
+            "title": "Levels"
+          },
+          "services": {
+            "items": {
+              "$ref": "#/components/schemas/LogValue"
+            },
+            "type": "array",
+            "title": "Services"
+          },
+          "routes": {
+            "items": {
+              "$ref": "#/components/schemas/LogValue"
+            },
+            "type": "array",
+            "title": "Routes"
+          },
+          "error_types": {
+            "items": {
+              "$ref": "#/components/schemas/LogValue"
+            },
+            "type": "array",
+            "title": "Error Types"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "first_ts",
+          "last_ts",
+          "levels",
+          "services",
+          "routes",
+          "error_types"
+        ],
+        "title": "LogFacets",
+        "description": "What the project's logs hold: the values to filter by, and the time they cover."
+      },
       "LogPage": {
         "properties": {
           "items": {
@@ -4622,6 +4772,24 @@
           "entries"
         ],
         "title": "LogSource"
+      },
+      "LogValue": {
+        "properties": {
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "value",
+          "count"
+        ],
+        "title": "LogValue"
       },
       "LoginRequest": {
         "properties": {

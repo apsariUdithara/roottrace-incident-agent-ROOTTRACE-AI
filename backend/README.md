@@ -92,6 +92,8 @@ Routes get a session with the `SessionDep` dependency from `app/core/db.py`. The
 |---|---|
 | `POST /projects/{id}/ingest` | 202, with the repository as `queued`. Indexes it in the background; poll `GET …/repositories` until `ingest_status` is `indexed` or `failed` (with `ingest_error`, a readable reason). A run already going isn't started twice. 409 without a repository. |
 | `GET /projects/{id}/knowledge?type=&q=&limit=&offset=` | What the agent can search: the indexed docs, code, issues and incidents, by type and then path. `q` matches the title or path, as plain text. Each item has its `chunk_count` and a `source_ref` for the source viewer. |
+| `GET /projects/{id}/logs?level=&service=&route=&error_type=&text=&trace_id=&since=&until=&limit=&offset=` | The project's log lines, newest first, 100 a page (at most 500). The filters match as in the agent's `search_logs` tool, so its evidence can be checked: `level` in any case, `route` and `text` (message or error type) as part of the value, the rest exactly. `since` and `until` are included; a time without a timezone is UTC. 422 if `since` is after `until`. |
+| `GET /projects/{id}/logs/facets` | What the logs hold, for the explorer's filters: the levels, services, routes and error types with how many lines have each (the 100 most frequent per field), and the first and last time. |
 
 A run (`app/rag/indexing.py`):
 1. **Clone** the repository, bare, into `DATA_DIR/repos/<id>.git` (default `backend/data`), or fetch what's new. The token goes in a header for each command, through the environment: it's never written to the clone's config. A repository without a remote, like the demo's local PayStream build, is used as it is.
@@ -178,10 +180,9 @@ After any change to a route or a request/response/event model, run `npm run gen:
 | | `POST /investigations/{id}/patches/{patch_id}/rerun` | B-604 |
 | | `GET /investigations/{id}/trace` | B-803 |
 | Repositories | `GET/POST /projects/{id}/repositories`, `PATCH/DELETE …/{repository_id}` | done (see above) |
-| Knowledge | `POST /projects/{id}/ingest`, `GET /projects/{id}/knowledge?type=&q=` | done (see above) |
+| Knowledge | `POST /projects/{id}/ingest`, `GET /projects/{id}/knowledge?type=&q=`, `GET /projects/{id}/logs`, `/logs/facets` | done (see above) |
 | | `POST /projects/{id}/uploads` (multipart: `kind`, `file`, `mapping`) | B-310 |
 | | `GET /projects/{id}/sources?ref=` | B-401 |
-| | `GET /projects/{id}/logs?level=&service=&route=&error_type=&trace_id=&since=&until=` | B-309 |
 | Incidents | `GET/POST /projects/{id}/incidents`, `GET/PATCH/DELETE …/{incident_id}` | done (see above) |
 | Memories | `GET /projects/{id}/memories?category=&status=`, `PATCH/DELETE …/{memory_id}` | B-703 |
 | Evaluation | `GET /evaluation/runs`, `GET /evaluation/runs/{id}` | B-901 |

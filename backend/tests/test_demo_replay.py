@@ -1,8 +1,10 @@
 """The hand-written scenario-1 replay (app/demo/scenario1.py) must look like a real run."""
 
+import json
 import re
 import uuid
 from collections.abc import Callable
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -13,9 +15,10 @@ from app.api.routes import investigations as investigations_route
 from app.core.config import get_settings
 from app.demo import scenario1
 from app.models import InvestigationEvent, Patch, Project
+from app.rag.ingest import ingest_logs
 from app.schemas.events import Step, event_adapter
-from app.tools import TOOLS
-from tests.support import db, new_project
+from app.tools import TOOLS, ToolContext, call_tool
+from tests.support import REAL_LOGS, db, new_project
 
 NewUser = Callable[[], dict[str, str]]
 EVENTS = scenario1.events()
@@ -71,6 +74,27 @@ def test_it_calls_real_tools_with_valid_arguments():
         TOOLS[call.tool].args.model_validate(call.arguments)  # what the agent would have sent
         assert results[call.call_id].tool == call.tool
     assert len(results) == len(of_type("tool_call"))
+
+
+async def test_its_log_searches_show_what_the_real_logs_hold(db_session: AsyncSession, project):
+    rows = [json.loads(row) for row in REAL_LOGS.read_text(encoding="utf-8").splitlines()]
+    await ingest_logs(db_session, project.id, rows)
+    context = ToolContext(db_session, None, project.id, Path("."))
+    calls = {payload.call_id: payload for payload in of_type("tool_call")}
+    searches = [result for result in of_type("tool_result") if result.tool == "search_logs"]
+
+    for shown in searches:
+        claimed = json.loads(shown.output_preview)  # abbreviated, but true as far as it goes
+        real = json.loads(await call_tool(context, "search_logs", calls[shown.call_id].arguments))
+        assert claimed["total"] == real["total"], calls[shown.call_id].arguments
+        assert shown.summary.startswith(f"{real['total']} log lines")
+        assert claimed["by_level"] == real["by_level"]
+        refs = {item["ref"] for item in real["deploys"] + real["samples"]}
+        assert {item["ref"] for item in claimed["deploys"] + claimed["samples"]} <= refs
+    log_facts = [e for e in of_type("evidence_added") if e.source_type == "log"]
+    assert searches and log_facts
+    for fact in log_facts:  # each cites a line the agent was shown
+        assert any(fact.source_ref in result.output_preview for result in searches)
 
 
 def test_the_report_cites_only_evidence_that_exists():

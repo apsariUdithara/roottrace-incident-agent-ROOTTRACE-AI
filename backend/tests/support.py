@@ -2,10 +2,14 @@
 
 import asyncio
 from collections.abc import Awaitable, Callable
+from pathlib import Path
 
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
+
+# The PayStream logs of 6 Oct, the day of the hero scenario.
+REAL_LOGS = Path(__file__).resolve().parents[2] / "demo-target/fixtures/logs/2026-10-06.jsonl"
 
 
 def db[T](work: Callable[[AsyncSession], Awaitable[T]]) -> T:

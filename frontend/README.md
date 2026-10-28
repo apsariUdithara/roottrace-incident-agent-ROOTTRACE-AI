@@ -57,7 +57,7 @@ const investigation = await ok(
 
 Logged-in pages render inside `AppShell` (`src/layouts/app-shell.tsx`):
 
-- **Sidebar** (`src/components/app-sidebar.tsx`): Dashboard, Projects, Knowledge, Evaluation and Chat. The current section is highlighted and marked `aria-current="page"`. It collapses to icons with the top bar's button or Ctrl/⌘+B, and becomes a slide-over drawer below 768 px.
+- **Sidebar** (`src/components/app-sidebar.tsx`): Dashboard, Projects, Knowledge, Logs, Evaluation and Chat. The current section is highlighted and marked `aria-current="page"`. It collapses to icons with the top bar's button or Ctrl/⌘+B, and becomes a slide-over drawer below 768 px.
 - **Top bar:** the project switcher, the user's email, and Log out.
 - **Project switcher** (`src/components/project-switcher.tsx`): the user's projects, from `GET /projects`. A page about one project reads the selection with `useCurrentProject()` (`src/lib/current-project.ts`).
   - The choice is remembered in this browser. If it's missing, blocked, or isn't one of this user's projects, the switcher uses the first project.
@@ -85,9 +85,19 @@ Logged-in pages render inside `AppShell` (`src/layouts/app-shell.tsx`):
   - A failed run shows the backend's reason, and which commit the agent still searches.
   - When a run ends, the list reloads by itself: `last_indexed_at` is part of its query key.
 - **Tabs:** Docs, Code, Issues and Incidents, with a search of titles and paths. It searches once typing pauses (300 ms), not on every key. 50 items a page.
-- The tab, search and page are in the URL (`?type=code&q=pool&offset=50`), so a view can be shared or reloaded.
+- The tab, search and page are in the URL (`?type=code&q=pool&offset=50`), so a view can be shared or reloaded. `src/lib/search-params.ts` has the helpers: `withChanges` for the URL, and `useDebouncedParam` for a search box.
 - Items don't open anywhere yet: the source viewer comes with B-403.
 - `IngestBadge` (`src/components/ingest-status.tsx`) shows an indexing status anywhere.
+
+## Logs
+
+`/logs` (`src/pages/logs-page.tsx`) is the current project's structured logs, newest first: the lines the agent's `search_logs` tool reads.
+
+- **Filters:** level, service (only when there's more than one) and error type, from the values the logs hold (`GET /projects/{id}/logs/facets`, with counts); route (suggestions from the logs) and message text, once typing pauses; and a From/To window. They match as in the agent's tool, so the same filters find the same lines as its evidence.
+- **Times are UTC**, in the table and the window, as in the agent's evidence.
+- **A trace id** shows every line of that trace, whatever else was filtered.
+- The filters and page are in the URL (`?level=ERROR&route=/payments&since=2026-10-06T14:20:00Z`), so a link can open the lines behind a finding. 100 lines a page.
+- A window whose From is after its To is pointed out on the page, without asking the backend.
 
 ## Chat
 
