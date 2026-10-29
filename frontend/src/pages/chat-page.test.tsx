@@ -1,13 +1,14 @@
 // @vitest-environment jsdom
-import { cleanup, screen, within } from '@testing-library/react'
+import { act, cleanup, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { clearSession } from '@/api/session'
 import type { Schemas } from '@/api/types'
 import { historyForRequest, type ChatTurn } from '@/lib/chat'
+import { selectProject } from '@/lib/current-project'
 import { queryClient } from '@/lib/query-client'
-import { backend, json, project, renderApp, stubMatchMedia } from '@/test/helpers'
+import { backend, json, project, renderApp, stubMatchMedia, type RouteHandler } from '@/test/helpers'
 // Loaded up front: the route imports it lazily, and on a cold start (as in CI) loading it and
 // react-markdown can take longer than findBy waits.
 import '@/pages/chat-page'
@@ -34,15 +35,16 @@ function answer(
 }
 
 /** Opens the chat page with a backend whose POST /chat answers with `reply`; returns the
- * requests it received. Alice has `projects`, none by default. */
+ * requests it received. Alice has `projects`, none by default; `handle` answers other routes. */
 async function openChat(
   reply: (request: ChatRequest) => Response,
-  { projects = [] as Schemas['ProjectOut'][] } = {},
+  { projects = [] as Schemas['ProjectOut'][], handle = undefined as RouteHandler | undefined } = {},
 ) {
   const requests: ChatRequest[] = []
   backend({
     cookie: true,
     projects,
+    handle,
     chat: (request) => {
       requests.push(request)
       return reply(request)
@@ -200,11 +202,57 @@ describe('chat with project search', () => {
 
     const sources = within(await conversation().findByRole('list', { name: 'Sources' }))
     expect(sources.getAllByRole('listitem').map((chip) => chip.textContent)).toEqual([
-      'S1docs/pool.md § Pool @ f89f6df',
+      'S1pool.md § Pool',
       'S2INC-017',
     ])
+    // The whole ref is the chip's tooltip.
+    expect(sources.getByRole('button', { name: /S1/ }).getAttribute('title')).toBe(
+      'docs/pool.md § Pool @ f89f6df',
+    )
     expect(requests[0].project_id).toBe('p1')
     expect(conversation().getByText(/Keep the pool at 20 \[S1\]/)).toBeTruthy() // labels stay inline
+  })
+
+  it('opens a cited source in the viewer, from the project the answer searched', async () => {
+    const opened: string[] = []
+    const reply = answer('Raising it broke payments before [S2].')
+    await openChat(() => json(200, { ...reply, citations: CITATIONS }), {
+      projects: [PAYSTREAM, project('p2', 'Refunds')],
+      handle: (route, _body, query) => {
+        if (route !== 'GET /projects/p1/sources') return undefined
+        opened.push(query.get('ref')!)
+        return json(200, {
+          kind: 'incident',
+          ref: 'INC-017',
+          incident: {
+            id: 'i1',
+            key: 'INC-017',
+            title: 'Pool exhausted',
+            severity: 'SEV1',
+            symptoms: 'Payments returned 500.',
+            root_cause: 'DB_POOL_SIZE raised to 60.',
+            fix: 'Back to 20.',
+            commit_sha: null,
+            tags: [],
+            status: 'resolved',
+            occurred_at: null,
+            created_at: '2026-10-01T10:00:00Z',
+          },
+        })
+      },
+    })
+    await screen.findByRole('checkbox', { name: 'Search PayStream' })
+    const user = await ask('Has this happened before?')
+    const sources = within(await conversation().findByRole('list', { name: 'Sources' }))
+
+    // Another project chosen meanwhile: the answer's sources are still PayStream's.
+    act(() => selectProject('p2'))
+    expect(await screen.findByRole('checkbox', { name: 'Search Refunds' })).toBeTruthy()
+    await user.click(sources.getByRole('button', { name: /S2/ }))
+
+    const viewer = within(await screen.findByRole('dialog'))
+    expect(await viewer.findByText('DB_POOL_SIZE raised to 60.')).toBeTruthy()
+    expect(opened).toEqual(['INC-017']) // the search's own ref
   })
 
   it('leaves the project out when its search is off', async () => {

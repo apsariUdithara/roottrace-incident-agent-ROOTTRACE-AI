@@ -29,7 +29,8 @@ import {
   useRepositories,
   type Repository,
 } from '@/lib/repositories'
-import { useDebouncedParam, withChanges, type Changes } from '@/lib/search-params'
+import { useDebouncedParam, useSearchParamsUpdate } from '@/lib/search-params'
+import { useSourceViewer } from '@/lib/source-viewer'
 
 type SourceType = Schemas['DocumentSourceType']
 type Item = Schemas['KnowledgeItem']
@@ -176,12 +177,13 @@ function formatTime(iso: string): string {
 }
 
 function KnowledgeList({ projectId, repository }: { projectId: string; repository?: Repository }) {
-  const [params, setParams] = useSearchParams()
+  const [params] = useSearchParams()
   const type = TABS.find((tab) => tab.type === params.get('type'))?.type ?? 'doc'
   const q = params.get('q') ?? ''
   const offset = Math.max(0, Number(params.get('offset')) || 0)
   const [draft, setDraft] = useDebouncedParam('q') // searches once typing pauses
-  const update = (changes: Changes) => setParams(withChanges(changes), { replace: true })
+  const update = useSearchParamsUpdate()
+  const openSource = useSourceViewer()
 
   const items = useQuery({
     // A finished run changes last_indexed_at, and so the key: the list then reloads by itself.
@@ -242,6 +244,7 @@ function KnowledgeList({ projectId, repository }: { projectId: string; repositor
         {items.data && (
           <ItemList
             page={items.data}
+            onOpen={(item) => openSource(projectId, item.source_ref)}
             empty={emptyMessage(type, q, repository)}
             onPage={(next) => update({ offset: next })}
           />
@@ -263,10 +266,12 @@ function emptyMessage(type: SourceType, q: string, repository?: Repository): str
 function ItemList({
   page,
   empty,
+  onOpen,
   onPage,
 }: {
   page: Schemas['KnowledgePage']
   empty: string
+  onOpen: (item: Item) => void
   onPage: (offset: number) => void
 }) {
   if (page.total === 0) return <p className="py-6 text-sm text-muted-foreground">{empty}</p>
@@ -277,7 +282,7 @@ function ItemList({
     <>
       <ul aria-label="Indexed items" className="divide-y rounded-lg ring-1 ring-foreground/10">
         {page.items.map((item) => (
-          <ItemRow key={item.id} item={item} />
+          <ItemRow key={item.id} item={item} onOpen={() => onOpen(item)} />
         ))}
       </ul>
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -306,25 +311,32 @@ function ItemList({
   )
 }
 
-function ItemRow({ item }: { item: Item }) {
+/** One indexed item; it opens in the source viewer. */
+function ItemRow({ item, onOpen }: { item: Item; onOpen: () => void }) {
   const Icon = SOURCE_ICONS[item.source_type]
   // A file's title is just its name: show the path instead. Issues and incidents have real titles.
   const title = item.title && !item.path.endsWith(item.title) ? item.title : item.path
   const chunks = `${item.chunk_count} ${item.chunk_count === 1 ? 'chunk' : 'chunks'}`
 
   return (
-    <li className="flex items-center gap-3 px-3 py-2 text-xs">
-      <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate font-medium">{title}</span>
-        {title !== item.path && (
-          <span className="truncate font-mono text-muted-foreground">{item.path}</span>
+    <li>
+      <button
+        type="button"
+        onClick={onOpen}
+        className="flex w-full items-center gap-3 px-3 py-2 text-left text-xs hover:bg-muted/50"
+      >
+        <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <span className="truncate font-medium">{title}</span>
+          {title !== item.path && (
+            <span className="truncate font-mono text-muted-foreground">{item.path}</span>
+          )}
+        </div>
+        <span className="shrink-0 text-muted-foreground">{chunks}</span>
+        {item.commit_sha && (
+          <code className="shrink-0 text-muted-foreground">{item.commit_sha.slice(0, 7)}</code>
         )}
-      </div>
-      <span className="shrink-0 text-muted-foreground">{chunks}</span>
-      {item.commit_sha && (
-        <code className="shrink-0 text-muted-foreground">{item.commit_sha.slice(0, 7)}</code>
-      )}
+      </button>
     </li>
   )
 }

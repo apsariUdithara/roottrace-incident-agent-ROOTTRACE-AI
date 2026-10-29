@@ -13,6 +13,7 @@ import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { Textarea } from '@/components/ui/textarea'
 import { historyForRequest, type ChatTurn as Turn } from '@/lib/chat'
 import { useCurrentProject } from '@/lib/current-project'
+import { useSourceViewer } from '@/lib/source-viewer'
 
 type ChatTier = Schemas['ChatRequest']['tier']
 type Answer = Schemas['ChatResponse']
@@ -34,14 +35,20 @@ export function ChatPage() {
   const end = useRef<HTMLDivElement>(null)
 
   const send = useMutation({
-    mutationFn: (history: Turn[]) =>
-      ok(
+    mutationFn: async (history: Turn[]) => {
+      const searched = projectId // the answer's sources open in the project it searched
+      const answer = await ok(
         api.POST('/chat', {
-          body: { messages: historyForRequest(history), tier, project_id: projectId },
+          body: { messages: historyForRequest(history), tier, project_id: searched },
         }),
-      ),
-    onSuccess: (answer) =>
-      setTurns((current) => [...current, { role: 'assistant', content: answer.content, answer }]),
+      )
+      return { answer, searched }
+    },
+    onSuccess: ({ answer, searched }) =>
+      setTurns((current) => [
+        ...current,
+        { role: 'assistant', content: answer.content, answer, projectId: searched },
+      ]),
   })
 
   useEffect(() => end.current?.scrollIntoView?.({ block: 'end' }), [turns, send.isPending])
@@ -98,7 +105,7 @@ export function ChatPage() {
           ) : (
             <div key={index} className="flex flex-col gap-1">
               <Markdown>{turn.content}</Markdown>
-              <Sources citations={turn.answer.citations} />
+              <Sources citations={turn.answer.citations} projectId={turn.projectId} />
               <AnswerDetails answer={turn.answer} />
             </div>
           ),
@@ -162,14 +169,19 @@ export function ChatPage() {
   )
 }
 
-/** The sources an answer cites, as chips; the answer refers to them by label, e.g. [S1]. */
-function Sources({ citations }: { citations: Answer['citations'] }) {
+/** The sources an answer cites, as chips; the answer refers to them by label, e.g. [S1]. Each
+ * opens in the source viewer. */
+function Sources({ citations, projectId }: { citations: Answer['citations']; projectId?: string }) {
+  const openSource = useSourceViewer()
   if (citations.length === 0) return null
   return (
     <ul aria-label="Sources" className="flex flex-wrap gap-1.5">
       {citations.map((citation) => (
         <li key={citation.label} className="max-w-full">
-          <CitationChip citation={citation} />
+          <CitationChip
+            citation={citation}
+            onOpen={projectId ? () => openSource(projectId, citation.ref) : undefined}
+          />
         </li>
       ))}
     </ul>

@@ -86,7 +86,7 @@ Logged-in pages render inside `AppShell` (`src/layouts/app-shell.tsx`):
   - When a run ends, the list reloads by itself: `last_indexed_at` is part of its query key.
 - **Tabs:** Docs, Code, Issues and Incidents, with a search of titles and paths. It searches once typing pauses (300 ms), not on every key. 50 items a page.
 - The tab, search and page are in the URL (`?type=code&q=pool&offset=50`), so a view can be shared or reloaded. `src/lib/search-params.ts` has the helpers: `withChanges` for the URL, and `useDebouncedParam` for a search box.
-- Items don't open anywhere yet: the source viewer comes with B-403.
+- An item opens in the source viewer (see below), by its `source_ref`.
 - `IngestBadge` (`src/components/ingest-status.tsx`) shows an indexing status anywhere.
 
 ## Logs
@@ -97,6 +97,7 @@ Logged-in pages render inside `AppShell` (`src/layouts/app-shell.tsx`):
 - **Times are UTC**, in the table and the window, as in the agent's evidence.
 - **A trace id** shows every line of that trace, whatever else was filtered.
 - The filters and page are in the URL (`?level=ERROR&route=/payments&since=2026-10-06T14:20:00Z`), so a link can open the lines behind a finding. 100 lines a page.
+- Change the URL's filters with `useSearchParamsUpdate()` (`src/lib/search-params.ts`), not `setSearchParams`: React Router's functional update starts from the last render's params, so two quick changes (a filter, then the debounced search) could undo each other. The hook chains them.
 - A window whose From is after its To is pointed out on the page, without asking the backend.
 
 ## Upload
@@ -113,11 +114,22 @@ Logged-in pages render inside `AppShell` (`src/layouts/app-shell.tsx`):
 `/chat` (`src/pages/chat-page.tsx`) talks to Nemotron through `POST /chat`.
 
 - Each request sends the conversation so far, at most the latest 20 messages, starting with a question (`historyForRequest` in `src/lib/chat.ts`). The Model picker chooses Nano (fast) or Super (stronger).
-- **Search <project>** (on by default, when there is a current project) sends its `project_id`: the answer then comes from the project's docs, code, issues and past incidents. The sources it cites appear under it as chips (`CitationChip`, `src/components/source-chip.tsx`), and the answer refers to them inline as [S1], [S2]. The chips don't open anything yet: the source viewer comes with B-403.
+- **Search <project>** (on by default, when there is a current project) sends its `project_id`: the answer then comes from the project's docs, code, issues and past incidents. The sources it cites appear under it as chips (`CitationChip`, `src/components/source-chip.tsx`), and the answer refers to them inline as [S1], [S2]. A chip opens its source in the viewer, in the project that answer searched, even after switching projects.
 - Under each answer: the model that answered, the time it took, the tokens and the cost.
 - Enter sends and Shift+Enter starts a new line. An empty chat offers example questions, and New chat starts over.
 - On an error, the backend's own message is shown (for example the hourly limit), with Try again.
 - **Markdown** (`src/components/markdown.tsx`, GitHub-flavoured) renders model output. Raw HTML in it is never rendered, because model output is untrusted, and links open in a new tab. Reuse it for any text from the model.
+
+## Sources: chips and the viewer
+
+Every claim the app shows can be opened at its source: the code lines, commit, doc section, log lines, incident, issue or memory behind it.
+
+- **Refs come in two forms**, and `describeRef()` (`src/lib/source-refs.ts`) reads both, as the backend's `GET /projects/{id}/sources` does: the app's (`file:app/db.py#L3-L9@<sha>`, `doc:docs/pool.md`, `incident:INC-017`, `issue:42`) and the agent's, which are its tools' refs (`src/config.py L1-12 @ v1.4.8`, `docs/database.md § Database > Connection pooling L5-17 @ 6c4a9a3`, `commit 5b0bb55c90`, `INC-017`, `log trace_id=…`, `log deploy at …`, `sql: …`). It gives the kind and a short form for a chip.
+- **Chips** (`src/components/source-chip.tsx`): `SourceChip` shows an icon for each of the 8 evidence source types, the label (F1, S1) and the short form, with the whole ref as its tooltip. Give it `onOpen` and it's a button. A query result (`sql: …`) is never one: results aren't kept. `EvidenceChip` takes an `evidence_added` payload (a fact by its source, an inference by its label); `CitationChip` a chat citation, opening the search's own ref, which names the exact section or lines.
+- **The viewer** is one drawer in the app shell (`src/components/source-viewer.tsx`). Open a ref from any page with `const openSource = useSourceViewer()` (`src/lib/source-viewer.ts`), then `openSource(projectId, ref)`. It shows the backend's reason when a ref doesn't open.
+  - Views for each kind are in `src/components/source-views.tsx`. Files show line numbers with the cited lines marked and scrolled to; commits their message, files and a coloured diff; docs and issue bodies render as Markdown, loaded lazily (`doc-markdown.tsx`), scrolled to the cited heading (`headingSlug()` matches the backend's slug). A trace's log lines link to `/logs?trace_id=…`.
+  - No syntax highlighting: the cited lines are what matter.
+- `LevelBadge` (`src/components/log-level.tsx`) and `formatUtc` (`src/lib/time.ts`) are shared by the Logs page and the viewer.
 
 ## Docker
 

@@ -2,7 +2,8 @@ import type { Schemas } from '@/api/types'
 
 export type ChatTurn =
   | { role: 'user'; content: string }
-  | { role: 'assistant'; content: string; answer: Schemas['ChatResponse'] }
+  // projectId: the project the answer searched, where its sources open.
+  | { role: 'assistant'; content: string; answer: Schemas['ChatResponse']; projectId?: string }
 
 export const MAX_MESSAGES = 20 // what POST /chat accepts
 
