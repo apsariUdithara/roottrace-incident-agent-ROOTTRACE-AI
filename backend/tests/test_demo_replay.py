@@ -2,6 +2,7 @@
 
 import json
 import re
+import subprocess
 import uuid
 from collections.abc import Callable
 from pathlib import Path
@@ -11,14 +12,16 @@ from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agent.graph import _norm as normalized
+from app.agent.graph import _strings as strings_in
 from app.api.routes import investigations as investigations_route
 from app.core.config import get_settings
-from app.models import InvestigationEvent, Patch, Project
+from app.models import Incident, InvestigationEvent, Patch, Project, Repository
 from app.rag.ingest import ingest_logs
 from app.schemas.events import Step, event_adapter
 from app.tools import TOOLS, ToolContext, call_tool
 from scripts import scenario1_replay as scenario1
-from tests.support import REAL_LOGS, db, new_project
+from tests.support import REAL_INCIDENTS, REAL_LOGS, db, new_project
 
 NewUser = Callable[[], dict[str, str]]
 EVENTS = scenario1.events()
@@ -110,6 +113,63 @@ def test_the_report_cites_only_evidence_that_exists():
     assert set(report.contradiction_ids) <= set(facts)
     assert report.patch_id == of_type("patch_proposed")[0].patch_id
     assert report.confidence == of_type("confidence")[-1].score  # the score after the fix
+
+
+DEMO_BUILD = Path(__file__).resolve().parents[2] / "demo-target/build/paystream"
+
+
+@pytest.mark.skipif(
+    not DEMO_BUILD.exists(),
+    reason="needs the demo build: python demo-target/scripts/build_history.py",
+)
+def test_every_fact_opens_in_the_source_viewer_and_shows_its_excerpt(
+    client: TestClient, new_user: NewUser
+):
+    """Against the real demo build at v1.4.8, as the source viewer would open them. Query
+    results aren't kept, so database facts are the one kind that doesn't open."""
+    headers = new_user()
+    project_id = new_project(client, headers, "PayStream")
+    response = client.post(
+        f"/projects/{project_id}/repositories",
+        headers=headers,
+        json={"url": "https://github.com/acme/paystream", "default_branch": scenario1.DEPLOYED_REF},
+    )
+    assert response.status_code == 201, response.text
+    release = subprocess.run(
+        ["git", "-C", str(DEMO_BUILD), "rev-parse", scenario1.DEPLOYED_REF],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+
+    async def index(session: AsyncSession) -> None:
+        repository = await session.get(Repository, uuid.UUID(response.json()["id"]))
+        repository.local_path, repository.last_indexed_sha = str(DEMO_BUILD), release
+        rows = [json.loads(row) for row in REAL_LOGS.read_text(encoding="utf-8").splitlines()]
+        await ingest_logs(session, uuid.UUID(project_id), rows)
+        for record in json.loads(REAL_INCIDENTS.read_text(encoding="utf-8")):
+            fields = ("key", "title", "severity", "symptoms", "root_cause", "fix", "tags")
+            session.add(
+                Incident(project_id=uuid.UUID(project_id), **{f: record.get(f) for f in fields})
+            )
+
+    db(index)
+    facts = [e for e in of_type("evidence_added") if e.kind == "fact"]
+
+    for fact in facts:
+        opened = client.get(
+            f"/projects/{project_id}/sources", headers=headers, params={"ref": fact.source_ref}
+        )
+        if fact.source_type == "database":
+            assert opened.status_code == 404, fact.source_ref
+            continue
+        assert opened.status_code == 200, (fact.source_ref, opened.text)
+        source = opened.json()
+        # The agent's own grounding check: in the JSON or in its strings, ignoring whitespace.
+        shown = " ".join([json.dumps(source), *strings_in(source)])
+        assert normalized(fact.excerpt) in normalized(shown), fact.source_ref
+    kinds = {"log", "commit", "code", "doc", "incident", "database"}
+    assert {fact.source_type for fact in facts} == kinds
 
 
 def test_its_tests_go_red_then_green_without_claiming_a_sandbox():

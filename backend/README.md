@@ -104,7 +104,8 @@ Routes get a session with the `SessionDep` dependency from `app/core/db.py`. The
 - Files, docs and commits are read from the clone with git at the version the ref names. Without one (or with `HEAD`), it's the indexed commit, since the clone's HEAD can be another branch. A version is never passed to git as an option, and paths stay inside the repository.
 - A doc's `section` is the cited heading's GitHub-style slug (`Pool sizing` → `pool-sizing`), for the viewer to scroll to. A doc citation's line numbers aren't returned.
 - Not resolvable by design: `sql: …` (query results aren't kept; the fact's excerpt is the result) and a memory's own `investigation:<id>`.
-- Issues come from the index, which doesn't keep labels, so `labels` is empty. `url` is the repository's GitHub URL plus `/issues/<n>`.
+- Issues come from the index, which keeps only an issue's number, state, title and body: there are no labels, and `state` is null if the index doesn't say. `url` is the repository's GitHub URL plus `/issues/<n>`, or null without a repository.
+- `tests/test_demo_replay.py` opens every fact of the scenario-1 replay against the real demo build and finds its excerpt in what's shown. It's skipped when `demo-target/build/paystream` hasn't been built (as in CI's backend job).
 
 **Uploads** (`app/rag/uploads.py`) put your own data where the agent looks: log lines into `log_entries` (for `search_logs`), incidents into `incidents` and the search index (for `search_previous_incidents`).
 - **Formats:** CSV with a header row (commas, semicolons, tabs or pipes), JSONL, JSON or YAML (a list, or an object holding one such as `{"incidents": [...]}`). Nested keys become columns like `http.status`. YAML anchors and aliases are refused: they can make a small file expand without end.

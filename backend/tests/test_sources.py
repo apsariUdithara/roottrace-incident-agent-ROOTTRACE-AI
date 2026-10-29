@@ -275,7 +275,6 @@ def test_opens_an_incident_an_issue_and_a_memory(client: TestClient, indexed: di
         "title": "Checkout returns 500",
         "body": "Since the deploy.",
         "state": "closed",
-        "labels": [],
         "url": "https://github.com/acme/paylite/issues/41",
     }
 
@@ -337,6 +336,28 @@ def test_code_needs_an_indexed_repository_but_the_rest_doesnt(client: TestClient
 
 async def _add(session: AsyncSession, row: Any) -> None:
     session.add(row)
+
+
+def test_an_issue_without_a_known_state_or_repository_says_so(client: TestClient, alice: dict):
+    project_id = uuid.UUID(alice["project_id"])
+
+    async def add(session: AsyncSession) -> None:
+        issue = Document(
+            project_id=project_id, source_type=DocumentSourceType.ISSUE, path="issue:7", hash="h"
+        )
+        session.add(issue)
+        await session.flush()
+        session.add(
+            DocumentChunk(
+                document_id=issue.id, project_id=project_id, content="Issue #7\nSlow search\nBody"
+            )
+        )
+
+    db(add)
+    issue = open_source(client, alice, "issue:7")
+
+    assert (issue["title"], issue["body"]) == ("Slow search", "Body")
+    assert (issue["state"], issue["url"]) == (None, None)
 
 
 def test_another_users_sources_are_invisible(client: TestClient, indexed: dict, new_user: NewUser):

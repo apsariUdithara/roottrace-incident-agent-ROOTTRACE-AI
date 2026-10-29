@@ -4487,22 +4487,29 @@
             "title": "Body"
           },
           "state": {
-            "type": "string",
-            "enum": [
-              "open",
-              "closed"
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "open",
+                  "closed"
+                ]
+              },
+              {
+                "type": "null"
+              }
             ],
             "title": "State"
           },
-          "labels": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Labels"
-          },
           "url": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Url"
           }
         },
@@ -4514,7 +4521,6 @@
           "title",
           "body",
           "state",
-          "labels",
           "url"
         ],
         "title": "IssueSource"

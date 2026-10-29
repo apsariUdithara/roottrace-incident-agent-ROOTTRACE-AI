@@ -354,7 +354,8 @@ async def _issue(
     session: AsyncSession, project_id: uuid.UUID, ref: str, number: str
 ) -> IssueSource:
     """An issue from the index: ingest keeps one chunk per issue, "Issue #<n> (<state>, <date>)",
-    then the title, then the body. Labels aren't indexed, so there are none."""
+    then the title, then the body. The state is None if the header doesn't say, and the link
+    is None without a repository to link into."""
     if not number.isdigit():
         raise not_found(f"This project has no issue #{number}")
     row = (
@@ -374,7 +375,7 @@ async def _issue(
     document, content = row
     header, _, rest = content.partition("\n")
     title, _, body = rest.partition("\n")
-    state = match[1] if (match := ISSUE_STATE.match(header)) else "open"
+    state = match[1] if (match := ISSUE_STATE.match(header)) else None
     repo = await session.scalar(
         select(Repository).where(Repository.project_id == project_id).limit(1)
     )
@@ -385,8 +386,7 @@ async def _issue(
         title=document.title or title,
         body=body,
         state=state,
-        labels=[],
-        url=f"{repo.url.removesuffix('.git')}/issues/{number}" if repo else "",
+        url=f"{repo.url.removesuffix('.git')}/issues/{number}" if repo else None,
     )
 
 

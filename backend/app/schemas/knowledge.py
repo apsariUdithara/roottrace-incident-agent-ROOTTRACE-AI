@@ -235,9 +235,10 @@ class IssueSource(_Source):
     number: int
     title: str
     body: str  # markdown
-    state: Literal["open", "closed"]
-    labels: list[str]
-    url: str
+    # The index keeps only an issue's number, state, title and body, so no labels; and the state
+    # and a link only when they're known.
+    state: Literal["open", "closed"] | None
+    url: str | None
 
 
 class MemorySource(_Source):

@@ -1362,15 +1362,10 @@ export interface components {
             title: string;
             /** Body */
             body: string;
-            /**
-             * State
-             * @enum {string}
-             */
-            state: "open" | "closed";
-            /** Labels */
-            labels: string[];
+            /** State */
+            state: ("open" | "closed") | null;
             /** Url */
-            url: string;
+            url: string | null;
         };
         /**
          * KnowledgeItem
