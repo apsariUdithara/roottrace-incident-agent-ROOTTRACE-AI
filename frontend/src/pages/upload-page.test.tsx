@@ -7,9 +7,10 @@ import { clearSession } from '@/api/session'
 import type { Schemas } from '@/api/types'
 import { queryClient } from '@/lib/query-client'
 import { backend, here, json, project, renderApp, stubMatchMedia } from '@/test/helpers'
+import { NodeFile, NodeFormData } from '@/test/node-uploads'
 
 type Mapping = Record<string, string>
-type Sent = { route: string; kind: string; size: number; mapping: Mapping | null }
+type Sent = { route: string; kind: string; name: string; size: number; mapping: Mapping | null }
 
 const LOG_FIELDS: Schemas['UploadField'][] = [
   { name: 'ts', required: true, description: 'When it was logged' },
@@ -44,10 +45,8 @@ function preview(kind: Schemas['UploadKind'], filename: string, mapping: Mapping
 }
 
 /** A backend with Alice's project. `previews` and `uploads` answer instead of the stand-in.
- * Returns what each upload request sent. jsdom's File loses its name on the way through Node's
- * fetch (a browser keeps it), so the stand-in calls the file `filename`. */
+ * Returns what each upload request sent. */
 function fakeBackend({
-  filename = 'access.csv',
   previews = undefined as Response | undefined,
   uploads = undefined as Response | undefined,
 } = {}) {
@@ -60,10 +59,10 @@ function fakeBackend({
       const form = body as FormData
       const file = form.get('file') as File
       const mapping = form.get('mapping') ? (JSON.parse(form.get('mapping') as string) as Mapping) : null
-      sent.push({ route, kind: form.get('kind') as string, size: file.size, mapping })
+      sent.push({ route, kind: form.get('kind') as string, name: file.name, size: file.size, mapping })
       const kind = form.get('kind') as Schemas['UploadKind']
-      if (route.endsWith('/preview')) return previews ?? json(200, preview(kind, filename, mapping))
-      return uploads ?? json(201, preview(kind, filename, mapping).result)
+      if (route.endsWith('/preview')) return previews ?? json(200, preview(kind, file.name, mapping))
+      return uploads ?? json(201, preview(kind, file.name, mapping).result)
     },
   })
   return sent
@@ -71,6 +70,9 @@ function fakeBackend({
 
 beforeEach(() => {
   stubMatchMedia()
+  // Node's own, so the file reaches the stand-in backend whole (see node-uploads.ts).
+  vi.stubGlobal('FormData', NodeFormData)
+  vi.stubGlobal('File', NodeFile)
   localStorage.setItem('roottrace.project', 'p1')
 })
 
@@ -106,7 +108,13 @@ describe('upload page', () => {
 
     expect(await screen.findByText('Choose the column that holds level.')).toBeTruthy()
     expect(sent).toEqual([
-      { route: 'POST /projects/p1/uploads/preview', kind: 'logs', size: ACCESS_LOG.length, mapping: null },
+      {
+        route: 'POST /projects/p1/uploads/preview',
+        kind: 'logs',
+        name: 'access.csv',
+        size: ACCESS_LOG.length,
+        mapping: null,
+      },
     ])
     expect(screen.getByText('3 rows, read as CSV.', { exact: false })).toBeTruthy()
     expect((screen.getByLabelText('Column for ts') as HTMLSelectElement).value).toBe('timestamp')
@@ -128,6 +136,7 @@ describe('upload page', () => {
     expect(sent.at(-1)).toEqual({
       route: 'POST /projects/p1/uploads',
       kind: 'logs',
+      name: 'access.csv',
       size: ACCESS_LOG.length,
       mapping: { ts: 'timestamp', message: 'msg', level: 'lvl' }, // as checked
     })
@@ -142,7 +151,7 @@ describe('upload page', () => {
 
   it('opens for incidents from a link, and guesses again when that changes', async () => {
     const user = userEvent.setup()
-    const sent = fakeBackend({ filename: 'history.csv' })
+    const sent = fakeBackend()
     const router = await openUpload('/upload?kind=incidents')
 
     expect((screen.getByLabelText('Incidents') as HTMLInputElement).checked).toBe(true)

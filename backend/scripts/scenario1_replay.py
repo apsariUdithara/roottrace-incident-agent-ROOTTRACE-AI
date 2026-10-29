@@ -81,7 +81,7 @@ STARTED_AT = datetime(2026, 10, 6, 15, 25, tzinfo=UTC)  # just after the inciden
 TOTAL_TOKENS, TOTAL_COST_USD = 113_797, 0.053399  # the real run's
 
 BAD_COMMIT = "5b0bb55c90"
-DOCS_SHA = "f89f6df"  # v1.4.8, the indexed version
+DOCS_SHA = "6c4a9a3"  # v1.4.8, the indexed version (the build's SHAs never change)
 CONFIG = "src/paystream/database/config.py"
 NEW_TEST = "tests/test_pool_fits_database.py"
 _DEFAULTS = Settings.model_fields

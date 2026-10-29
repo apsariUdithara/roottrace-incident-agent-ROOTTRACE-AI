@@ -92,6 +92,18 @@ function fakeBackend({
           const page = matching.slice(offset, offset + limit)
           return json(200, { items: page, total: matching.length, limit, offset })
         }
+        case 'GET /projects/p1/sources':
+          queries.push(query)
+          return json(200, {
+            kind: 'file',
+            ref: query.get('ref'),
+            path: 'app/db.py',
+            sha: SHA,
+            language: 'python',
+            content: 'POOL_SIZE = 20\n',
+            start_line: null,
+            end_line: null,
+          })
       }
       return undefined
     },
@@ -145,6 +157,17 @@ describe('knowledge page', () => {
     expect(screen.getByRole('tab', { name: 'Incidents' }).getAttribute('aria-selected')).toBe('true')
     const upload = screen.getByRole('link', { name: 'Upload incident history' })
     expect(upload.getAttribute('href')).toBe('/upload?kind=incidents')
+  })
+
+  it('opens an item in the source viewer', async () => {
+    const { queries } = fakeBackend()
+    await openKnowledge('/knowledge?type=code')
+
+    await userEvent.setup().click(list().getByRole('button', { name: /app\/db\.py/ }))
+
+    const viewer = within(await screen.findByRole('dialog'))
+    expect(await viewer.findByText('POOL_SIZE = 20')).toBeTruthy()
+    expect(queries.at(-1)!.get('ref')).toBe('code:app/db.py') // the item's own source_ref
   })
 
   it('opens on the tab and search in the link', async () => {

@@ -77,7 +77,6 @@ ROUTES = {
 # {investigation_id} are the owner's; {other_id} is a random id for rows that don't exist yet.
 STUBS: list[tuple[str, str, str, dict[str, Any]]] = [
     ("POST", "/auth/demo", "B-1001", {}),
-    ("GET", PROJECT + "/sources?ref=commit:a3f9c21", "B-401", {}),
     ("GET", PROJECT + "/memories?category=project_fact&status=active", "B-703", {}),
     ("PATCH", PROJECT + "/memories/{other_id}", "B-703", {"json": {"status": "archived"}}),
     ("DELETE", PROJECT + "/memories/{other_id}", "B-703", {}),

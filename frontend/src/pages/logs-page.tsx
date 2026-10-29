@@ -9,6 +9,7 @@ import { Link, useSearchParams } from 'react-router'
 
 import { api, ok } from '@/api/client'
 import type { Schemas } from '@/api/types'
+import { LevelBadge } from '@/components/log-level'
 import { PageHeader } from '@/components/page-header'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -19,7 +20,8 @@ import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useCurrentProject } from '@/lib/current-project'
 import { errorMessage } from '@/lib/errors'
-import { useDebouncedParam, withChanges, type Changes } from '@/lib/search-params'
+import { useDebouncedParam, useSearchParamsUpdate, type Changes } from '@/lib/search-params'
+import { formatUtc } from '@/lib/time'
 
 type Facets = Schemas['LogFacets']
 type LogLine = Schemas['LogEntryOut']
@@ -102,8 +104,8 @@ function ProjectLogs({ projectId }: { projectId: string }) {
 }
 
 function LogExplorer({ projectId, facets }: { projectId: string; facets: Facets }) {
-  const [params, setParams] = useSearchParams()
-  const update = (changes: Changes) => setParams(withChanges(changes), { replace: true })
+  const [params] = useSearchParams()
+  const update = useSearchParamsUpdate()
   const filters = Object.fromEntries(FILTERS.map((name) => [name, params.get(name) || undefined]))
   const offset = Math.max(0, Number(params.get('offset')) || 0)
   const filtered = FILTERS.some((name) => params.get(name))
@@ -129,8 +131,8 @@ function LogExplorer({ projectId, facets }: { projectId: string; facets: Facets 
   return (
     <div className="flex flex-col gap-3">
       <p className="text-xs text-muted-foreground">
-        {facets.total.toLocaleString('en')} lines, from {formatTs(facets.first_ts!)} to{' '}
-        {formatTs(facets.last_ts!)}
+        {facets.total.toLocaleString('en')} lines, from {formatUtc(facets.first_ts!)} to{' '}
+        {formatUtc(facets.last_ts!)}
       </p>
       <LogFilters facets={facets} update={update} onClear={filtered ? clear : undefined} />
       {backwards ? (
@@ -328,11 +330,6 @@ function fromInput(value: string): string {
   return `${value.length === 16 ? `${value}:00` : value}Z`
 }
 
-/** "2026-10-06 14:26:27", in UTC. */
-function formatTs(iso: string): string {
-  return new Date(iso).toISOString().slice(0, 19).replace('T', ' ')
-}
-
 function LogTable({
   page,
   showService,
@@ -409,16 +406,6 @@ function LogTable({
   )
 }
 
-const ERROR_LEVELS = new Set(['ERROR', 'FATAL', 'CRITICAL'])
-const WARN_LEVELS = new Set(['WARN', 'WARNING'])
-
-function LevelBadge({ level }: { level: string }) {
-  const upper = level.toUpperCase()
-  if (ERROR_LEVELS.has(upper)) return <Badge variant="destructive">{level}</Badge>
-  if (WARN_LEVELS.has(upper)) return <Badge variant="secondary">{level}</Badge>
-  return <span className="px-2 text-muted-foreground">{level}</span>
-}
-
 function LogRow({
   line,
   showService,
@@ -434,7 +421,7 @@ function LogRow({
 
   return (
     <tr className="align-top">
-      <td className="px-3 py-1.5 font-mono whitespace-nowrap text-muted-foreground">{formatTs(line.ts)}</td>
+      <td className="px-3 py-1.5 font-mono whitespace-nowrap text-muted-foreground">{formatUtc(line.ts)}</td>
       <td className="px-3 py-1.5">
         <LevelBadge level={line.level} />
       </td>

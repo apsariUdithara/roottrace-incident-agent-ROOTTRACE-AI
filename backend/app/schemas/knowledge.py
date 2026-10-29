@@ -221,8 +221,8 @@ class DocSource(_Source):
 
 class LogSource(_Source):
     kind: Literal["log"]
-    trace_id: str
-    entries: list[LogEntryOut]  # every line with this trace_id, oldest first
+    trace_id: str | None  # None for a deploy line logged without one
+    entries: list[LogEntryOut]  # every line with this trace_id (or the deploy's), oldest first
 
 
 class IncidentSource(_Source):
@@ -235,9 +235,10 @@ class IssueSource(_Source):
     number: int
     title: str
     body: str  # markdown
-    state: Literal["open", "closed"]
-    labels: list[str]
-    url: str
+    # The index keeps only an issue's number, state, title and body, so no labels; and the state
+    # and a link only when they're known.
+    state: Literal["open", "closed"] | None
+    url: str | None
 
 
 class MemorySource(_Source):

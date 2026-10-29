@@ -927,7 +927,7 @@
           "knowledge"
         ],
         "summary": "Resolve Source",
-        "description": "Resolves an evidence `source_ref` for the source viewer. 404 if it doesn't resolve.",
+        "description": "Resolves an evidence `source_ref` for the source viewer: the file, doc, commit, log lines,\nincident, issue or memory it points to. Takes the app's refs and the agent's (see\napp/rag/sources.py). 404 if it doesn't resolve, 409 if it needs the repository and that isn't\nindexed, 422 for a file too large or binary to show.",
         "operationId": "resolve_source_projects__project_id__sources_get",
         "security": [
           {
@@ -4487,22 +4487,29 @@
             "title": "Body"
           },
           "state": {
-            "type": "string",
-            "enum": [
-              "open",
-              "closed"
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "open",
+                  "closed"
+                ]
+              },
+              {
+                "type": "null"
+              }
             ],
             "title": "State"
           },
-          "labels": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Labels"
-          },
           "url": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Url"
           }
         },
@@ -4514,7 +4521,6 @@
           "title",
           "body",
           "state",
-          "labels",
           "url"
         ],
         "title": "IssueSource"
@@ -4849,7 +4855,14 @@
             "title": "Kind"
           },
           "trace_id": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Trace Id"
           },
           "entries": {

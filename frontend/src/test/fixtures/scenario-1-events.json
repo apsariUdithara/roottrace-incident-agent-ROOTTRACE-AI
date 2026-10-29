@@ -226,8 +226,8 @@
       "tool": "search_documents",
       "ok": true,
       "duration_ms": 1840,
-      "summary": "3 results; top: docs/database.md § Database > Connection pooling L5-17 @ f89f6df",
-      "output_preview": "{\"results\": [{\"ref\": \"docs/database.md § Database > Connection pooling L5-17 @ f89f6df\", \"content\": \"This total **must stay at or below Postgres `max_connections`** (currently 100). With 5 instances, the **recommended pool size is 20 per instance or less**.\"}]}",
+      "summary": "3 results; top: docs/database.md § Database > Connection pooling L5-17 @ 6c4a9a3",
+      "output_preview": "{\"results\": [{\"ref\": \"docs/database.md § Database > Connection pooling L5-17 @ 6c4a9a3\", \"content\": \"This total **must stay at or below Postgres `max_connections`** (currently 100). With 5 instances, the **recommended pool size is 20 per instance or less**.\"}]}",
       "error": null
     }
   },
@@ -402,7 +402,7 @@
       "statement": "docs/database.md requires DB_POOL_SIZE × INSTANCES to stay at or below max_connections (100), and recommends a pool of 20 with 5 instances.",
       "tool": "search_documents",
       "source_type": "doc",
-      "source_ref": "docs/database.md § Database > Connection pooling L5-17 @ f89f6df",
+      "source_ref": "docs/database.md § Database > Connection pooling L5-17 @ 6c4a9a3",
       "excerpt": "This total **must stay at or below Postgres `max_connections`** (currently 100). With 5 instances, the **recommended pool size is 20 per instance or less**.",
       "cites": [],
       "stance": "neutral",

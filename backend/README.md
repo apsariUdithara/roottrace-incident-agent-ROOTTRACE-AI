@@ -96,6 +96,16 @@ Routes get a session with the `SessionDep` dependency from `app/core/db.py`. The
 | `GET /projects/{id}/logs/facets` | What the logs hold, for the explorer's filters: the levels, services, routes and error types with how many lines have each (the 100 most frequent per field), and the first and last time. |
 | `POST /projects/{id}/uploads/preview` | Multipart: `kind` (`logs` or `incidents`), `file`, and optionally `mapping` (JSON, our field to the file's column). Saves nothing. Returns the file's columns and first rows, our `fields`, the `mapping` (the one sent, or one guessed from the column names), and what importing would do: `imported`, `skipped`, `failed` and the first 20 `errors`. A mapping without a required field gives `mapping_error` instead, so the mapping can be fixed. |
 | `POST /projects/{id}/uploads` | The same form; 201 with what was imported. 413 over 20 MB, 422 for a file it can't read or a mapping without a required field, 502 if uploaded incidents can't be embedded (then nothing is saved). |
+| `GET /projects/{id}/sources?ref=` | Opens a `source_ref` for the source viewer: one of the `Source` kinds (`file`, `doc`, `commit`, `log`, `incident`, `issue`, `memory`). 404 (with the reason) if it doesn't resolve, 409 if it needs the repository and that isn't indexed, 422 for a file over 1 MB or a binary one. |
+
+**Sources** (`app/rag/sources.py`) take both kinds of ref:
+- **The app's**, from the Knowledge list and chat citations: `file:app/db.py#L10-L20@<sha>`, `doc:docs/pool.md` (optionally `#<heading-slug>`), `incident:INC-017`, `issue:42`, plus `commit:<sha>`, `log:<trace id>` and `memory:<id>`.
+- **The agent's**, which are its tools' result refs, so every fact opens: `app/db.py L10-20 @ v1.4.8`, `docs/pool.md § Pool > Size L5-17 @ f89f6df`, `app/db.py :: connect L3-9 @ f89f6df`, `commit 5b0bb55c90`, `INC-017`, `log trace_id=…`, `log deploy at <time>`.
+- Files, docs and commits are read from the clone with git at the version the ref names. Without one (or with `HEAD`), it's the indexed commit, since the clone's HEAD can be another branch. A version is never passed to git as an option, and paths stay inside the repository.
+- A doc's `section` is the cited heading's GitHub-style slug (`Pool sizing` → `pool-sizing`), for the viewer to scroll to. A doc citation's line numbers aren't returned.
+- Not resolvable by design: `sql: …` (query results aren't kept; the fact's excerpt is the result) and a memory's own `investigation:<id>`.
+- Issues come from the index, which keeps only an issue's number, state, title and body: there are no labels, and `state` is null if the index doesn't say. `url` is the repository's GitHub URL plus `/issues/<n>`, or null without a repository.
+- `tests/test_demo_replay.py` opens every fact of the scenario-1 replay against the real demo build and finds its excerpt in what's shown. It's skipped when `demo-target/build/paystream` hasn't been built (as in CI's backend job).
 
 **Uploads** (`app/rag/uploads.py`) put your own data where the agent looks: log lines into `log_entries` (for `search_logs`), incidents into `incidents` and the search index (for `search_previous_incidents`).
 - **Formats:** CSV with a header row (commas, semicolons, tabs or pipes), JSONL, JSON or YAML (a list, or an object holding one such as `{"incidents": [...]}`). Nested keys become columns like `http.status`. YAML anchors and aliases are refused: they can make a small file expand without end.
@@ -171,7 +181,7 @@ The MCP servers are mounted at `/mcp/github`, `/mcp/docs` and `/mcp/incidents`. 
 Every route in [IMPLEMENTATION_PLAN.md §11](../docs/IMPLEMENTATION_PLAN.md#11-backend-api-surface-fastapi), plus the ones the backlog adds, exists with its final request and response models. So `/openapi.json` (and `/docs`) is the whole contract, and the frontend types are generated from it. A route that isn't built yet answers, after the login, ownership and validation checks:
 
 ```json
-501 {"detail": "Not implemented yet (B-401)", "code": "not_implemented"}
+501 {"detail": "Not implemented yet (B-701)", "code": "not_implemented"}
 ```
 
 The task id is the backlog item that fills it in. To build one, replace its `raise not_implemented(...)` with the real body, remove its row from `STUBS` in `tests/test_api_surface.py`, and add the route's own tests.
@@ -188,8 +198,7 @@ After any change to a route or a request/response/event model, run `npm run gen:
 | | `POST /investigations/{id}/patches/{patch_id}/rerun` | B-604 |
 | | `GET /investigations/{id}/trace` | B-803 |
 | Repositories | `GET/POST /projects/{id}/repositories`, `PATCH/DELETE …/{repository_id}` | done (see above) |
-| Knowledge | `POST /projects/{id}/ingest`, `GET /projects/{id}/knowledge?type=&q=`, `GET /projects/{id}/logs`, `/logs/facets`, `POST /projects/{id}/uploads`, `/uploads/preview` | done (see above) |
-| | `GET /projects/{id}/sources?ref=` | B-401 |
+| Knowledge | `POST /projects/{id}/ingest`, `GET /projects/{id}/knowledge?type=&q=`, `GET /projects/{id}/logs`, `/logs/facets`, `POST /projects/{id}/uploads`, `/uploads/preview`, `GET /projects/{id}/sources?ref=` | done (see above) |
 | Incidents | `GET/POST /projects/{id}/incidents`, `GET/PATCH/DELETE …/{incident_id}` | done (see above) |
 | Memories | `GET /projects/{id}/memories?category=&status=`, `PATCH/DELETE …/{memory_id}` | B-703 |
 | Evaluation | `GET /evaluation/runs`, `GET /evaluation/runs/{id}` | B-901 |

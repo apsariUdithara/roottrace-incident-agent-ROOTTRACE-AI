@@ -13,7 +13,6 @@ from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import OwnedProject
 from app.core.db import SessionDep
-from app.core.errors import not_implemented
 from app.llm.router import LLMRouter, get_router
 from app.models import (
     Document,
@@ -24,7 +23,7 @@ from app.models import (
     Project,
     Repository,
 )
-from app.rag import indexing, uploads
+from app.rag import indexing, sources, uploads
 from app.schemas.knowledge import (
     KnowledgeItem,
     KnowledgePage,
@@ -248,9 +247,16 @@ async def list_knowledge(
 async def resolve_source(
     project: OwnedProject,
     ref: Annotated[str, Query(min_length=3, max_length=1000, examples=["commit:a3f9c21"])],
+    session: SessionDep,
 ) -> Source:
-    """Resolves an evidence `source_ref` for the source viewer. 404 if it doesn't resolve."""
-    raise not_implemented("B-401")
+    """Resolves an evidence `source_ref` for the source viewer: the file, doc, commit, log lines,
+    incident, issue or memory it points to. Takes the app's refs and the agent's (see
+    app/rag/sources.py). 404 if it doesn't resolve, 409 if it needs the repository and that isn't
+    indexed, 422 for a file too large or binary to show."""
+    try:
+        return await sources.resolve(session, project, ref)
+    except sources.SourceError as exc:
+        raise HTTPException(exc.status_code, exc.detail) from None
 
 
 @router.get("/logs")

@@ -290,7 +290,10 @@ export interface paths {
         };
         /**
          * Resolve Source
-         * @description Resolves an evidence `source_ref` for the source viewer. 404 if it doesn't resolve.
+         * @description Resolves an evidence `source_ref` for the source viewer: the file, doc, commit, log lines,
+         *     incident, issue or memory it points to. Takes the app's refs and the agent's (see
+         *     app/rag/sources.py). 404 if it doesn't resolve, 409 if it needs the repository and that isn't
+         *     indexed, 422 for a file too large or binary to show.
          */
         get: operations["resolve_source_projects__project_id__sources_get"];
         put?: never;
@@ -1359,15 +1362,10 @@ export interface components {
             title: string;
             /** Body */
             body: string;
-            /**
-             * State
-             * @enum {string}
-             */
-            state: "open" | "closed";
-            /** Labels */
-            labels: string[];
+            /** State */
+            state: ("open" | "closed") | null;
             /** Url */
-            url: string;
+            url: string | null;
         };
         /**
          * KnowledgeItem
@@ -1483,7 +1481,7 @@ export interface components {
              */
             kind: "log";
             /** Trace Id */
-            trace_id: string;
+            trace_id: string | null;
             /** Entries */
             entries: components["schemas"]["LogEntryOut"][];
         };
