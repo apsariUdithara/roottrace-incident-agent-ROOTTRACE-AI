@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { Skeleton } from '@/components/ui/skeleton'
+import { statusTone } from '@/lib/colors'
 import { useCurrentProject } from '@/lib/current-project'
 import { errorMessage } from '@/lib/errors'
 import { useDebouncedParam, useSearchParamsUpdate, type Changes } from '@/lib/search-params'
@@ -26,7 +27,7 @@ import { formatUtc } from '@/lib/time'
 type Facets = Schemas['LogFacets']
 type LogLine = Schemas['LogEntryOut']
 
-const PAGE_SIZE = 100
+const PAGE_SIZE = 50 // short pages: a long table is hard to scan
 const FILTERS = ['level', 'service', 'route', 'error_type', 'text', 'trace_id', 'since', 'until']
 const NO_FILTERS: Changes = { ...Object.fromEntries(FILTERS.map((name) => [name, null])), offset: null }
 
@@ -177,8 +178,29 @@ function LogFilters({
   const service = params.get('service') ?? ''
   const pick = (name: string) => (value: string) => update({ [name]: value, offset: null })
 
+  const level = (params.get('level') ?? '').toUpperCase()
   return (
-    <div className="flex flex-wrap items-end gap-3">
+    <div className="flex flex-col gap-3 rounded-xl border bg-card p-4 shadow-xs">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-[0.8125rem] text-muted-foreground">Quick filters:</span>
+        <Button
+          size="sm"
+          variant="outline"
+          className={level === 'ERROR' ? statusTone('failed') : ''}
+          onClick={() => update({ level: level === 'ERROR' ? null : 'ERROR', offset: null })}
+        >
+          Errors only
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className={level === 'WARN' ? statusTone('weak') : ''}
+          onClick={() => update({ level: level === 'WARN' ? null : 'WARN', offset: null })}
+        >
+          Warnings only
+        </Button>
+      </div>
+    <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
       <FacetSelect
         label="Level"
         any="Any level"
@@ -210,7 +232,7 @@ function LogFilters({
           value={route}
           maxLength={500}
           onChange={(event) => setRoute(event.target.value)}
-          className="w-44"
+          className="w-full"
         />
         <datalist id={routes}>
           {facets.routes.map(({ value }) => (
@@ -225,7 +247,7 @@ function LogFilters({
           value={text}
           maxLength={200}
           onChange={(event) => setText(event.target.value)}
-          className="w-52"
+          className="w-full"
         />
       </FilterField>
       <TimeField label="From (UTC)" value={params.get('since')} onChange={pick('since')} />
@@ -249,13 +271,14 @@ function LogFilters({
         </Button>
       )}
     </div>
+    </div>
   )
 }
 
 function FilterField({ label, children }: { label: string; children: ReactNode }) {
   // The label wraps its field, so the field is named by it.
   return (
-    <Label className="flex flex-col items-start gap-1 text-[0.8125rem] text-muted-foreground">
+    <Label className="flex flex-col items-stretch gap-1 text-[0.8125rem] text-muted-foreground">
       {label}
       {children}
     </Label>
@@ -308,7 +331,7 @@ function TimeField({
         step={1}
         value={toInput(value)}
         onChange={(event) => onChange(fromInput(event.target.value))}
-        className="w-48"
+        className="w-full"
       />
     </FilterField>
   )

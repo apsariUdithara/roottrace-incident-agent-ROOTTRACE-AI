@@ -13,7 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { SOURCE_TONE, statusTone } from '@/lib/colors'
 import { useCurrentProject } from '@/lib/current-project'
 import { errorMessage } from '@/lib/errors'
-import { formatUtc } from '@/lib/time'
+import { formatShort } from '@/lib/time'
 
 export function DashboardPage() {
   const { project } = useCurrentProject()
@@ -73,7 +73,7 @@ export function DashboardPage() {
                   <div key={inc.id} className="flex items-center gap-2 text-sm">
                     <Badge variant="outline" className={SOURCE_TONE.incident}>{inc.key}</Badge>
                     <span className="flex-1 truncate">{inc.title}</span>
-                    {inc.occurred_at && <span className="text-[0.8125rem] text-muted-foreground">{formatUtc(inc.occurred_at)}</span>}
+                    {inc.occurred_at && <span className="text-[0.8125rem] text-muted-foreground">{formatShort(inc.occurred_at)}</span>}
                   </div>
                 ))}
                 {s.recent_incidents.length === 0 && <p className="text-sm text-muted-foreground">None yet.</p>}

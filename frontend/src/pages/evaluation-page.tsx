@@ -17,11 +17,12 @@ import { Link } from 'react-router'
 
 import { api, ok } from '@/api/client'
 import { PageHeader } from '@/components/page-header'
+import { Button } from '@/components/ui/button'
 import { StatTile } from '@/components/stat-tile'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { Skeleton } from '@/components/ui/skeleton'
-import type { TileTone } from '@/lib/colors'
+import { statusTone, type TileTone } from '@/lib/colors'
 import { errorMessage } from '@/lib/errors'
 import { formatUtc } from '@/lib/time'
 
@@ -117,9 +118,36 @@ export function EvaluationPage() {
   )
 }
 
+/** A case failed if any of its checks did; a healthy-code case fails by proposing any fix. */
+const failedCase = (c: Case) =>
+  c.root_cause_correct === false ||
+  c.citations === false ||
+  c.fix === false ||
+  (String(c.id).startsWith('healthy') && !!c.fix_status && c.fix_status !== 'none')
+
+const FIX_LABEL: Record<string, string> = { verified: 'verified', tests_failed: 'failed', none: 'none', untested: 'untested' }
+
 function Cases({ cases }: { cases: Case[] }) {
+  const [onlyFailures, setOnlyFailures] = useState(false)
+  const failures = cases.filter(failedCase).length
+  const shown = onlyFailures ? cases.filter(failedCase) : cases
   return (
-    <div className="overflow-x-auto rounded-lg ring-1 ring-foreground/10">
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <h2 className="mr-2 text-base font-semibold">Per-case results</h2>
+        <Button size="sm" variant={onlyFailures ? 'outline' : 'secondary'} onClick={() => setOnlyFailures(false)}>
+          All {cases.length}
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className={onlyFailures ? statusTone('failed') : ''}
+          onClick={() => setOnlyFailures(true)}
+        >
+          Failures {failures}
+        </Button>
+      </div>
+    <div className="overflow-x-auto rounded-xl bg-card ring-1 ring-foreground/10">
       <table aria-label="Cases" className="w-full text-[0.8125rem]">
         <thead className="border-b text-left text-muted-foreground">
           <tr>
@@ -133,7 +161,7 @@ function Cases({ cases }: { cases: Case[] }) {
           </tr>
         </thead>
         <tbody className="divide-y">
-          {cases.map((c) => (
+          {shown.map((c) => (
             <tr key={String(c.id)} className="align-top">
               <td className="px-3 py-1.5 font-mono whitespace-nowrap">
                 {c.investigation_id ? (
@@ -152,7 +180,7 @@ function Cases({ cases }: { cases: Case[] }) {
                 {typeof c.evidence === 'number' ? pct(c.evidence) : '—'}
               </td>
               <td className="px-3 py-1.5 whitespace-nowrap">
-                <Mark value={c.fix} /> {c.fix_status ? String(c.fix_status) : ''}
+                <Mark value={c.fix} /> {c.fix_status ? (FIX_LABEL[String(c.fix_status)] ?? String(c.fix_status)) : ''}
               </td>
               <td className="px-3 py-1.5 text-right">{typeof c.confidence === 'number' ? pct(c.confidence) : '—'}</td>
               <td className="px-3 py-1.5 text-right whitespace-nowrap text-muted-foreground">
@@ -162,6 +190,7 @@ function Cases({ cases }: { cases: Case[] }) {
           ))}
         </tbody>
       </table>
+    </div>
     </div>
   )
 }

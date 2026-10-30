@@ -1,23 +1,25 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CheckCircle2, CircleDashed, Loader2, MinusCircle, Search, XCircle } from 'lucide-react'
+import { CheckCircle2, ChevronRight, CircleDashed, Loader2, MinusCircle, Search, XCircle } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 
 import { api, ApiError, ok } from '@/api/client'
 import type { Investigation } from '@/api/types'
 import { Markdown } from '@/components/markdown'
+import { useShowMore } from '@/components/show-more'
 import { PageHeader } from '@/components/page-header'
-import { EvidenceChip } from '@/components/source-chip'
+import { EvidenceChip, SOURCE_ICONS } from '@/components/source-chip'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
-import { statusTone } from '@/lib/colors'
+import { SOURCE_TONE, statusTone } from '@/lib/colors'
 import { useCurrentProject } from '@/lib/current-project'
 import { applyEvents, emptyView, stepLabel, type InvestigationView } from '@/lib/investigation'
+import type { SourceKind } from '@/lib/source-refs'
 import { useSourceViewer } from '@/lib/source-viewer'
-import { formatUtc } from '@/lib/time'
+import { formatShort } from '@/lib/time'
 
 const EXAMPLE = "Payment API returning 500s after today's deploy"
 const POLL_MS = 1500
@@ -87,7 +89,7 @@ export function InvestigationsPage() {
               <StatusBadge status={item.status} />
               <span className="flex-1 truncate">{item.question}</span>
               {item.confidence != null && <span className="text-[0.8125rem]">{pct(item.confidence)}</span>}
-              <span className="text-[0.8125rem] text-muted-foreground">{formatUtc(item.started_at)}</span>
+              <span className="text-[0.8125rem] text-muted-foreground">{formatShort(item.started_at)}</span>
             </Link>
           </li>
         ))}
@@ -199,33 +201,75 @@ function RunSummary({ view, investigation }: { view: InvestigationView; investig
   )
 }
 
+/** The agent's 16 steps, grouped into the five phases a person thinks in. A finished phase
+ * folds to one line (its status and time); the phase that is running stays open. */
+const PHASES: { name: string; steps: string[] }[] = [
+  { name: 'Understand', steps: ['triage', 'recall_memory', 'plan'] },
+  { name: 'Investigate', steps: ['investigate', 'compare_evidence'] },
+  { name: 'Diagnose', steps: ['hypothesize', 'verify', 'score_confidence'] },
+  { name: 'Fix and test', steps: ['generate_patch', 'run_tests', 'verify_fix'] },
+  { name: 'Report', steps: ['write_report', 'draft_pr', 'save_memories', 'await_approval', 'create_pr'] },
+]
+
 function Timeline({ view }: { view: InvestigationView }) {
   return (
     <Card size="sm" className="self-start">
       <CardHeader>
-        <CardTitle>Steps</CardTitle>
+        <CardTitle>Progress</CardTitle>
       </CardHeader>
       <CardContent>
-        <ol aria-label="Steps" className="flex flex-col gap-1 text-sm">
-          {view.steps.map((step, index) => (
-            <li
-              key={index}
-              className={`flex items-start gap-2.5 rounded-md px-2 py-1.5 ${step.status === 'running' ? 'bg-primary/8 ring-1 ring-primary/20' : ''}`}
-            >
-              <StepIcon status={step.status} />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5">
-                  <span className={step.status === 'skipped' ? 'text-muted-foreground' : ''}>{stepLabel(step.step)}</span>
-                  {step.tier && <TierBadge tier={step.tier} />}
-                  {step.durationMs != null && (
-                    <span className="ml-auto whitespace-nowrap text-[0.8125rem] text-muted-foreground tabular-nums">{(step.durationMs / 1000).toFixed(1)} s</span>
-                  )}
-                </div>
-                {step.summary && <p className="truncate text-[0.8125rem] text-muted-foreground" title={step.summary}>{step.summary}</p>}
-              </div>
-            </li>
-          ))}
-          {view.steps.length === 0 && <li className="text-muted-foreground">Starting…</li>}
+        <ol aria-label="Steps" className="flex flex-col gap-1.5 text-sm">
+          {PHASES.map((phase) => {
+            const steps = view.steps.filter((s) => phase.steps.includes(s.step))
+            const status = steps.length === 0 ? 'pending' : steps.some((s) => s.status === 'running') ? 'running' : 'done'
+            const ms = steps.reduce((sum, s) => sum + (s.durationMs ?? 0), 0)
+            return (
+              <li key={phase.name}>
+                <details open={status === 'running'} className="group rounded-lg">
+                  <summary
+                    className={`flex cursor-pointer list-none items-center gap-2.5 rounded-lg px-2 py-2 hover:bg-muted ${status === 'running' ? 'bg-primary/8 ring-1 ring-primary/20' : ''}`}
+                  >
+                    <StepIcon status={status} />
+                    <span className={`font-medium ${status === 'pending' ? 'text-muted-foreground' : ''}`}>{phase.name}</span>
+                    {steps.length > 0 && (
+                      <span className="text-[0.8125rem] text-muted-foreground">
+                        {steps.length} step{steps.length === 1 ? '' : 's'}
+                      </span>
+                    )}
+                    {ms > 0 && (
+                      <span className="ml-auto text-[0.8125rem] whitespace-nowrap text-muted-foreground tabular-nums">
+                        {(ms / 1000).toFixed(0)} s
+                      </span>
+                    )}
+                    {steps.length > 0 && (
+                      <ChevronRight className={`size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90 ${ms > 0 ? '' : 'ml-auto'}`} />
+                    )}
+                  </summary>
+                  <ol className="mt-1 ml-[1.15rem] flex flex-col gap-1 border-l pl-3">
+                    {steps.map((step, index) => (
+                      <li key={index} className="flex items-start gap-2 py-1">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className={step.status === 'skipped' ? 'text-muted-foreground' : ''}>{stepLabel(step.step)}</span>
+                            {step.tier && <TierBadge tier={step.tier} />}
+                            {step.status === 'running' && <Loader2 className="size-3.5 animate-spin text-sky-500" aria-label="running" />}
+                            {step.durationMs != null && (
+                              <span className="ml-auto text-[0.8125rem] whitespace-nowrap text-muted-foreground tabular-nums">
+                                {(step.durationMs / 1000).toFixed(1)} s
+                              </span>
+                            )}
+                          </div>
+                          {step.summary && (
+                            <p className="truncate text-[0.8125rem] text-muted-foreground" title={step.summary}>{step.summary}</p>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                </details>
+              </li>
+            )
+          })}
         </ol>
       </CardContent>
     </Card>
@@ -245,6 +289,7 @@ function TierBadge({ tier }: { tier: string }) {
 
 function StepIcon({ status }: { status: string }) {
   if (status === 'running') return <Loader2 className="mt-0.5 size-4 shrink-0 animate-spin text-sky-500" aria-label="running" />
+  if (status === 'pending') return <CircleDashed className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-label="pending" />
   if (status === 'skipped') return <MinusCircle className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-label="skipped" />
   return <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-label="done" />
 }
@@ -337,33 +382,64 @@ function ConfidenceCard({ view }: { view: InvestigationView }) {
   )
 }
 
+/** Each tool in plain words, with the source kind it reads (for its icon and colour). */
+const TOOLS: Record<string, { label: string; kind: SourceKind }> = {
+  search_logs: { label: 'Searched the logs', kind: 'log' },
+  search_github_commits: { label: 'Searched the commits', kind: 'commit' },
+  get_commit_diff: { label: 'Read a commit', kind: 'commit' },
+  search_code: { label: 'Searched the code', kind: 'code' },
+  get_file: { label: 'Read a file', kind: 'code' },
+  search_documents: { label: 'Searched the docs', kind: 'doc' },
+  search_github_issues: { label: 'Searched the issues', kind: 'issue' },
+  search_previous_incidents: { label: 'Searched past incidents', kind: 'incident' },
+  get_incident: { label: 'Read a past incident', kind: 'incident' },
+  query_database: { label: 'Queried the database', kind: 'database' },
+}
+
 function ActivityTab({ view }: { view: InvestigationView }) {
   return (
     <ol aria-label="Tool calls" className="flex flex-col gap-2">
-      {view.tools.map((call) => (
+      {view.tools.map((call) => {
+        const tool = TOOLS[call.tool]
+        const Icon = tool ? SOURCE_ICONS[tool.kind] : Search
+        return (
         <li key={call.call_id}>
-          <details className="rounded-md border p-2 text-sm">
-            <summary className="flex cursor-pointer items-center gap-2">
+          <details className="group rounded-lg border bg-card text-sm">
+            <summary className="flex cursor-pointer list-none items-center gap-3 px-3 py-2.5">
+              <span className={`flex size-8 shrink-0 items-center justify-center rounded-md border ${tool ? SOURCE_TONE[tool.kind] : ''}`}>
+                <Icon className="size-4" aria-hidden />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">{tool?.label ?? call.tool}</span>
+                  {call.transport === 'mcp' && <Badge variant="secondary">MCP</Badge>}
+                  <code className="hidden text-xs text-muted-foreground sm:inline">{call.tool}</code>
+                </div>
+                <p className="truncate text-[0.8125rem] text-muted-foreground">{call.result?.summary ?? 'running…'}</p>
+              </div>
               {!call.result ? (
-                <Loader2 className="size-4 animate-spin" aria-label="running" />
+                <Loader2 className="size-4 shrink-0 animate-spin text-sky-500" aria-label="running" />
               ) : call.result.ok ? (
-                <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400" aria-label="ok" />
+                <CheckCircle2 className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-label="ok" />
               ) : (
-                <XCircle className="size-4 text-red-600 dark:text-red-400" aria-label="failed" />
+                <XCircle className="size-4 shrink-0 text-red-600 dark:text-red-400" aria-label="failed" />
               )}
-              <code className="font-semibold">{call.tool}</code>
-              {call.transport === 'mcp' && <Badge variant="secondary">MCP</Badge>}
-              <span className="truncate text-muted-foreground">{call.result?.summary ?? 'running…'}</span>
+              <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" aria-hidden />
             </summary>
-            <pre className="mt-2 overflow-x-auto rounded bg-muted p-2 text-[0.8125rem]">{JSON.stringify(call.arguments, null, 2)}</pre>
+            <div className="border-t px-3 pb-3">
+            <p className="mt-2 text-xs font-medium text-muted-foreground uppercase">Asked</p>
+            <pre className="mt-1 overflow-x-auto rounded bg-muted p-2 text-[0.8125rem]">{JSON.stringify(call.arguments, null, 2)}</pre>
+            {call.result && <p className="mt-2 text-xs font-medium text-muted-foreground uppercase">Found</p>}
             {call.result && (
-              <pre className="mt-2 max-h-64 overflow-auto rounded bg-muted p-2 text-[0.8125rem] whitespace-pre-wrap">
+              <pre className="mt-1 max-h-64 overflow-auto rounded bg-muted p-2 text-[0.8125rem] whitespace-pre-wrap">
                 {call.result.error ?? call.result.output_preview}
               </pre>
             )}
+            </div>
           </details>
         </li>
-      ))}
+        )
+      })}
       {view.tools.length === 0 && <p className="text-sm text-muted-foreground">No tool calls yet.</p>}
     </ol>
   )
@@ -372,31 +448,52 @@ function ActivityTab({ view }: { view: InvestigationView }) {
 function EvidenceTab({ view, projectId, chipsOnly = false }: { view: InvestigationView; projectId?: string; chipsOnly?: boolean }) {
   const openSource = useSourceViewer()
   const open = (ref?: string | null) => (projectId && ref ? () => openSource(projectId, ref) : undefined)
+  const chips = useShowMore(view.evidence, 8)
   if (chipsOnly) {
     return (
-      <ul aria-label="Evidence" className="flex flex-wrap gap-1.5">
-        {view.evidence.map((e) => (
-          <li key={e.evidence_id} className="max-w-full"><EvidenceChip evidence={e} onOpen={open(e.source_ref)} /></li>
-        ))}
-      </ul>
+      <div className="flex flex-col gap-2">
+        <h3 className="text-sm font-semibold">Evidence cited</h3>
+        <ul aria-label="Evidence" className="flex flex-wrap gap-1.5">
+          {chips.shown.map((e) => (
+            <li key={e.evidence_id} className="max-w-full"><EvidenceChip evidence={e} onOpen={open(e.source_ref)} /></li>
+          ))}
+        </ul>
+        {chips.toggle}
+      </div>
     )
   }
+  if (view.evidence.length === 0) return <p className="text-sm text-muted-foreground">No evidence yet.</p>
+  // Facts (seen in a tool's output, with a quote) first; then what the agent inferred from them.
+  const groups = [
+    { title: 'Facts', hint: 'seen in a source, with the exact quote', items: view.evidence.filter((e) => e.kind === 'fact') },
+    { title: 'Inferences', hint: 'what the agent concluded from the facts', items: view.evidence.filter((e) => e.kind !== 'fact') },
+  ].filter((g) => g.items.length > 0)
   return (
-    <ul aria-label="Evidence" className="flex flex-col gap-2">
-      {view.evidence.map((e) => (
-        <li key={e.evidence_id} className="flex flex-col gap-1 rounded-md border p-2 text-sm">
-          <div className="flex items-center gap-2">
-            <EvidenceChip evidence={e} onOpen={open(e.source_ref)} />
-            {e.stance !== 'neutral' && (
-              <Badge variant="outline" className={statusTone(e.stance === 'contradicts' ? 'failed' : 'ok')}>{e.stance}</Badge>
-            )}
-          </div>
-          <p>{e.statement}</p>
-          {e.excerpt && <pre className="overflow-x-auto rounded bg-muted p-2 text-[0.8125rem] whitespace-pre-wrap">{e.excerpt}</pre>}
-        </li>
+    <div aria-label="Evidence" className="flex flex-col gap-6">
+      {groups.map((group) => (
+        <section key={group.title} className="flex flex-col gap-2">
+          <h3 className="flex items-baseline gap-2 text-sm font-semibold">
+            {group.title} <span className="font-normal text-muted-foreground">{group.items.length} · {group.hint}</span>
+          </h3>
+          <ul className="flex flex-col gap-2">
+            {group.items.map((e) => (
+              <li key={e.evidence_id} className="flex flex-col gap-1.5 rounded-lg border bg-card p-3 text-sm">
+                <div className="flex items-center gap-2">
+                  <EvidenceChip evidence={e} onOpen={open(e.source_ref)} />
+                  {e.stance !== 'neutral' && (
+                    <Badge variant="outline" className={statusTone(e.stance === 'contradicts' ? 'failed' : 'ok')}>{e.stance}</Badge>
+                  )}
+                </div>
+                <p>{e.statement}</p>
+                {e.excerpt && (
+                  <pre className="overflow-x-auto rounded-md border-l-2 border-primary/40 bg-muted px-3 py-2 text-[0.8125rem] whitespace-pre-wrap">{e.excerpt}</pre>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
       ))}
-      {view.evidence.length === 0 && <p className="text-sm text-muted-foreground">No evidence yet.</p>}
-    </ul>
+    </div>
   )
 }
 

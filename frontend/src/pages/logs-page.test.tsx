@@ -184,7 +184,7 @@ describe('logs page', () => {
     ])
     expect(rows()[3].slice(4, 6)).toEqual(['', '']) // a deploy has no status or latency
     expect(screen.queryByLabelText('Service')).toBeNull() // only one service
-    expect([...queries[0]]).toEqual([['limit', '100'], ['offset', '0']]) // no filters
+    expect([...queries[0]]).toEqual([['limit', '50'], ['offset', '0']]) // no filters
     expect(screen.getByRole('link', { name: 'Upload logs' }).getAttribute('href')).toBe('/upload?kind=logs')
   })
 
@@ -289,15 +289,15 @@ describe('logs page', () => {
     const queries = fakeBackend({ lines: many })
     await openLogs()
 
-    expect(screen.getByText('1–100 of 250')).toBeTruthy()
+    expect(screen.getByText('1–50 of 250')).toBeTruthy()
     expect(messages()[0]).toBe('line 250')
 
     await user.click(screen.getByRole('button', { name: 'Next' }))
 
     // Wait on a cheap check: findByText re-scans this 250-row page on every DOM change.
-    await waitFor(() => expect(messages()[0]).toBe('line 150'))
-    expect(screen.getByText('101–200 of 250')).toBeTruthy()
-    expect(queries.at(-1)?.get('offset')).toBe('100')
+    await waitFor(() => expect(messages()[0]).toBe('line 200'))
+    expect(screen.getByText('51–100 of 250')).toBeTruthy()
+    expect(queries.at(-1)?.get('offset')).toBe('50')
   })
 
   it("says when From is after To, without asking the backend", async () => {

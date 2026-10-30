@@ -6,6 +6,7 @@ import { useState } from 'react'
 
 import { api, ok } from '@/api/client'
 import type { Schemas } from '@/api/types'
+import { useShowMore } from '@/components/show-more'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -37,10 +38,12 @@ export function MemoriesCard({ projectId }: { projectId: string }) {
     queryFn: () => ok(api.GET('/projects/{project_id}/memories', { params: { path: { project_id: projectId } } })),
   })
 
+  const list = useShowMore(memories.data ?? [], 3)
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Memories</CardTitle>
+        <CardTitle>Memories {memories.data && <span className="font-sans text-sm font-normal text-muted-foreground">{memories.data.length}</span>}</CardTitle>
         <CardDescription>
           What the agent learned from past investigations and recalls in new ones. Archive one to
           stop it being recalled; edit it to correct it.
@@ -49,10 +52,11 @@ export function MemoriesCard({ projectId }: { projectId: string }) {
       <CardContent>
         {memories.isError && <p role="alert" className="text-[0.8125rem] text-destructive">{errorMessage(memories.error)}</p>}
         <ul aria-label="Memories" className="flex flex-col gap-2">
-          {memories.data?.map((memory) => (
+          {list.shown.map((memory) => (
             <MemoryRow key={memory.id} memory={memory} projectId={projectId} queryKey={key} />
           ))}
         </ul>
+        {list.toggle}
         {memories.data?.length === 0 && <p className="text-sm text-muted-foreground">No memories yet.</p>}
       </CardContent>
     </Card>
