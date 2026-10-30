@@ -51,7 +51,9 @@ export function ChatPage() {
       ]),
   })
 
-  useEffect(() => end.current?.scrollIntoView?.({ block: 'end' }), [turns, send.isPending])
+  useEffect(() => {
+    end.current?.scrollIntoView?.({ block: 'end' }) // braces: newer browsers return a Promise, not a cleanup
+  }, [turns, send.isPending])
 
   function ask(question: string) {
     const content = question.trim()

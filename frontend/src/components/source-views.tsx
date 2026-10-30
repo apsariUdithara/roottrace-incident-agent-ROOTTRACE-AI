@@ -56,7 +56,9 @@ function FileView({ source }: { source: Schemas['FileSource'] }) {
   const { start_line: start, end_line: end } = source
   const firstCited = useRef<HTMLTableRowElement>(null)
 
-  useEffect(() => firstCited.current?.scrollIntoView?.({ block: 'center' }), [source])
+  useEffect(() => {
+    firstCited.current?.scrollIntoView?.({ block: 'center' }) // braces: newer browsers return a Promise, not a cleanup
+  }, [source])
 
   return (
     <>
