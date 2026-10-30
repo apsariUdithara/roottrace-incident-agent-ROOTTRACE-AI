@@ -50,6 +50,18 @@ export const routes: RouteObject[] = [
               { path: 'logs', Component: LogsPage },
               { path: 'upload', Component: UploadPage },
               { path: 'evaluation', Component: EvaluationPage },
+              {
+                path: 'investigations',
+                lazy: async () => ({
+                  Component: (await import('@/pages/investigation-page')).InvestigationsPage,
+                }),
+              },
+              {
+                path: 'investigations/:investigationId',
+                lazy: async () => ({
+                  Component: (await import('@/pages/investigation-page')).InvestigationPage,
+                }),
+              },
               // Loaded when first opened: Markdown rendering is heavy, and only this page needs it.
               {
                 path: 'chat',

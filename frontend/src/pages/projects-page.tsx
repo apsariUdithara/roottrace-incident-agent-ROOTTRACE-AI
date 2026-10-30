@@ -37,7 +37,7 @@ export function ProjectsPage() {
       <section aria-label="Your projects" className="flex flex-col gap-3">
         {isPending && <Skeleton className="h-16" />}
         {isError && (
-          <p role="alert" className="text-xs text-destructive">
+          <p role="alert" className="text-[0.8125rem] text-destructive">
             Couldn't load your projects. Reload the page to try again.
           </p>
         )}
@@ -100,7 +100,7 @@ function NewProjectForm() {
             <Textarea id="new-project-description" name="description" maxLength={5000} />
           </FormField>
           {create.error && (
-            <p role="alert" className="text-xs text-destructive">
+            <p role="alert" className="text-[0.8125rem] text-destructive">
               {errorMessage(create.error)}
             </p>
           )}

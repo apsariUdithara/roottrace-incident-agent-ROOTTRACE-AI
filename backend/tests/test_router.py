@@ -113,6 +113,15 @@ async def test_second_identical_call_comes_from_cache(tmp_path):
     assert len(fake.requests) == 1
 
 
+async def test_an_unwritable_cache_never_loses_the_answer(tmp_path):
+    # The container's user can't write the cache folder: chat returned 500 for a paid answer.
+    blocker = tmp_path / "not-a-folder"
+    blocker.write_text("")
+    router = make_router(FakeNebius(reply("hi")), cache_dir=blocker / "llm")
+    result = await router.complete("nano", [{"role": "user", "content": "hi"}])
+    assert result.content == "hi"
+
+
 async def test_invalid_answers_are_never_cached(tmp_path):
     fake = FakeNebius(reply("not json"), reply("still not json"))
     router = make_router(fake, cache_dir=tmp_path)

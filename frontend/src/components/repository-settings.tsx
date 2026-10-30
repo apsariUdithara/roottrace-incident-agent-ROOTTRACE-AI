@@ -77,7 +77,7 @@ export function RepositorySettings({ projectId }: { projectId: string }) {
       )}
       {repositories.isError && (
         <CardContent>
-          <p role="alert" className="text-xs text-destructive">
+          <p role="alert" className="text-[0.8125rem] text-destructive">
             Couldn't load the repository. Reload the page to try again.
           </p>
         </CardContent>
@@ -148,7 +148,7 @@ function ConnectRepositoryForm({ projectId }: { projectId: string }) {
         />
         <CommandFields />
         {connect.error && (
-          <p role="alert" className="text-xs text-destructive">
+          <p role="alert" className="text-[0.8125rem] text-destructive">
             {errorMessage(connect.error)}
           </p>
         )}
@@ -240,7 +240,7 @@ function RepositoryFacts({ repository }: { repository: Repository }) {
 
   return (
     <CardContent>
-      <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-3 text-xs">
+      <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-3 text-[0.8125rem]">
         <dt className="text-muted-foreground">GitHub</dt>
         <dd>
           <a href={repository.url} target="_blank" rel="noreferrer" className="text-primary hover:underline">
@@ -318,7 +318,7 @@ function EditRepositoryForm({ projectId, repository }: { projectId: string; repo
           onChange={setToken}
         />
         {save.error && (
-          <p role="alert" className="text-xs text-destructive">
+          <p role="alert" className="text-[0.8125rem] text-destructive">
             {errorMessage(save.error)}
           </p>
         )}
@@ -337,7 +337,7 @@ function EditRepositoryForm({ projectId, repository }: { projectId: string; repo
             Remove token
           </Button>
         )}
-        <p role="status" className="text-xs text-muted-foreground">
+        <p role="status" className="text-[0.8125rem] text-muted-foreground">
           {save.isSuccess && 'Saved.'}
         </p>
       </CardFooter>
@@ -363,7 +363,7 @@ function DisconnectRepository({ projectId, repository }: { projectId: string; re
     <CardFooter className="mt-4 flex-col items-start gap-3 border-t">
       {confirming ? (
         <div role="group" aria-label="Disconnect the repository" className="flex flex-col gap-3">
-          <p className="text-xs">
+          <p className="text-[0.8125rem]">
             Disconnect {repositoryName(repository)}? Its docs and code are removed from the knowledge base. Incidents and
             logs stay.
           </p>
@@ -383,7 +383,7 @@ function DisconnectRepository({ projectId, repository }: { projectId: string; re
         </Button>
       )}
       {disconnect.error && (
-        <p role="alert" className="text-xs text-destructive">
+        <p role="alert" className="text-[0.8125rem] text-destructive">
           {errorMessage(disconnect.error)}
         </p>
       )}

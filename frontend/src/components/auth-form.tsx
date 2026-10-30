@@ -77,13 +77,13 @@ export function AuthForm({
                 aria-describedby={isNew ? 'password-hint' : undefined}
               />
               {isNew && (
-                <p id="password-hint" className="text-xs text-muted-foreground">
+                <p id="password-hint" className="text-[0.8125rem] text-muted-foreground">
                   At least 8 characters.
                 </p>
               )}
             </div>
             {submit.error && (
-              <p role="alert" className="text-xs text-destructive">
+              <p role="alert" className="text-[0.8125rem] text-destructive">
                 {errorMessage(submit.error)}
               </p>
             )}
@@ -92,7 +92,7 @@ export function AuthForm({
             <Button type="submit" disabled={submit.isPending}>
               {submit.isPending ? 'Please wait…' : submitLabel}
             </Button>
-            <div className="text-center text-xs text-muted-foreground">{footer}</div>
+            <div className="text-center text-[0.8125rem] text-muted-foreground">{footer}</div>
           </CardFooter>
         </form>
       </Card>

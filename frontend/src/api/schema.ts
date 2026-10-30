@@ -49,7 +49,8 @@ export interface paths {
         put?: never;
         /**
          * Demo
-         * @description Logs in to the seeded demo project ("Try demo"). Read-mostly and rate-limited.
+         * @description Logs in as the seeded demo user ("Try demo"), no password. All visitors share it, so the
+         *     investigation limits and the daily budget cap what they can spend together.
          */
         post: operations["demo_auth_demo_post"];
         delete?: never;
@@ -983,10 +984,10 @@ export interface components {
             git_sha: string | null;
             /**
              * Metrics
-             * @description Metric name to value, e.g. {"retrieval_recall": 0.92, "suite_pass_rate": 1.0}
+             * @description Metric name to value, e.g. {"root_cause_accuracy": 1.0}; null when the run had no cases to measure it (no healthy versions: no no_false_fix_rate)
              */
             metrics: {
-                [key: string]: number;
+                [key: string]: number | null;
             };
             /** Models */
             models: {
@@ -1013,10 +1014,10 @@ export interface components {
             git_sha: string | null;
             /**
              * Metrics
-             * @description Metric name to value, e.g. {"retrieval_recall": 0.92, "suite_pass_rate": 1.0}
+             * @description Metric name to value, e.g. {"root_cause_accuracy": 1.0}; null when the run had no cases to measure it (no healthy versions: no no_false_fix_rate)
              */
             metrics: {
-                [key: string]: number;
+                [key: string]: number | null;
             };
         };
         /** EvidenceAdded */
@@ -1340,7 +1341,7 @@ export interface components {
             /** Next Steps */
             next_steps: string[];
             /** Deployed Ref */
-            deployed_ref: string;
+            deployed_ref: string | null;
         };
         /**
          * InvestigationStatus

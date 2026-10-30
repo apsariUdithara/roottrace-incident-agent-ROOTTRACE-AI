@@ -45,7 +45,7 @@ export function SourceView({ source, projectId }: { source: Source; projectId: s
 }
 
 function Meta({ children }: { children: ReactNode }) {
-  return <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">{children}</p>
+  return <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.8125rem] text-muted-foreground">{children}</p>
 }
 
 const short = (sha: string) => sha.slice(0, 7)
@@ -56,7 +56,9 @@ function FileView({ source }: { source: Schemas['FileSource'] }) {
   const { start_line: start, end_line: end } = source
   const firstCited = useRef<HTMLTableRowElement>(null)
 
-  useEffect(() => firstCited.current?.scrollIntoView?.({ block: 'center' }), [source])
+  useEffect(() => {
+    firstCited.current?.scrollIntoView?.({ block: 'center' }) // braces: newer browsers return a Promise, not a cleanup
+  }, [source])
 
   return (
     <>
@@ -68,7 +70,7 @@ function FileView({ source }: { source: Schemas['FileSource'] }) {
         )}
       </Meta>
       <div className="overflow-x-auto rounded-md bg-muted/40 py-2">
-        <table aria-label={source.path} className="w-full font-mono text-xs">
+        <table aria-label={source.path} className="w-full font-mono text-[0.8125rem]">
           <tbody>
             {lines.map((text, index) => {
               const number = index + 1
@@ -107,7 +109,7 @@ function CommitView({ source }: { source: Schemas['CommitSource'] }) {
       <div className="flex flex-col gap-1">
         <h3 className="font-heading text-sm font-semibold">{subject}</h3>
         {body.join('\n').trim() && (
-          <p className="text-xs whitespace-pre-wrap text-muted-foreground">{body.join('\n').trim()}</p>
+          <p className="text-[0.8125rem] whitespace-pre-wrap text-muted-foreground">{body.join('\n').trim()}</p>
         )}
       </div>
       <Meta>
@@ -116,13 +118,13 @@ function CommitView({ source }: { source: Schemas['CommitSource'] }) {
         <span>· {formatUtc(source.committed_at)} UTC</span>
       </Meta>
       {source.files.length > 0 && (
-        <ul aria-label="Changed files" className="flex flex-col font-mono text-xs">
+        <ul aria-label="Changed files" className="flex flex-col font-mono text-[0.8125rem]">
           {source.files.map((file) => (
             <li key={file}>{file}</li>
           ))}
         </ul>
       )}
-      <pre aria-label="Diff" className="overflow-x-auto rounded-md bg-muted/40 py-2 text-xs">
+      <pre aria-label="Diff" className="overflow-x-auto rounded-md bg-muted/40 py-2 text-[0.8125rem]">
         {source.diff.split('\n').map((line, index) => (
           <div key={index} className={`px-3 ${diffLineClass(line) ?? ''}`}>
             {line || ' '}
@@ -168,7 +170,7 @@ function LogView({ source, projectId }: { source: Schemas['LogSource']; projectI
         )}
       </Meta>
       <div className="overflow-x-auto rounded-lg ring-1 ring-foreground/10">
-        <table aria-label="Log lines" className="w-full text-left text-xs">
+        <table aria-label="Log lines" className="w-full text-left text-[0.8125rem]">
           <thead className="border-b text-muted-foreground">
             <tr>
               <th className="px-3 py-2 font-medium">Time (UTC)</th>
@@ -182,12 +184,12 @@ function LogView({ source, projectId }: { source: Schemas['LogSource']; projectI
           <tbody className="divide-y">
             {source.entries.map((line) => (
               <tr key={line.id} className="align-top">
-                <td className="px-3 py-1.5 font-mono whitespace-nowrap text-muted-foreground">{formatUtc(line.ts)}</td>
+                <td className="px-3 py-1.5 whitespace-nowrap text-muted-foreground tabular-nums">{formatUtc(line.ts)}</td>
                 <td className="px-3 py-1.5">
                   <LevelBadge level={line.level} />
                 </td>
                 <td className="px-3 py-1.5 whitespace-nowrap">{line.instance}</td>
-                <td className="px-3 py-1.5 font-mono whitespace-nowrap">{line.route}</td>
+                <td className="px-3 py-1.5 whitespace-nowrap">{line.route}</td>
                 <td className={`px-3 py-1.5 text-right ${line.status && line.status >= 500 ? 'text-destructive' : ''}`}>
                   {line.status || null}
                 </td>
@@ -205,7 +207,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   if (children === null || children === undefined || children === '') return null
   return (
     <div className="flex flex-col gap-0.5">
-      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dt className="text-[0.8125rem] text-muted-foreground">{label}</dt>
       <dd className="text-sm whitespace-pre-wrap">{children}</dd>
     </div>
   )
@@ -246,7 +248,7 @@ function IssueView({ source }: { source: Schemas['IssueSource'] }) {
             href={source.url}
             target="_blank"
             rel="noreferrer"
-            className="ml-auto inline-flex items-center gap-1 text-xs text-primary hover:underline"
+            className="ml-auto inline-flex items-center gap-1 text-[0.8125rem] text-primary hover:underline"
           >
             Open on GitHub
             <ExternalLink className="size-3" aria-hidden />
@@ -258,7 +260,7 @@ function IssueView({ source }: { source: Schemas['IssueSource'] }) {
           <DocMarkdown markdown={source.body} />
         </Suspense>
       ) : (
-        <p className="text-xs text-muted-foreground">No description.</p>
+        <p className="text-[0.8125rem] text-muted-foreground">No description.</p>
       )}
     </>
   )
@@ -286,7 +288,7 @@ function MemoryView({ memory }: { memory: Schemas['MemoryOut'] }) {
           {memory.created_by === 'agent' ? 'Written by the agent: check it before relying on it' : 'Added by a person'}
         </span>
         <span>· updated {formatUtc(memory.updated_at)} UTC</span>
-        {memory.source_ref && <span className="font-mono">· from {memory.source_ref}</span>}
+        {memory.source_ref && <span>· from {memory.source_ref}</span>}
       </Meta>
     </>
   )

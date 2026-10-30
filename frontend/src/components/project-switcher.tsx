@@ -9,10 +9,10 @@ export function ProjectSwitcher() {
   const { projects, project, isPending, isError } = useCurrentProject()
 
   if (isPending) return <Skeleton className="h-6 w-40" />
-  if (isError) return <span className="text-xs text-destructive">Couldn't load your projects</span>
+  if (isError) return <span className="text-[0.8125rem] text-destructive">Couldn't load your projects</span>
   if (!project) {
     return (
-      <Link to="/projects" className="text-xs text-primary hover:underline">
+      <Link to="/projects" className="text-[0.8125rem] text-primary hover:underline">
         Create a project
       </Link>
     )

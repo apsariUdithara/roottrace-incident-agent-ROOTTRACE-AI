@@ -13,6 +13,7 @@ import {
 
 import type { EventOf, Schemas } from '@/api/types'
 import { Badge } from '@/components/ui/badge'
+import { INFERENCE_TONE, SOURCE_TONE } from '@/lib/colors'
 import { describeRef, type SourceKind } from '@/lib/source-refs'
 
 export const SOURCE_ICONS: Record<SourceKind, LucideIcon> = {
@@ -41,7 +42,9 @@ export function SourceChip({
   onOpen?: () => void
 }) {
   const summary = describeRef(sourceRef)
-  const Icon = SOURCE_ICONS[kind ?? summary.kind ?? 'doc']
+  const sourceKind = kind ?? summary.kind ?? 'doc'
+  const Icon = SOURCE_ICONS[sourceKind]
+  const tone = SOURCE_TONE[sourceKind]
   const content = (
     <>
       <Icon data-icon="inline-start" aria-hidden />
@@ -54,7 +57,7 @@ export function SourceChip({
       <Badge
         variant="outline"
         title={sourceRef}
-        className="max-w-full cursor-pointer hover:bg-muted"
+        className={`max-w-full cursor-pointer transition-[filter] hover:brightness-95 dark:hover:brightness-125 ${tone}`}
         render={<button type="button" onClick={onOpen} />}
       >
         {content}
@@ -62,7 +65,7 @@ export function SourceChip({
     )
   }
   return (
-    <Badge variant="outline" title={sourceRef} className="max-w-full">
+    <Badge variant="outline" title={sourceRef} className={`max-w-full ${tone}`}>
       {content}
     </Badge>
   )
@@ -84,7 +87,7 @@ export function EvidenceChip({ evidence, onOpen }: { evidence: Evidence; onOpen?
     )
   }
   return (
-    <Badge variant="outline" title={evidence.statement} className="max-w-full">
+    <Badge variant="outline" title={evidence.statement} className={`max-w-full ${INFERENCE_TONE}`}>
       <Lightbulb data-icon="inline-start" aria-hidden />
       <span className="font-semibold">{evidence.label}</span>
       <span className="truncate">inference</span>

@@ -1263,6 +1263,7 @@ class Investigator:
 
     def save_trace(self) -> None:
         """Every model and tool call becomes a trace span (the Trace tab)."""
+        saved_at = datetime.now(UTC)  # for a span that didn't record when it started
         for s in self.router.spans:
             tier = s.get("tier")
             self.session.add(
@@ -1277,6 +1278,7 @@ class Investigator:
                     completion_tokens=s["completion_tokens"],
                     cost_usd=s["cost_usd"],
                     latency_ms=s["latency_ms"],
+                    started_at=s.get("started_at") or saved_at,
                     cached=s.get("cached", False),
                     downgraded=s.get("downgraded", False),
                 )
@@ -1289,6 +1291,7 @@ class Investigator:
                     name=t["tool"],
                     input={"arguments": t["arguments"]},
                     latency_ms=t["latency_ms"],
+                    started_at=t.get("started_at") or saved_at,
                     status=SpanStatus.OK if t["ok"] else SpanStatus.ERROR,
                 )
             )

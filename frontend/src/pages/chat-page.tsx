@@ -51,7 +51,9 @@ export function ChatPage() {
       ]),
   })
 
-  useEffect(() => end.current?.scrollIntoView?.({ block: 'end' }), [turns, send.isPending])
+  useEffect(() => {
+    end.current?.scrollIntoView?.({ block: 'end' }) // braces: newer browsers return a Promise, not a cleanup
+  }, [turns, send.isPending])
 
   function ask(question: string) {
     const content = question.trim()
@@ -89,7 +91,7 @@ export function ChatPage() {
       <div role="log" aria-label="Conversation" className="flex flex-1 flex-col gap-4">
         {turns.length === 0 && (
           <div className="flex flex-col items-start gap-2">
-            <p className="text-xs text-muted-foreground">Try one of these:</p>
+            <p className="text-[0.8125rem] text-muted-foreground">Try one of these:</p>
             {EXAMPLES.map((example) => (
               <Button key={example} variant="outline" size="sm" onClick={() => ask(example)}>
                 {example}
@@ -113,7 +115,7 @@ export function ChatPage() {
         {send.isPending && <p className="text-sm text-muted-foreground">Thinking…</p>}
         {send.isError && (
           <div className="flex items-center gap-3">
-            <p role="alert" className="text-xs text-destructive">
+            <p role="alert" className="text-[0.8125rem] text-destructive">
               {errorMessage(send.error)}
             </p>
             <Button variant="outline" size="sm" onClick={() => send.mutate(turns)}>
@@ -197,7 +199,7 @@ function AnswerDetails({ answer }: { answer: Answer }) {
     `${tokens} tokens`,
     answer.cached ? 'cached' : `$${answer.cost_usd.toFixed(4)}`,
   ]
-  return <p className="text-xs text-muted-foreground">{parts.join(' · ')}</p>
+  return <p className="text-[0.8125rem] text-muted-foreground">{parts.join(' · ')}</p>
 }
 
 function errorMessage(error: Error): string {

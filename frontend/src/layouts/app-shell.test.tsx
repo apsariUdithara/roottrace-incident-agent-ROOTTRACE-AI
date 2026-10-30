@@ -38,7 +38,7 @@ describe('sidebar', () => {
     await screen.findByRole('heading', { name: 'Dashboard' })
 
     const sections = nav().getAllByRole('link').map((link) => link.textContent)
-    expect(sections).toEqual(['Dashboard', 'Projects', 'Knowledge', 'Logs', 'Evaluation', 'Chat'])
+    expect(sections).toEqual(['Dashboard', 'Investigations', 'Projects', 'Knowledge', 'Logs', 'Evaluation', 'Chat'])
     expect(isCurrent('Dashboard')).toBe(true)
     expect(isCurrent('Knowledge')).toBe(false)
 
@@ -63,14 +63,6 @@ describe('sidebar', () => {
     await userEvent.setup().click(topBarButton)
 
     expect(sidebar()?.getAttribute('data-state')).toBe('collapsed')
-  })
-
-  it("says which task builds a page that isn't built yet", async () => {
-    backend({ cookie: true })
-    renderApp('/evaluation')
-
-    expect(await screen.findByRole('heading', { name: 'Evaluation' })).toBeTruthy()
-    expect(screen.getByText(/Coming with B-902/)).toBeTruthy()
   })
 })
 

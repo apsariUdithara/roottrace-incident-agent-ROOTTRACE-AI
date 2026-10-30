@@ -93,7 +93,7 @@
           "auth"
         ],
         "summary": "Demo",
-        "description": "Logs in to the seeded demo project (\"Try demo\"). Read-mostly and rate-limited.",
+        "description": "Logs in as the seeded demo user (\"Try demo\"), no password. All visitors share it, so the\ninvestigation limits and the daily budget cap what they can spend together.",
         "operationId": "demo_auth_demo_post",
         "responses": {
           "200": {
@@ -3412,11 +3412,18 @@
           },
           "metrics": {
             "additionalProperties": {
-              "type": "number"
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "type": "object",
             "title": "Metrics",
-            "description": "Metric name to value, e.g. {\"retrieval_recall\": 0.92, \"suite_pass_rate\": 1.0}"
+            "description": "Metric name to value, e.g. {\"root_cause_accuracy\": 1.0}; null when the run had no cases to measure it (no healthy versions: no no_false_fix_rate)"
           },
           "models": {
             "additionalProperties": true,
@@ -3468,11 +3475,18 @@
           },
           "metrics": {
             "additionalProperties": {
-              "type": "number"
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "type": "object",
             "title": "Metrics",
-            "description": "Metric name to value, e.g. {\"retrieval_recall\": 0.92, \"suite_pass_rate\": 1.0}"
+            "description": "Metric name to value, e.g. {\"root_cause_accuracy\": 1.0}; null when the run had no cases to measure it (no healthy versions: no no_false_fix_rate)"
           }
         },
         "type": "object",
@@ -4430,7 +4444,14 @@
             "title": "Next Steps"
           },
           "deployed_ref": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Deployed Ref"
           }
         },

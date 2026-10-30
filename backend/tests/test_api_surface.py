@@ -75,22 +75,25 @@ ROUTES = {
 
 # (method, url, backlog task, request kwargs). In urls and bodies, {project_id} and
 # {investigation_id} are the owner's; {other_id} is a random id for rows that don't exist yet.
-STUBS: list[tuple[str, str, str, dict[str, Any]]] = [
+# Routes once stubbed and built since: they keep the login and other-user checks below.
+BUILT: list[tuple[str, str, str, dict[str, Any]]] = [
     ("POST", "/auth/demo", "B-1001", {}),
     ("GET", PROJECT + "/memories?category=project_fact&status=active", "B-703", {}),
     ("PATCH", PROJECT + "/memories/{other_id}", "B-703", {"json": {"status": "archived"}}),
     ("DELETE", PROJECT + "/memories/{other_id}", "B-703", {}),
     ("GET", INVESTIGATION + "/messages", "B-701", {}),
-    ("POST", INVESTIGATION + "/patches/{other_id}/rerun", "B-604", {}),
     ("GET", INVESTIGATION + "/trace", "B-803", {}),
     ("GET", "/evaluation/runs", "B-901", {}),
     ("GET", "/evaluation/runs/{other_id}", "B-901", {}),
     ("GET", "/stats/dashboard", "B-804", {}),
 ]
-PUBLIC = {"/auth/demo"}  # the one stub for people who aren't logged in
-NEEDS_LOGIN = [stub for stub in STUBS if stub[1] not in PUBLIC]
-# Stubs whose path names a project or an investigation, so another user must get a 404.
-SCOPED = [stub for stub in STUBS if "{project_id}" in stub[1] or "{investigation_id}" in stub[1]]
+STUBS: list[tuple[str, str, str, dict[str, Any]]] = [
+    ("POST", INVESTIGATION + "/patches/{other_id}/rerun", "B-604", {}),
+]
+PUBLIC = {"/auth/demo"}  # for people who aren't logged in
+NEEDS_LOGIN = [route for route in BUILT + STUBS if route[1] not in PUBLIC]
+# Routes whose path names a project or an investigation, so another user must get a 404.
+SCOPED = [r for r in BUILT + STUBS if "{project_id}" in r[1] or "{investigation_id}" in r[1]]
 
 
 def ids_for(stubs: list[tuple[str, str, str, dict[str, Any]]]) -> list[str]:
@@ -167,7 +170,7 @@ def test_stub_answers_501_for_the_owner(
 
 
 @pytest.mark.parametrize(("method", "url", "task", "kwargs"), NEEDS_LOGIN, ids=ids_for(NEEDS_LOGIN))
-def test_stub_requires_login(client: TestClient, method: str, url: str, task: str, kwargs: dict):
+def test_requires_login(client: TestClient, method: str, url: str, task: str, kwargs: dict):
     ids = random_ids()
 
     response = client.request(method, fill(url, ids), **fill(kwargs, ids))
@@ -177,7 +180,7 @@ def test_stub_requires_login(client: TestClient, method: str, url: str, task: st
 
 
 @pytest.mark.parametrize(("method", "url", "task", "kwargs"), SCOPED, ids=ids_for(SCOPED))
-def test_stub_hides_other_users_projects_and_investigations(
+def test_hides_other_users_projects_and_investigations(
     client: TestClient,
     owner: dict[str, Any],
     new_user: NewUser,

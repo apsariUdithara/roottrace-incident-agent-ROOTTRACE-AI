@@ -204,6 +204,17 @@ def test_with_a_project_it_answers_from_the_sources_and_lists_those_cited(
     ]
 
 
+def test_full_width_brackets_count_as_citations(client, paystream, fake_llm):
+    # Nano answered "pool size per instance 【S1】【S2】" and the sources were dropped.
+    headers, project_id = paystream
+    fake_llm.answer = "The pool size per instance 【S1】【S2】."
+
+    body = ask(client, headers, "What is DB_POOL_SIZE?", project_id=project_id).json()
+
+    assert body["content"] == "The pool size per instance [S1][S2]."
+    assert [c["label"] for c in body["citations"]] == ["S1", "S2"]
+
+
 def test_citations_carry_refs_for_the_source_viewer(client, paystream, fake_llm):
     headers, project_id = paystream
     fake_llm.answer = "All three [S1][S2][S3]."

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -142,12 +142,12 @@ afterEach(() => {
 })
 
 const table = () => within(screen.getByRole('table', { name: 'Log lines' }))
-/** The table's rows, as their cells' text. */
+/** The table's rows, as their cells' text. Plain DOM queries, not getAllByRole per row: that
+ * checks every element's computed style, and on 250 rows took ~10 s. */
 const rows = () =>
-  table()
-    .getAllByRole('row')
-    .slice(1)
-    .map((row) => within(row).getAllByRole('cell').map((cell) => cell.textContent))
+  Array.from(screen.getByRole('table', { name: 'Log lines' }).querySelectorAll('tbody > tr'), (row) =>
+    Array.from(row.querySelectorAll('td'), (cell) => cell.textContent),
+  )
 const messages = () => rows().map((cells) => cells[6])
 const field = (name: string) => screen.getByLabelText(name) as HTMLInputElement | HTMLSelectElement
 
@@ -184,7 +184,7 @@ describe('logs page', () => {
     ])
     expect(rows()[3].slice(4, 6)).toEqual(['', '']) // a deploy has no status or latency
     expect(screen.queryByLabelText('Service')).toBeNull() // only one service
-    expect([...queries[0]]).toEqual([['limit', '100'], ['offset', '0']]) // no filters
+    expect([...queries[0]]).toEqual([['limit', '50'], ['offset', '0']]) // no filters
     expect(screen.getByRole('link', { name: 'Upload logs' }).getAttribute('href')).toBe('/upload?kind=logs')
   })
 
@@ -202,13 +202,13 @@ describe('logs page', () => {
     ])
     await user.selectOptions(level, 'WARN')
 
-    await vi.waitFor(() => expect(messages()).toEqual(['RequestValidationErrorrequest validation failed: missing field']))
+    await waitFor(() => expect(messages()).toEqual(['RequestValidationErrorrequest validation failed: missing field']))
     expect(here(router)).toBe('/logs?level=WARN')
 
     await user.selectOptions(level, '')
     await user.selectOptions(field('Error type'), 'OperationalError')
 
-    await vi.waitFor(() => expect(messages()).toEqual([TOO_MANY]))
+    await waitFor(() => expect(messages()).toEqual([TOO_MANY]))
     expect(here(router)).toBe('/logs?error_type=OperationalError')
     expect(queries.at(-1)?.get('error_type')).toBe('OperationalError')
   })
@@ -220,14 +220,14 @@ describe('logs page', () => {
 
     await user.type(field('Route'), '/web')
 
-    await vi.waitFor(() => expect(rows()).toHaveLength(1))
+    await waitFor(() => expect(rows()).toHaveLength(1))
     expect(queries.filter((query) => query.has('route')).map((query) => query.get('route'))).toEqual(['/web'])
     expect(here(router)).toBe('/logs?route=%2Fweb')
 
     await user.clear(field('Route'))
     await user.type(field('Message'), 'RETRIED')
 
-    await vi.waitFor(() => expect(messages()).toEqual(['payment retried']))
+    await waitFor(() => expect(messages()).toEqual(['payment retried']))
     expect(here(router)).toBe('/logs?text=RETRIED')
   })
 
@@ -243,7 +243,7 @@ describe('logs page', () => {
 
     fireEvent.change(field('From (UTC)'), { target: { value: '2026-10-06T14:00' } })
 
-    await vi.waitFor(() => expect(messages()).toEqual([TOO_MANY, 'request completed']))
+    await waitFor(() => expect(messages()).toEqual([TOO_MANY, 'request completed']))
     expect(new URLSearchParams(router.state.location.search).get('since')).toBe('2026-10-06T14:00:00Z')
   })
 
@@ -254,14 +254,14 @@ describe('logs page', () => {
 
     await user.click(table().getByRole('button', { name: '5a07979f' }))
 
-    await vi.waitFor(() => expect(messages()).toEqual(['payment retried', TOO_MANY]))
+    await waitFor(() => expect(messages()).toEqual(['payment retried', TOO_MANY]))
     expect(here(router)).toBe('/logs?trace_id=5a07979ff653e026') // whatever else was filtered
     expect(field('Level').value).toBe('')
     expect(screen.getByText('trace 5a07979ff653e026')).toBeTruthy()
 
     await user.click(screen.getByRole('button', { name: 'Stop showing only this trace' }))
 
-    await vi.waitFor(() => expect(rows()).toHaveLength(5))
+    await waitFor(() => expect(rows()).toHaveLength(5))
     expect(here(router)).toBe('/logs')
   })
 
@@ -273,7 +273,7 @@ describe('logs page', () => {
 
     await user.click(screen.getAllByRole('button', { name: 'Clear filters' })[0])
 
-    await vi.waitFor(() => expect(rows()).toHaveLength(5))
+    await waitFor(() => expect(rows()).toHaveLength(5))
     expect(field('Route').value).toBe('')
     expect(field('Message').value).toBe('')
     await new Promise((resolve) => setTimeout(resolve, SEARCH_DELAY_MS + 100))
@@ -289,14 +289,15 @@ describe('logs page', () => {
     const queries = fakeBackend({ lines: many })
     await openLogs()
 
-    expect(screen.getByText('1–100 of 250')).toBeTruthy()
+    expect(screen.getByText('1–50 of 250')).toBeTruthy()
     expect(messages()[0]).toBe('line 250')
 
     await user.click(screen.getByRole('button', { name: 'Next' }))
 
-    expect(await screen.findByText('101–200 of 250')).toBeTruthy()
-    expect(queries.at(-1)?.get('offset')).toBe('100')
-    expect(messages()[0]).toBe('line 150')
+    // Wait on a cheap check: findByText re-scans this 250-row page on every DOM change.
+    await waitFor(() => expect(messages()[0]).toBe('line 200'))
+    expect(screen.getByText('51–100 of 250')).toBeTruthy()
+    expect(queries.at(-1)?.get('offset')).toBe('50')
   })
 
   it("says when From is after To, without asking the backend", async () => {

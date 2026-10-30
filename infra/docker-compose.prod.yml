@@ -1,0 +1,58 @@
+# Production on the Nebius AI Cloud VM: Caddy + built frontend, backend, PostgreSQL.
+# On the VM, from the repo root, with backend/.env filled in (see infra/README.md):
+#   docker compose -f infra/docker-compose.prod.yml up -d --build --wait
+#   docker compose -f infra/docker-compose.prod.yml exec backend alembic upgrade head
+#   docker compose -f infra/docker-compose.prod.yml exec backend python scripts/seed_demo.py
+name: roottrace
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-roottrace}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-roottrace}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+    # No ports: only the backend reaches the database.
+
+  backend:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    env_file: ../backend/.env
+    environment:
+      # Overrides the localhost URL in .env: inside compose the database is "postgres".
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-roottrace}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-roottrace}
+    volumes:
+      - repos:/app/backend/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: frontend/Dockerfile
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy:/data   # TLS certificates survive restarts
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  repos:
+  caddy:

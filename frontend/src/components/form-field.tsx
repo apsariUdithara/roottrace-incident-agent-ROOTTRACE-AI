@@ -20,7 +20,7 @@ export function FormField({
       <Label htmlFor={id}>{label}</Label>
       {children}
       {hint && (
-        <p id={`${id}-hint`} className="text-xs text-muted-foreground">
+        <p id={`${id}-hint`} className="text-[0.8125rem] text-muted-foreground">
           {hint}
         </p>
       )}

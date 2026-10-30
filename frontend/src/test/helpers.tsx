@@ -1,13 +1,17 @@
 // Shared by the component tests (jsdom): a stand-in backend, and the real app routes mounted in
 // a memory router.
 import { QueryClientProvider } from '@tanstack/react-query'
-import { render } from '@testing-library/react'
+import { configure, render } from '@testing-library/react'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { vi } from 'vitest'
 
 import type { Schemas } from '@/api/types'
 import { queryClient } from '@/lib/query-client'
 import { routes } from '@/routes'
+
+// A cold first render takes ~3 s on a slow machine (seen on Windows with Smart App Control,
+// scanning each file), past findBy's 1 s default: the app was fine, the wait was too short.
+configure({ asyncUtilTimeout: 15_000 })
 
 export const ALICE = { email: 'alice@example.com', password: 'correct horse battery' }
 
