@@ -12,6 +12,7 @@ Every LLM call in RootTrace goes through LLMRouter.complete(), which:
 import asyncio
 import hashlib
 import json
+import logging
 import time
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -39,6 +40,9 @@ RETRYABLE = (
 # dropped request (a 1-2 s wait failed a whole investigation during an outage).
 BACKOFF_S = (2, 10, 30, 60, 120)  # ~4 min in total: rides out short provider outages (503s)
 MAX_ATTEMPTS = len(BACKOFF_S) + 1
+
+
+log = logging.getLogger(__name__)
 
 
 def started_at(latency_ms: int) -> datetime:
@@ -278,9 +282,14 @@ class LLMRouter:
         path = self._cache_path(tier, request)
         if not path or result.cached:
             return
-        path.parent.mkdir(parents=True, exist_ok=True)
         data = {k: v for k, v in asdict(result).items() if k != "parsed"}
-        path.write_text(json.dumps(data), encoding="utf-8")
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(data), encoding="utf-8")
+        except OSError as exc:
+            # The cache only saves credits in development: a folder it can't write to (a
+            # read-only container) must never cost the caller the answer it already paid for.
+            log.warning("LLM cache not saved (%s); the answer is returned anyway", exc)
 
 
 @lru_cache

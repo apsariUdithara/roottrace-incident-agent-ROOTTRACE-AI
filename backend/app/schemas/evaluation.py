@@ -15,7 +15,7 @@ class EvaluationRunSummary(BaseModel):
     git_sha: str | None
     metrics: dict[str, float | None] = Field(
         description=(
-            "Metric name to value, e.g. {\"root_cause_accuracy\": 1.0}; null when the run had"
+            'Metric name to value, e.g. {"root_cause_accuracy": 1.0}; null when the run had'
             " no cases to measure it (no healthy versions: no no_false_fix_rate)"
         )
     )

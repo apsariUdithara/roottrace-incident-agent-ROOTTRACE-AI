@@ -53,6 +53,7 @@ SOURCES = 5  # chunks given to the model per question
 SNIPPET_CHARS = 1500
 BRACKETS = re.compile(r"\[([^\]]+)\]")  # "[S1]" or "[S1, S3]"; "S3 bucket" outside isn't one
 LABEL = re.compile(r"\bS(\d+)\b")
+FULL_WIDTH_BRACKETS = str.maketrans({"【": "[", "】": "]", "［": "[", "］": "]"})
 
 GROUNDED = """You answer questions about the software project "{name}", using the sources
 below: excerpts from its docs, code, issues and past incidents.
@@ -138,7 +139,8 @@ async def chat(
         raise HTTPException(
             status.HTTP_502_BAD_GATEWAY, "The model didn't answer. Please try again in a moment."
         ) from exc
-    content = result.content or ""
+    # Models sometimes cite with full-width brackets (【S1】): make them [S1] so they're found.
+    content = (result.content or "").translate(FULL_WIDTH_BRACKETS)
     return ChatResponse(
         content=content,
         model=result.model,
