@@ -124,6 +124,11 @@ class NebiusSandbox:
             proc.kill()
             raise SandboxError("the sandbox did not answer in time") from None
         text = out.decode("utf-8", "replace").strip()
+        if not text and proc.returncode:
+            # Nothing on stdout: the CLI's reason is on stderr (e.g. no login profile). Without
+            # this, a failed setup on the server surfaced as an empty "installing ... failed:".
+            detail = err.decode("utf-8", "replace").strip().splitlines()[-1:] or ["no output"]
+            raise SandboxError(f"sandbox CLI failed: {detail[0]}")
         try:
             return json.loads(text.splitlines()[-1]) if text else {}
         except json.JSONDecodeError:

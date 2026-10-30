@@ -21,7 +21,9 @@ import type { SourceKind } from '@/lib/source-refs'
 import { useSourceViewer } from '@/lib/source-viewer'
 import { formatShort } from '@/lib/time'
 
-const EXAMPLE = "Payment API returning 500s after today's deploy"
+// The demo's incident happened on 6 Oct 2026 (its logs end that day): asking about "today" would
+// send the agent to a day with no errors, and it would rightly refuse to confirm a cause.
+const EXAMPLE = 'The payment API started returning 500 errors after the v1.4.8 deployment on 6 October 2026. Find out why.'
 const POLL_MS = 1500
 
 /* ----------------------------- list + start ----------------------------- */

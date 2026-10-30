@@ -47,3 +47,26 @@ def test_an_existing_profile_is_left_alone(monkeypatch, tmp_path):
 
 def test_without_a_project_id_it_does_not_try(monkeypatch, tmp_path):
     assert run_login(monkeypatch, tmp_path, project=False) == []
+
+
+def test_a_cli_failure_says_why(monkeypatch):
+    class Failing:
+        returncode = 1
+
+        async def communicate(self):
+            return b"", b"[ERROR] Profile 'default' does not exist. Run `contree auth` first."
+
+    async def fake_exec(*args, **kwargs):
+        return Failing()
+
+    async def no_login():
+        return None
+
+    monkeypatch.setattr(nebius, "ensure_login", no_login)
+    monkeypatch.setattr(nebius.asyncio, "create_subprocess_exec", fake_exec)
+    try:
+        asyncio.run(nebius.NebiusSandbox()._cli("images", timeout=5))
+    except nebius.SandboxError as exc:
+        assert "Profile 'default' does not exist" in str(exc)
+    else:
+        raise AssertionError("expected a SandboxError")
