@@ -1341,7 +1341,7 @@ export interface components {
             /** Next Steps */
             next_steps: string[];
             /** Deployed Ref */
-            deployed_ref: string;
+            deployed_ref: string | null;
         };
         /**
          * InvestigationStatus

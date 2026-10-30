@@ -4444,7 +4444,14 @@
             "title": "Next Steps"
           },
           "deployed_ref": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Deployed Ref"
           }
         },

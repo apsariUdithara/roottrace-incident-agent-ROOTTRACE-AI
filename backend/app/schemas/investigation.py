@@ -27,7 +27,8 @@ class InvestigationReport(ReportReady):
     """What `investigations.report` stores: the `report` event's payload, plus the version that
     was investigated (a PR for the fix is opened against it)."""
 
-    deployed_ref: str
+    # None in reports saved before it was recorded: those must still open (no PR can be made).
+    deployed_ref: str | None = None
 
 
 class InvestigationOut(BaseModel):

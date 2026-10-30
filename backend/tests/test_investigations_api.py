@@ -120,6 +120,29 @@ def test_a_reconnect_resumes_after_the_last_event_seen(client, started):
     assert [e["seq"] for e in replay] == [2, 3]
 
 
+def test_a_report_saved_before_deployed_ref_was_recorded_still_opens(client, started):
+    # Older runs' reports have no deployed_ref: opening one answered 500.
+    alice, _, resp = started
+    inv_id = resp.json()["id"]
+    read_stream(client, f"/investigations/{inv_id}/stream", alice)  # finished: has a report
+    old = {k: v for k, v in REPORT.items() if k != "deployed_ref"}
+
+    async def drop_ref():
+        engine = create_async_engine(os.environ["DATABASE_URL"], poolclass=NullPool)  # own loop
+        async with engine.begin() as conn:
+            await conn.execute(
+                update(Investigation)
+                .where(Investigation.id == uuid.UUID(inv_id))
+                .values(report=old)
+            )
+        await engine.dispose()
+
+    asyncio.run(drop_ref())
+    body = client.get(f"/investigations/{inv_id}", headers=alice).json()
+    assert body["report"]["deployed_ref"] is None
+    assert body["report"]["root_cause"] == "pool too big"
+
+
 def test_another_users_investigation_is_invisible(client, new_user, started):
     _, _, resp = started
     inv_id, bob = resp.json()["id"], new_user()
