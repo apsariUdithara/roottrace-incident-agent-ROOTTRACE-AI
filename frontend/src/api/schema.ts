@@ -49,7 +49,8 @@ export interface paths {
         put?: never;
         /**
          * Demo
-         * @description Logs in to the seeded demo project ("Try demo"). Read-mostly and rate-limited.
+         * @description Logs in as the seeded demo user ("Try demo"), no password. All visitors share it, so the
+         *     investigation limits and the daily budget cap what they can spend together.
          */
         post: operations["demo_auth_demo_post"];
         delete?: never;

@@ -93,7 +93,7 @@
           "auth"
         ],
         "summary": "Demo",
-        "description": "Logs in to the seeded demo project (\"Try demo\"). Read-mostly and rate-limited.",
+        "description": "Logs in as the seeded demo user (\"Try demo\"), no password. All visitors share it, so the\ninvestigation limits and the daily budget cap what they can spend together.",
         "operationId": "demo_auth_demo_post",
         "responses": {
           "200": {
