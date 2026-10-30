@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle2, CircleDashed, Loader2, MinusCircle, Search, XCircle } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
@@ -468,36 +468,41 @@ function PrTab({ view, investigationId }: { view: InvestigationView; investigati
   )
 }
 
-type ChatTurn = { role: string; content: string }
-
-/** Follow-up questions about this investigation. The list endpoint isn't built yet (B-701), so
- * the conversation lives in the page. */
+/** Follow-up questions about this investigation, saved with it. */
 function ChatTab({ investigationId }: { investigationId: string }) {
-  const [turns, setTurns] = useState<ChatTurn[]>([])
+  const queryClient = useQueryClient()
   const [draft, setDraft] = useState('')
+  const [pending, setPending] = useState<string | null>(null)
+  const path = { params: { path: { investigation_id: investigationId } } }
+  const history = useQuery({
+    queryKey: ['messages', investigationId],
+    queryFn: () =>
+      ok(api.GET('/investigations/{investigation_id}/messages', { params: { path: { investigation_id: investigationId } } })),
+  })
   const ask = useMutation({
     mutationFn: (content: string) =>
-      ok(api.POST('/investigations/{investigation_id}/messages', {
-        params: { path: { investigation_id: investigationId } },
-        body: { content },
-      })),
-    onSuccess: (message) => setTurns((current) => [...current, message]),
+      ok(api.POST('/investigations/{investigation_id}/messages', { ...path, body: { content } })),
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['messages', investigationId] })
+      setPending(null)
+    },
   })
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
     const content = draft.trim()
     if (content.length < 2 || ask.isPending) return
-    setTurns((current) => [...current, { role: 'user', content }])
+    setPending(content)
     setDraft('')
     ask.mutate(content)
   }
+  const turns = [...(history.data ?? []), ...(pending ? [{ id: 'pending', role: 'user', content: pending }] : [])]
   return (
     <div className="flex max-w-3xl flex-col gap-3">
-      {turns.map((turn, index) =>
+      {turns.map((turn) =>
         turn.role === 'user' ? (
-          <div key={index} className="self-end rounded-lg bg-muted px-3 py-2 text-sm">{turn.content}</div>
+          <div key={turn.id} className="self-end rounded-lg bg-muted px-3 py-2 text-sm">{turn.content}</div>
         ) : (
-          <Markdown key={index}>{turn.content}</Markdown>
+          <Markdown key={turn.id}>{turn.content}</Markdown>
         ),
       )}
       {ask.isPending && <p className="text-sm text-muted-foreground">Thinking…</p>}

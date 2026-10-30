@@ -6,6 +6,7 @@ import { Link, useSearchParams } from 'react-router'
 import { api, ok } from '@/api/client'
 import type { Schemas } from '@/api/types'
 import { IngestBadge } from '@/components/ingest-status'
+import { MemoriesCard } from '@/components/memories-card'
 import { PageHeader } from '@/components/page-header'
 import { SOURCE_ICONS } from '@/components/source-chip'
 import { Button } from '@/components/ui/button'
@@ -50,7 +51,7 @@ export function KnowledgePage() {
     <div className="flex max-w-4xl flex-col gap-6">
       <PageHeader
         title="Knowledge"
-        description="What the agent searches in this project: the repository's docs and code, issues and past incidents."
+        description="What the agent searches in this project: the repository's docs and code, issues, past incidents, and what it remembers."
       />
       {isPending && <Skeleton className="h-24" />}
       {isError && (
@@ -98,6 +99,7 @@ function ProjectKnowledge({ projectId }: { projectId: string }) {
       )}
       {repository && <IndexingCard projectId={projectId} repository={repository} />}
       {repositories.data && <KnowledgeList projectId={projectId} repository={repository} />}
+      <MemoriesCard projectId={projectId} />
     </>
   )
 }

@@ -28,6 +28,7 @@ from app.models import (
     Investigation,
     InvestigationEvent,
     InvestigationStatus,
+    Message,
     Patch,
     Repository,
 )
@@ -257,9 +258,16 @@ async def approve(investigation: OwnedInvestigation, session: SessionDep) -> PrO
 
 
 @router.get("/investigations/{investigation_id}/messages")
-async def list_messages(investigation: OwnedInvestigation) -> list[MessageOut]:
+async def list_messages(
+    investigation: OwnedInvestigation, session: SessionDep
+) -> list[MessageOut]:
     """The follow-up chat, oldest first."""
-    raise not_implemented("B-701")
+    rows = await session.scalars(
+        select(Message)
+        .where(Message.investigation_id == investigation.id)
+        .order_by(Message.created_at, Message.id)
+    )
+    return [MessageOut(id=m.id, role=m.role.value, content=m.content) for m in rows]
 
 
 @router.post(
