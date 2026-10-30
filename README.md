@@ -7,7 +7,15 @@
 - All LLM calls run on **Nebius Token Factory** using **NVIDIA Nemotron 3** models (Ultra / Super / Nano).
 - Patches are tested in **Nebius Token Factory Sandboxes**.
 
-> Status (27 Oct): the backend is built and tested end to end: agent, RAG, tools, Fix Generator with Nebius Sandboxes, follow-up chat, long-term memory, MCP servers and evaluation (results below). The web UI and the public deployment are in progress. Full plan: [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) · Original concept: [docs/ai-incident-investigator-hackathon-plan.pdf](docs/ai-incident-investigator-hackathon-plan.pdf)
+<p>
+  <a href="#run-it-yourself"><b>Run it</b></a> ·
+  <a href="#screenshots"><b>Screenshots</b></a> ·
+  <a href="#evaluation"><b>Evaluation</b></a> ·
+  <a href="docs/FEEDBACK.md"><b>Feedback on Nebius &amp; NVIDIA</b></a> ·
+  <a href="docs/IMPLEMENTATION_PLAN.md">Implementation plan</a>
+</p>
+
+**Live demo:** *link added after deployment* · **Video:** *link added after upload* · Click **Try the demo** on the login page: no account needed.
 
 ---
 
@@ -18,6 +26,53 @@
 To answer that, an on-call engineer has to search docs, read commits, inspect code, dig through logs, check config, compare past incidents, form a hypothesis, verify it, fix it and write it up. Under pressure, that takes hours.
 
 RootTrace does that first investigation in minutes. It shows its reasoning, separates **facts** from **inferences**, and only proposes a fix after reproducing the bug and proving the patch makes the tests pass.
+
+## Highlights
+
+| | |
+|---|---|
+| 🔎 **Cited, not guessed** | Every fact carries its source and a verbatim quote that code checks against the tool output. **100% of citations valid** in our evaluation. |
+| 📊 **Computed confidence** | A deterministic formula over evidence coverage, strength, the verifier's verdict, past incidents and the sandbox result, shown with its breakdown. |
+| 🧪 **Red → green, in a Nebius Sandbox** | The agent writes a fix and a regression test. The test must **fail on the old code and pass on the patched code**, with the full suite. |
+| 🧠 **Three Nemotron models, routed by task** | Nano for triage and reranking, Super for the tool loop and patches, Ultra for diagnosis and the report: about **$0.05 per investigation**. |
+| 🙋 **A human approves every PR** | The agent drafts the pull request; it's opened on GitHub only after an engineer clicks *Approve*. |
+
+## Screenshots
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/01-report.png" alt="Investigation report: root cause, 97% confidence with its breakdown, and the five phases"></td>
+    <td width="50%"><img src="docs/screenshots/02-tests-red-green.png" alt="Tests: the baseline run fails and the patched run passes in a Nebius Sandbox"></td>
+  </tr>
+  <tr>
+    <td><b>The report.</b> Root cause in plain words, a confidence score computed from the evidence, and the agent's progress in five phases.</td>
+    <td><b>Red → green.</b> The new test fails on the old code (bug reproduced), then the whole suite passes on the patched code, both in a Nebius Sandbox.</td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/03-pr-draft.png" alt="Draft pull request with root cause, fix, evidence and testing, and an Approve button"></td>
+    <td><img src="docs/screenshots/04-activity.png" alt="Activity: each tool call in plain words, with what was asked and what was found"></td>
+  </tr>
+  <tr>
+    <td><b>The PR draft.</b> Root cause, fix, cited evidence and test results, opened as a draft PR only after an engineer approves.</td>
+    <td><b>Every step is visible.</b> Each tool call in plain words: what the agent asked, and what it found.</td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/06-dashboard.png" alt="Dashboard: investigations, average confidence, time, cost and verified fixes"></td>
+    <td><img src="docs/screenshots/07-evaluation.png" alt="Evaluation page: metrics from eval/evaluate.py and the per-case results, failures included"></td>
+  </tr>
+  <tr>
+    <td><b>Dashboard.</b> Investigations, average confidence, time and cost, and how many fixes passed in the sandbox.</td>
+    <td><b>Evaluation.</b> The numbers from <code>eval/evaluate.py</code>, with a filter for the failed cases.</td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/05-evidence.png" alt="Evidence: facts with their exact quotes, then the inferences drawn from them"></td>
+    <td><img src="docs/screenshots/08-report-dark.png" alt="The same report in dark mode"></td>
+  </tr>
+  <tr>
+    <td><b>Evidence.</b> Facts with the exact quote from their source, then what the agent inferred from them. Every chip opens the source.</td>
+    <td><b>Light and dark themes.</b></td>
+  </tr>
+</table>
 
 ## Contents
 
@@ -31,7 +86,7 @@ RootTrace does that first investigation in minutes. It shows its reasoning, sepa
 8. [Hero scenario walkthrough](#8-hero-scenario-walkthrough)
 9. [Data model](#9-data-model)
 10. [Deployment](#10-deployment)
-11. [Tech stack](#tech-stack) · [Repository layout](#repository-layout) · [Evaluation](#evaluation) · [Using it on your own repo](#using-it-on-your-own-repo) · [Limitations & roadmap](#limitations--roadmap) · [Hackathon checklist](#hackathon-checklist)
+11. [Run it yourself](#run-it-yourself) · [Tech stack](#tech-stack) · [Repository layout](#repository-layout) · [Evaluation](#evaluation) · [Using it on your own repo](#using-it-on-your-own-repo) · [Limitations & roadmap](#limitations--roadmap) · [Hackathon checklist](#hackathon-checklist)
 
 ---
 
@@ -113,7 +168,9 @@ One PostgreSQL database with pgvector holds application data, embeddings, long-t
 
 ## Run it yourself
 
-You need Docker, Python 3.12 with [uv](https://docs.astral.sh/uv/), Node 20+, and a Nebius Token Factory API key. From the repo root:
+**Fastest way:** open the live demo and click **Try the demo** (no account needed).
+
+To run it locally you need Docker, Python 3.12 with [uv](https://docs.astral.sh/uv/), Node 20+, and a Nebius Token Factory API key. From the repo root:
 
 ```bash
 docker compose -f infra/docker-compose.yml up -d --wait   # PostgreSQL 16 + pgvector
@@ -138,19 +195,19 @@ From the terminal instead: `uv run python scripts/investigate.py` runs one inves
 | Backend | Python 3.12, FastAPI, SQLAlchemy 2 + Alembic, Pydantic v2, `uv` |
 | Data | PostgreSQL 16 + pgvector |
 | MCP | MCP Python SDK servers (GitHub, Docs, Incidents), generated from the agent's tool registry |
-| Frontend | React + Vite + TypeScript, Tailwind + shadcn/ui, TanStack Query, Monaco diff, Recharts |
+| Frontend | React 19 + Vite + TypeScript, Tailwind CSS 4 + shadcn/ui (Base UI), TanStack Query, React Router; Inter font, light and dark themes |
 | Infra | Docker Compose on Nebius AI Cloud, Nebius Container Registry, GitHub Actions |
 
 ## Repository layout
 
 ```
 backend/            FastAPI app: llm/, rag/, tools/, agent/ (graph, fix, memory, follow-ups, PR), sandbox/, mcp_servers.py
-frontend/           React app (in progress)
+frontend/           React app: Investigations (report, evidence, patch, red→green tests, PR, chat, trace), Dashboard, Knowledge, Logs, Evaluation
 demo-target/        PayStream service + scripts that build its seeded git history
 eval/               cases.yaml, hidden_tests/, evaluate.py, results/
-infra/              docker-compose.yml for local Postgres (production compose and Caddy in progress)
-.github/workflows/  CI (deploy pipeline in progress)
-docs/               concept PDF, implementation plan, diagrams/
+infra/              docker-compose.yml (local Postgres), docker-compose.prod.yml + Caddyfile (production on a Nebius VM)
+.github/workflows/  CI: lint, type checks, backend and frontend tests, API-contract check
+docs/               implementation plan, diagrams/, screenshots/, FEEDBACK.md, devpost/
 ```
 
 ## Evaluation
@@ -268,8 +325,9 @@ Patch quality on unfamiliar codebases will be lower than on the seeded demo, whi
 
 - [ ] Working demo URL (with a "Try demo" button)
 - [ ] Demo video ≤ 3 minutes: full investigation → patch → red/green tests → PR draft
-- [ ] Public repo with an Apache-2.0 license
-- [ ] README covering Nemotron tiers, Token Factory + Sandboxes, architecture, setup and evaluation
+- [x] Public repo with an Apache-2.0 license
+- [x] Web app: investigation report, evidence, patch, red→green tests, PR draft, follow-up chat, trace, dashboard, evaluation
+- [x] README covering Nemotron tiers, Token Factory + Sandboxes, architecture, setup, evaluation and screenshots
 - [x] Feedback note on Nebius and NVIDIA tools (`docs/FEEDBACK.md`)
 - [x] Evaluation results from `evaluate.py` in this README
 
