@@ -130,6 +130,7 @@ function InvestigationDetail({ investigationId }: { investigationId: string }) {
             <TabsTrigger value="tests" disabled={view.tests.length === 0}>Tests</TabsTrigger>
             <TabsTrigger value="pr" disabled={!view.pr}>PR draft</TabsTrigger>
             <TabsTrigger value="chat" disabled={!view.report}>Chat</TabsTrigger>
+            <TabsTrigger value="trace">Trace</TabsTrigger>
           </TabsList>
           <TabsContent value="report"><ReportTab view={view} projectId={investigation?.project_id} /></TabsContent>
           <TabsContent value="activity"><ActivityTab view={view} /></TabsContent>
@@ -138,6 +139,7 @@ function InvestigationDetail({ investigationId }: { investigationId: string }) {
           <TabsContent value="tests"><TestsTab view={view} /></TabsContent>
           <TabsContent value="pr"><PrTab view={view} investigationId={investigationId} /></TabsContent>
           <TabsContent value="chat"><ChatTab investigationId={investigationId} /></TabsContent>
+          <TabsContent value="trace"><TraceTab investigationId={investigationId} done={!!view.done} /></TabsContent>
         </Tabs>
       </div>
     </div>
@@ -511,6 +513,62 @@ function ChatTab({ investigationId }: { investigationId: string }) {
         <Textarea aria-label="Follow-up question" placeholder="Which commit introduced this?" value={draft} onChange={(e) => setDraft(e.target.value)} />
         <Button type="submit" size="sm" disabled={draft.trim().length < 2 || ask.isPending}>Ask</Button>
       </form>
+    </div>
+  )
+}
+
+/** Every model, tool, retrieval, memory and sandbox call, as a waterfall: the proof of which
+ * Nemotron model on Nebius did what, and what it cost. */
+function TraceTab({ investigationId, done }: { investigationId: string; done: boolean }) {
+  const trace = useQuery({
+    queryKey: ['trace', investigationId, done], // reloads once the run ends
+    queryFn: () =>
+      ok(api.GET('/investigations/{investigation_id}/trace', { params: { path: { investigation_id: investigationId } } })),
+  })
+  if (trace.isError) return <p role="alert" className="text-xs text-destructive">{errorMessage(trace.error)}</p>
+  if (!trace.data) return <p className="text-sm text-muted-foreground">Loading…</p>
+  const { spans, totals } = trace.data
+  if (spans.length === 0) return <p className="text-sm text-muted-foreground">No calls recorded yet.</p>
+  const start = Date.parse(spans[0].started_at)
+  const total = Math.max(totals.duration_ms, 1)
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-xs text-muted-foreground">
+        {totals.spans} calls · {totals.llm_calls} to Nemotron ·{' '}
+        {(totals.prompt_tokens + totals.completion_tokens).toLocaleString()} tokens · ${totals.cost_usd.toFixed(4)} ·{' '}
+        {(totals.duration_ms / 1000).toFixed(0)} s
+      </p>
+      <table aria-label="Trace" className="w-full text-xs">
+        <tbody>
+          {spans.map((span) => {
+            const left = ((Date.parse(span.started_at) - start) / total) * 100
+            const width = Math.max(((span.latency_ms ?? 0) / total) * 100, 0.5)
+            return (
+              <tr key={span.id} title={span.error ?? span.model ?? undefined}>
+                <td className="w-0 py-0.5 pr-2 whitespace-nowrap">
+                  <Badge variant="outline" className="h-4 px-1 text-[10px]">{span.kind}</Badge>{' '}
+                  <span className={span.status === 'ok' ? '' : 'text-destructive'}>{span.name}</span>
+                  {span.tier && <span className="text-muted-foreground"> · {span.tier}</span>}
+                  {span.downgraded && <span className="text-muted-foreground"> (fell back to Super)</span>}
+                </td>
+                <td className="py-0.5">
+                  <div className="relative h-2.5 rounded bg-muted/50">
+                    <div
+                      className={`absolute h-2.5 rounded ${span.kind === 'llm' ? 'bg-primary' : 'bg-muted-foreground/60'}`}
+                      style={{ left: `${Math.min(left, 99.5)}%`, width: `${width}%` }}
+                    />
+                  </div>
+                </td>
+                <td className="w-0 py-0.5 pl-2 text-right whitespace-nowrap text-muted-foreground">
+                  {span.latency_ms != null ? `${(span.latency_ms / 1000).toFixed(1)} s` : '—'}
+                  {span.cost_usd > 0 && ` · $${span.cost_usd.toFixed(4)}`}
+                  {span.cached && ' · cached'}
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
     </div>
   )
 }

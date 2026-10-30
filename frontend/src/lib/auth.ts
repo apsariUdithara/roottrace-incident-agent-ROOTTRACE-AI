@@ -15,6 +15,11 @@ export async function login(email: string, password: string): Promise<void> {
   setSession(await ok(api.POST('/auth/login', { body: { email, password } })))
 }
 
+/** "Try demo": logs in as the shared demo user, no password. */
+export async function demo(): Promise<void> {
+  setSession(await ok(api.POST('/auth/demo')))
+}
+
 export async function register(email: string, password: string): Promise<void> {
   setSession(await ok(api.POST('/auth/register', { body: { email, password } })))
 }

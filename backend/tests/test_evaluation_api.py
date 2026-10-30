@@ -18,12 +18,23 @@ def add_run(started_at: datetime, accuracy: float) -> uuid.UUID:
     async def insert():
         engine = create_async_engine(os.environ["DATABASE_URL"], poolclass=NullPool)  # the test DB
         async with engine.begin() as conn:
-            await conn.execute(EvaluationRun.__table__.insert().values(
-                id=run_id, started_at=started_at, git_sha="abc123",
-                model_config={"ultra": "nvidia/Nemotron-3-Ultra-550b-a55b"},
-                metrics={"root_cause_accuracy": accuracy, "cases": 2, "no_false_fix_rate": None},
-                cases=[{"id": "s1-q1", "root_cause_correct": True}, {"id": "s2-q1", "fix": False}],
-            ))
+            await conn.execute(
+                EvaluationRun.__table__.insert().values(
+                    id=run_id,
+                    started_at=started_at,
+                    git_sha="abc123",
+                    model_config={"ultra": "nvidia/Nemotron-3-Ultra-550b-a55b"},
+                    metrics={
+                        "root_cause_accuracy": accuracy,
+                        "cases": 2,
+                        "no_false_fix_rate": None,
+                    },
+                    cases=[
+                        {"id": "s1-q1", "root_cause_correct": True},
+                        {"id": "s2-q1", "fix": False},
+                    ],
+                )
+            )
         await engine.dispose()
 
     asyncio.run(insert())

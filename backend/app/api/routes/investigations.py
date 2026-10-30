@@ -31,6 +31,8 @@ from app.models import (
     Message,
     Patch,
     Repository,
+    SpanKind,
+    TraceSpan,
 )
 from app.schemas.events import EVENT_CLASSES, Event
 from app.schemas.investigation import (
@@ -40,6 +42,8 @@ from app.schemas.investigation import (
     MessageOut,
     PrOpenedOut,
     Trace,
+    TraceSpanOut,
+    TraceTotals,
 )
 
 router = APIRouter(tags=["investigations"])
@@ -258,9 +262,7 @@ async def approve(investigation: OwnedInvestigation, session: SessionDep) -> PrO
 
 
 @router.get("/investigations/{investigation_id}/messages")
-async def list_messages(
-    investigation: OwnedInvestigation, session: SessionDep
-) -> list[MessageOut]:
+async def list_messages(investigation: OwnedInvestigation, session: SessionDep) -> list[MessageOut]:
     """The follow-up chat, oldest first."""
     rows = await session.scalars(
         select(Message)
@@ -280,6 +282,27 @@ async def rerun_patch(patch_id: uuid.UUID, investigation: OwnedInvestigation) ->
 
 
 @router.get("/investigations/{investigation_id}/trace")
-async def get_trace(investigation: OwnedInvestigation) -> Trace:
+async def get_trace(investigation: OwnedInvestigation, session: SessionDep) -> Trace:
     """Every LLM, tool, retrieval, memory, MCP and sandbox call in the run, with totals."""
-    raise not_implemented("B-803")
+    rows = list(
+        await session.scalars(
+            select(TraceSpan)
+            .where(TraceSpan.investigation_id == investigation.id)
+            .order_by(TraceSpan.started_at, TraceSpan.id)
+        )
+    )
+    spans = [TraceSpanOut.model_validate(r) for r in rows]
+    ends = [s.started_at + timedelta(milliseconds=s.latency_ms or 0) for s in spans]
+    return Trace(
+        spans=spans,
+        totals=TraceTotals(
+            spans=len(spans),
+            llm_calls=sum(s.kind == SpanKind.LLM for s in spans),
+            prompt_tokens=sum(s.prompt_tokens for s in spans),
+            completion_tokens=sum(s.completion_tokens for s in spans),
+            cost_usd=round(sum(s.cost_usd for s in spans), 6),
+            duration_ms=round((max(ends) - spans[0].started_at).total_seconds() * 1000)
+            if spans
+            else 0,
+        ),
+    )

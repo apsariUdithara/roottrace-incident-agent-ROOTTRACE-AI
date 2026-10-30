@@ -14,7 +14,9 @@ router = APIRouter(prefix="/evaluation/runs", tags=["evaluation"])
 
 
 @router.get("")
-async def list_evaluation_runs(user: CurrentUser, session: SessionDep) -> list[EvaluationRunSummary]:
+async def list_evaluation_runs(
+    user: CurrentUser, session: SessionDep
+) -> list[EvaluationRunSummary]:
     """Newest first."""
     rows = await session.scalars(select(EvaluationRun).order_by(EvaluationRun.started_at.desc()))
     return [EvaluationRunSummary.model_validate(r) for r in rows]

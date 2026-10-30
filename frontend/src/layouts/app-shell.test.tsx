@@ -64,14 +64,6 @@ describe('sidebar', () => {
 
     expect(sidebar()?.getAttribute('data-state')).toBe('collapsed')
   })
-
-  it("says which task builds a page that isn't built yet", async () => {
-    backend({ cookie: true })
-    renderApp('/')
-
-    expect(await screen.findByRole('heading', { name: 'Dashboard' })).toBeTruthy()
-    expect(screen.getByText(/Coming with B-804/)).toBeTruthy()
-  })
 })
 
 describe('project switcher', () => {
