@@ -15,7 +15,9 @@
   <a href="docs/IMPLEMENTATION_PLAN.md">Implementation plan</a>
 </p>
 
-**Live demo:** *link added after deployment* · **Video:** *link added after upload* · Click **Try the demo** on the login page: no account needed.
+**Live demo: [roottrace-tau.vercel.app](https://roottrace-tau.vercel.app)** · **Video: [watch the 3-minute demo](https://youtu.be/MXaXElD_aA4)** · Click **Try the demo** on the login page: no account needed.
+
+> The demo runs on free hosting (Vercel + Render + Neon). If the backend has been idle, the first page load can take about a minute to wake up.
 
 ---
 
@@ -168,7 +170,7 @@ One PostgreSQL database with pgvector holds application data, embeddings, long-t
 
 ## Run it yourself
 
-**Fastest way:** open the live demo and click **Try the demo** (no account needed).
+**Fastest way:** open the [live demo](https://roottrace-tau.vercel.app) and click **Try the demo** (no account needed).
 
 To run it locally you need Docker, Python 3.12 with [uv](https://docs.astral.sh/uv/), Node 20+, and a Nebius Token Factory API key. From the repo root:
 
@@ -323,8 +325,8 @@ Patch quality on unfamiliar codebases will be lower than on the seeded demo, whi
 
 ## Hackathon checklist
 
-- [ ] Working demo URL (with a "Try demo" button)
-- [ ] Demo video ≤ 3 minutes: full investigation → patch → red/green tests → PR draft
+- [x] Working demo URL with a "Try the demo" button: [roottrace-tau.vercel.app](https://roottrace-tau.vercel.app)
+- [x] Demo video ≤ 3 minutes: full investigation → patch → red/green tests → PR draft: [youtu.be/MXaXElD_aA4](https://youtu.be/MXaXElD_aA4)
 - [x] Public repo with an Apache-2.0 license
 - [x] Web app: investigation report, evidence, patch, red→green tests, PR draft, follow-up chat, trace, dashboard, evaluation
 - [x] README covering Nemotron tiers, Token Factory + Sandboxes, architecture, setup, evaluation and screenshots
