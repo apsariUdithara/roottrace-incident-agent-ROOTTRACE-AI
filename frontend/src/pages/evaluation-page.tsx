@@ -1,26 +1,38 @@
 // /evaluation: what `eval/evaluate.py` measured. Every number here comes from a saved run, never
 // typed by hand; failed cases are shown, not hidden.
 import { useQuery } from '@tanstack/react-query'
-import { CheckCircle2, XCircle } from 'lucide-react'
+import {
+  CheckCircle2,
+  FileSearch,
+  HeartPulse,
+  Quote,
+  ShieldCheck,
+  Target,
+  Wrench,
+  XCircle,
+  type LucideIcon,
+} from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router'
 
 import { api, ok } from '@/api/client'
 import { PageHeader } from '@/components/page-header'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { StatTile } from '@/components/stat-tile'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { Skeleton } from '@/components/ui/skeleton'
+import type { TileTone } from '@/lib/colors'
 import { errorMessage } from '@/lib/errors'
 import { formatUtc } from '@/lib/time'
 
 /** The headline metrics, in the README's order. Rates are 0–1. */
-const TILES: { key: string; label: string; hint: string }[] = [
-  { key: 'root_cause_accuracy', label: 'Root cause correct', hint: 'judged against the expected cause' },
-  { key: 'citations_valid', label: 'Citations valid', hint: 'quotes found verbatim in the source' },
-  { key: 'verified_fix_rate', label: 'Fix passes hidden test', hint: 'a test the agent never saw' },
-  { key: 'evidence_recall', label: 'Expected evidence cited', hint: 'share of the evidence that matters' },
-  { key: 'tool_selection', label: 'Right tools used', hint: 'expected tools ⊆ tools called' },
-  { key: 'no_false_fix_rate', label: 'No fix on healthy code', hint: 'no patch when nothing is broken' },
+const TILES: { key: string; label: string; hint: string; icon: LucideIcon; tone: TileTone }[] = [
+  { key: 'root_cause_accuracy', label: 'Root cause correct', hint: 'judged against the expected cause', icon: Target, tone: 'emerald' },
+  { key: 'citations_valid', label: 'Citations valid', hint: 'quotes found verbatim in the source', icon: Quote, tone: 'sky' },
+  { key: 'verified_fix_rate', label: 'Fix passes hidden test', hint: 'a test the agent never saw', icon: ShieldCheck, tone: 'teal' },
+  { key: 'evidence_recall', label: 'Expected evidence cited', hint: 'share of the evidence that matters', icon: FileSearch, tone: 'violet' },
+  { key: 'tool_selection', label: 'Right tools used', hint: 'expected tools ⊆ tools called', icon: Wrench, tone: 'amber' },
+  { key: 'no_false_fix_rate', label: 'No fix on healthy code', hint: 'no patch when nothing is broken', icon: HeartPulse, tone: 'rose' },
 ]
 
 type Case = Record<string, unknown>
@@ -66,15 +78,16 @@ export function EvaluationPage() {
 
       {run.data && (
         <>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {TILES.filter((t) => t.key in run.data.metrics).map((tile) => (
-              <Card key={tile.key} size="sm">
-                <CardHeader>
-                  <CardDescription>{tile.label}</CardDescription>
-                  <CardTitle className="text-2xl">{pct(run.data.metrics[tile.key])}</CardTitle>
-                  <p className="text-[0.8125rem] text-muted-foreground">{tile.hint}</p>
-                </CardHeader>
-              </Card>
+              <StatTile
+                key={tile.key}
+                label={tile.label}
+                value={pct(run.data.metrics[tile.key])}
+                hint={tile.hint}
+                icon={tile.icon}
+                tone={tile.tone}
+              />
             ))}
           </div>
           <p className="text-[0.8125rem] text-muted-foreground">
@@ -155,8 +168,8 @@ function Cases({ cases }: { cases: Case[] }) {
 
 /** ✓ / ✗ for a pass or fail; a dash where the check doesn't apply (e.g. no fix on healthy code). */
 function Mark({ value }: { value: unknown }) {
-  if (value === true) return <CheckCircle2 className="inline size-4 text-primary" aria-label="pass" />
-  if (value === false) return <XCircle className="inline size-4 text-destructive" aria-label="fail" />
+  if (value === true) return <CheckCircle2 className="inline size-4 text-emerald-600 dark:text-emerald-400" aria-label="pass" />
+  if (value === false) return <XCircle className="inline size-4 text-red-600 dark:text-red-400" aria-label="fail" />
   return <span className="text-muted-foreground">—</span>
 }
 

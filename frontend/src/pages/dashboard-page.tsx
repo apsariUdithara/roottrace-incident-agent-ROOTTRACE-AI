@@ -1,14 +1,16 @@
 // /: how the agent is doing in the current project, and where to pick up.
 import { useQuery } from '@tanstack/react-query'
-import { Search } from 'lucide-react'
+import { Coins, Gauge, Search, ShieldCheck, Timer } from 'lucide-react'
 import { Link } from 'react-router'
 
 import { api, ok } from '@/api/client'
 import { PageHeader } from '@/components/page-header'
+import { StatTile } from '@/components/stat-tile'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { SOURCE_TONE, statusTone } from '@/lib/colors'
 import { useCurrentProject } from '@/lib/current-project'
 import { errorMessage } from '@/lib/errors'
 import { formatUtc } from '@/lib/time'
@@ -31,12 +33,12 @@ export function DashboardPage() {
       {stats.isError && <p role="alert" className="text-[0.8125rem] text-destructive">{errorMessage(stats.error)}</p>}
       {s && (
         <>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-            <Tile label="Investigations" value={String(s.investigations)} />
-            <Tile label="Avg confidence" value={pct(s.avg_confidence)} />
-            <Tile label="Avg time" value={s.avg_duration_ms == null ? '—' : `${Math.round(s.avg_duration_ms / 1000)} s`} />
-            <Tile label="Avg cost" value={s.avg_cost_usd == null ? '—' : `$${s.avg_cost_usd.toFixed(3)}`} />
-            <Tile label="Fixes verified" value={pct(s.patch_success_rate)} hint="patches that passed in the sandbox" />
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+            <StatTile label="Investigations" value={String(s.investigations)} icon={Search} tone="sky" />
+            <StatTile label="Avg confidence" value={pct(s.avg_confidence)} icon={Gauge} tone="emerald" />
+            <StatTile label="Avg time" value={s.avg_duration_ms == null ? '—' : `${Math.round(s.avg_duration_ms / 1000)} s`} icon={Timer} tone="violet" />
+            <StatTile label="Avg cost" value={s.avg_cost_usd == null ? '—' : `$${s.avg_cost_usd.toFixed(3)}`} icon={Coins} tone="amber" />
+            <StatTile label="Fixes verified" value={pct(s.patch_success_rate)} hint="passed in the sandbox" icon={ShieldCheck} tone="teal" />
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
@@ -47,7 +49,7 @@ export function DashboardPage() {
               <CardContent className="flex flex-col gap-2">
                 {s.recent_investigations.map((inv) => (
                   <Link key={inv.id} to={`/investigations/${inv.id}`} className="flex items-center gap-2 rounded-md p-1.5 text-sm hover:bg-muted">
-                    <Badge variant={inv.status === 'failed' ? 'destructive' : 'outline'}>{inv.status}</Badge>
+                    <Badge variant="outline" className={statusTone(inv.status)}>{inv.status.replace('_', ' ')}</Badge>
                     <span className="flex-1 truncate">{inv.question}</span>
                     {inv.confidence != null && <span className="text-[0.8125rem]">{pct(inv.confidence)}</span>}
                   </Link>
@@ -69,7 +71,7 @@ export function DashboardPage() {
               <CardContent className="flex flex-col gap-2">
                 {s.recent_incidents.map((inc) => (
                   <div key={inc.id} className="flex items-center gap-2 text-sm">
-                    <code className="text-[0.8125rem]">{inc.key}</code>
+                    <Badge variant="outline" className={SOURCE_TONE.incident}>{inc.key}</Badge>
                     <span className="flex-1 truncate">{inc.title}</span>
                     {inc.occurred_at && <span className="text-[0.8125rem] text-muted-foreground">{formatUtc(inc.occurred_at)}</span>}
                   </div>
@@ -81,18 +83,6 @@ export function DashboardPage() {
         </>
       )}
     </div>
-  )
-}
-
-function Tile({ label, value, hint }: { label: string; value: string; hint?: string }) {
-  return (
-    <Card size="sm">
-      <CardHeader>
-        <CardDescription>{label}</CardDescription>
-        <CardTitle className="text-2xl">{value}</CardTitle>
-        {hint && <p className="text-[0.8125rem] text-muted-foreground">{hint}</p>}
-      </CardHeader>
-    </Card>
   )
 }
 

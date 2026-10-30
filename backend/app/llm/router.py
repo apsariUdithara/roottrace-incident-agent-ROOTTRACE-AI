@@ -14,6 +14,7 @@ import hashlib
 import json
 import time
 from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime, timedelta
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Literal
@@ -38,6 +39,12 @@ RETRYABLE = (
 # dropped request (a 1-2 s wait failed a whole investigation during an outage).
 BACKOFF_S = (2, 10, 30, 60, 120)  # ~4 min in total: rides out short provider outages (503s)
 MAX_ATTEMPTS = len(BACKOFF_S) + 1
+
+
+def started_at(latency_ms: int) -> datetime:
+    """When a call that just finished began: the trace waterfall places spans by it. Spans are
+    saved together at the end of a run, so the database's now() would give them all one time."""
+    return datetime.now(UTC) - timedelta(milliseconds=latency_ms)
 
 
 class CostCapExceeded(Exception):
@@ -137,6 +144,7 @@ class LLMRouter:
         self.spans.append(
             {
                 "name": name,
+                "started_at": started_at(result.latency_ms),
                 **{
                     k: v
                     for k, v in asdict(result).items()
@@ -193,7 +201,8 @@ class LLMRouter:
                     "prompt_tokens": tokens,
                     "completion_tokens": 0,
                     "cost_usd": cost_usd(model, tokens, 0),
-                    "latency_ms": round((time.perf_counter() - start) * 1000),
+                    "latency_ms": (latency := round((time.perf_counter() - start) * 1000)),
+                    "started_at": started_at(latency),
                 }
             )
         return vectors

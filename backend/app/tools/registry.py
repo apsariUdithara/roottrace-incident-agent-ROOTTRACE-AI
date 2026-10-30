@@ -18,7 +18,7 @@ from pathlib import Path
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.llm.router import LLMRouter
+from app.llm.router import LLMRouter, started_at
 
 MAX_RESULT_CHARS = 8000  # cap on what goes back to the LLM per call (about 2,000 tokens)
 
@@ -109,7 +109,8 @@ async def call_tool(ctx: ToolContext, name: str, arguments: str | dict) -> str:
             "tool": name,
             "arguments": arguments,
             "ok": "error" not in result,
-            "latency_ms": int((time.perf_counter() - start) * 1000),
+            "latency_ms": (latency := int((time.perf_counter() - start) * 1000)),
+            "started_at": started_at(latency),
             "result_chars": len(text),
         }
     )

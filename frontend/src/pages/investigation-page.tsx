@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
+import { statusTone } from '@/lib/colors'
 import { useCurrentProject } from '@/lib/current-project'
 import { applyEvents, emptyView, stepLabel, type InvestigationView } from '@/lib/investigation'
 import { useSourceViewer } from '@/lib/source-viewer'
@@ -243,9 +244,9 @@ function TierBadge({ tier }: { tier: string }) {
 }
 
 function StepIcon({ status }: { status: string }) {
-  if (status === 'running') return <Loader2 className="mt-0.5 size-4 shrink-0 animate-spin text-primary" aria-label="running" />
+  if (status === 'running') return <Loader2 className="mt-0.5 size-4 shrink-0 animate-spin text-sky-500" aria-label="running" />
   if (status === 'skipped') return <MinusCircle className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-label="skipped" />
-  return <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary" aria-label="done" />
+  return <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-label="done" />
 }
 
 function ReportTab({ view, projectId }: { view: InvestigationView; projectId?: string }) {
@@ -269,9 +270,9 @@ function ReportTab({ view, projectId }: { view: InvestigationView; projectId?: s
             <p className="text-lg leading-relaxed font-medium">{report.root_cause ?? 'No root cause was established.'}</p>
             <div className="flex flex-wrap gap-2">
               {report.verdict && (
-                <Badge variant={report.verdict === 'supported' ? 'default' : 'outline'}>verdict: {report.verdict}</Badge>
+                <Badge variant="outline" className={statusTone(report.verdict)}>verdict: {report.verdict}</Badge>
               )}
-              <Badge variant={report.fix === 'verified' ? 'default' : 'outline'}>
+              <Badge variant="outline" className={statusTone(report.fix)}>
                 {report.fix === 'verified' ? 'fix verified in Nebius Sandbox' : `fix: ${report.fix}`}
               </Badge>
             </div>
@@ -293,6 +294,15 @@ function ReportTab({ view, projectId }: { view: InvestigationView; projectId?: s
   )
 }
 
+const COMPONENT_BAR: Record<string, string> = {
+  coverage: 'bg-sky-500',
+  strength: 'bg-violet-500',
+  verifier: 'bg-emerald-500',
+  history: 'bg-amber-500',
+  fix: 'bg-teal-500',
+  contradiction: 'bg-red-500',
+}
+
 /** The score and the parts it's computed from (agent/confidence.py): the score is code, not a guess. */
 function ConfidenceCard({ view }: { view: InvestigationView }) {
   const { score, components } = view.confidence!
@@ -311,7 +321,7 @@ function ConfidenceCard({ view }: { view: InvestigationView }) {
                 <td className="py-0.5 capitalize">{c.name}</td>
                 <td className="w-1/2 py-0.5">
                   <div className="h-1.5 rounded bg-muted">
-                    <div className={`h-1.5 rounded ${c.weight < 0 ? 'bg-destructive' : 'bg-primary'}`} style={{ width: pct(c.value) }} />
+                    <div className={`h-1.5 rounded ${COMPONENT_BAR[c.name] ?? 'bg-primary'}`} style={{ width: pct(c.value) }} />
                   </div>
                 </td>
                 <td className="py-0.5 pl-2 text-right whitespace-nowrap text-muted-foreground tabular-nums">
@@ -337,9 +347,9 @@ function ActivityTab({ view }: { view: InvestigationView }) {
               {!call.result ? (
                 <Loader2 className="size-4 animate-spin" aria-label="running" />
               ) : call.result.ok ? (
-                <CheckCircle2 className="size-4 text-primary" aria-label="ok" />
+                <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400" aria-label="ok" />
               ) : (
-                <XCircle className="size-4 text-destructive" aria-label="failed" />
+                <XCircle className="size-4 text-red-600 dark:text-red-400" aria-label="failed" />
               )}
               <code className="font-semibold">{call.tool}</code>
               {call.transport === 'mcp' && <Badge variant="secondary">MCP</Badge>}
@@ -378,7 +388,7 @@ function EvidenceTab({ view, projectId, chipsOnly = false }: { view: Investigati
           <div className="flex items-center gap-2">
             <EvidenceChip evidence={e} onOpen={open(e.source_ref)} />
             {e.stance !== 'neutral' && (
-              <Badge variant={e.stance === 'contradicts' ? 'destructive' : 'outline'}>{e.stance}</Badge>
+              <Badge variant="outline" className={statusTone(e.stance === 'contradicts' ? 'failed' : 'ok')}>{e.stance}</Badge>
             )}
           </div>
           <p>{e.statement}</p>
@@ -416,9 +426,9 @@ function Diff({ diff }: { diff: string }) {
     <pre aria-label="Diff" className="overflow-x-auto rounded-md border bg-muted/40 p-2 text-[0.8125rem] leading-5">
       {diff.split('\n').map((line, index) => {
         const tone = line.startsWith('+') && !line.startsWith('+++')
-          ? 'bg-primary/15'
+          ? 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-200'
           : line.startsWith('-') && !line.startsWith('---')
-            ? 'bg-destructive/15'
+            ? 'bg-red-500/15 text-red-800 dark:text-red-200'
             : line.startsWith('@@')
               ? 'text-muted-foreground'
               : ''
@@ -436,15 +446,25 @@ function TestsTab({ view }: { view: InvestigationView }) {
         const r = run.result
         const failed = r ? r.exit_code !== 0 : undefined
         return (
-          <Card key={run.phase} size="sm">
+          <Card
+            key={run.phase}
+            size="sm"
+            className={
+              failed === undefined
+                ? ''
+                : failed
+                  ? 'bg-red-500/5 ring-red-500/30'
+                  : 'bg-emerald-500/5 ring-emerald-500/30'
+            }
+          >
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 {failed === undefined ? (
                   <CircleDashed className="size-4 animate-spin" aria-hidden />
                 ) : failed ? (
-                  <XCircle className="size-4 text-destructive" aria-hidden />
+                  <XCircle className="size-4 text-red-600 dark:text-red-400" aria-hidden />
                 ) : (
-                  <CheckCircle2 className="size-4 text-primary" aria-hidden />
+                  <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400" aria-hidden />
                 )}
                 <span className="capitalize">{run.phase}</span>
                 {r && (
@@ -457,7 +477,7 @@ function TestsTab({ view }: { view: InvestigationView }) {
             </CardHeader>
             <CardContent className="flex flex-col gap-2">
               {r && <code className="text-[0.8125rem] text-muted-foreground">$ {r.command}</code>}
-              <pre className="max-h-80 overflow-auto rounded bg-black p-2 text-[0.8125rem] text-green-200">{run.lines.join('\n')}</pre>
+              <pre className="max-h-80 overflow-auto rounded-md bg-slate-950 p-3 text-[0.8125rem] text-emerald-200 ring-1 ring-white/10">{run.lines.join('\n')}</pre>
               {r?.sandbox_image_id && <p className="text-[0.8125rem] text-muted-foreground">Nebius Sandbox image {r.sandbox_image_id}</p>}
             </CardContent>
           </Card>
@@ -540,6 +560,15 @@ function ChatTab({ investigationId }: { investigationId: string }) {
   )
 }
 
+const SPAN_BAR: Record<string, string> = {
+  llm: 'bg-emerald-500',
+  tool: 'bg-sky-500',
+  mcp: 'bg-indigo-500',
+  retrieval: 'bg-violet-500',
+  memory: 'bg-fuchsia-500',
+  sandbox: 'bg-amber-500',
+}
+
 /** Every model, tool, retrieval, memory and sandbox call, as a waterfall: the proof of which
  * Nemotron model on Nebius did what, and what it cost. */
 function TraceTab({ investigationId, done }: { investigationId: string; done: boolean }) {
@@ -577,7 +606,7 @@ function TraceTab({ investigationId, done }: { investigationId: string; done: bo
                 <td className="py-0.5">
                   <div className="relative h-2.5 rounded bg-muted/50">
                     <div
-                      className={`absolute h-2.5 rounded ${span.kind === 'llm' ? 'bg-primary' : 'bg-muted-foreground/60'}`}
+                      className={`absolute h-2.5 rounded ${SPAN_BAR[span.kind] ?? 'bg-muted-foreground/60'}`}
                       style={{ left: `${Math.min(left, 99.5)}%`, width: `${width}%` }}
                     />
                   </div>
@@ -597,8 +626,11 @@ function TraceTab({ investigationId, done }: { investigationId: string; done: bo
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const variant = status === 'failed' ? 'destructive' : status === 'completed' ? 'default' : 'outline'
-  return <Badge variant={variant}>{status}</Badge>
+  return (
+    <Badge variant="outline" className={statusTone(status)}>
+      {status.replace('_', ' ')}
+    </Badge>
+  )
 }
 
 const pct = (value: number) => `${Math.round(value * 100)}%`
