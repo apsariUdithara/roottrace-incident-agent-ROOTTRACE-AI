@@ -3412,11 +3412,18 @@
           },
           "metrics": {
             "additionalProperties": {
-              "type": "number"
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "type": "object",
             "title": "Metrics",
-            "description": "Metric name to value, e.g. {\"retrieval_recall\": 0.92, \"suite_pass_rate\": 1.0}"
+            "description": "Metric name to value, e.g. {\"root_cause_accuracy\": 1.0}; null when the run had no cases to measure it (no healthy versions: no no_false_fix_rate)"
           },
           "models": {
             "additionalProperties": true,
@@ -3468,11 +3475,18 @@
           },
           "metrics": {
             "additionalProperties": {
-              "type": "number"
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "type": "object",
             "title": "Metrics",
-            "description": "Metric name to value, e.g. {\"retrieval_recall\": 0.92, \"suite_pass_rate\": 1.0}"
+            "description": "Metric name to value, e.g. {\"root_cause_accuracy\": 1.0}; null when the run had no cases to measure it (no healthy versions: no no_false_fix_rate)"
           }
         },
         "type": "object",

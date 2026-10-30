@@ -67,10 +67,10 @@ describe('sidebar', () => {
 
   it("says which task builds a page that isn't built yet", async () => {
     backend({ cookie: true })
-    renderApp('/evaluation')
+    renderApp('/')
 
-    expect(await screen.findByRole('heading', { name: 'Evaluation' })).toBeTruthy()
-    expect(screen.getByText(/Coming with B-902/)).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: 'Dashboard' })).toBeTruthy()
+    expect(screen.getByText(/Coming with B-804/)).toBeTruthy()
   })
 })
 

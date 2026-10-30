@@ -13,8 +13,11 @@ class EvaluationRunSummary(BaseModel):
     id: uuid.UUID
     started_at: datetime
     git_sha: str | None
-    metrics: dict[str, float] = Field(
-        description='Metric name to value, e.g. {"retrieval_recall": 0.92, "suite_pass_rate": 1.0}'
+    metrics: dict[str, float | None] = Field(
+        description=(
+            "Metric name to value, e.g. {\"root_cause_accuracy\": 1.0}; null when the run had"
+            " no cases to measure it (no healthy versions: no no_false_fix_rate)"
+        )
     )
 
 

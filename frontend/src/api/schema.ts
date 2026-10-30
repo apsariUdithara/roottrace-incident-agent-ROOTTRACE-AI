@@ -983,10 +983,10 @@ export interface components {
             git_sha: string | null;
             /**
              * Metrics
-             * @description Metric name to value, e.g. {"retrieval_recall": 0.92, "suite_pass_rate": 1.0}
+             * @description Metric name to value, e.g. {"root_cause_accuracy": 1.0}; null when the run had no cases to measure it (no healthy versions: no no_false_fix_rate)
              */
             metrics: {
-                [key: string]: number;
+                [key: string]: number | null;
             };
             /** Models */
             models: {
@@ -1013,10 +1013,10 @@ export interface components {
             git_sha: string | null;
             /**
              * Metrics
-             * @description Metric name to value, e.g. {"retrieval_recall": 0.92, "suite_pass_rate": 1.0}
+             * @description Metric name to value, e.g. {"root_cause_accuracy": 1.0}; null when the run had no cases to measure it (no healthy versions: no no_false_fix_rate)
              */
             metrics: {
-                [key: string]: number;
+                [key: string]: number | null;
             };
         };
         /** EvidenceAdded */
