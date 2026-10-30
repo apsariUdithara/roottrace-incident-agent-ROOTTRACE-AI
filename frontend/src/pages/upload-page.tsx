@@ -69,7 +69,7 @@ export function UploadPage() {
       />
       {isPending && <Skeleton className="h-24" />}
       {isError && (
-        <p role="alert" className="text-xs text-destructive">
+        <p role="alert" className="text-[0.8125rem] text-destructive">
           Couldn't load your projects. Reload the page to try again.
         </p>
       )}
@@ -169,10 +169,10 @@ function Uploader({ projectId }: { projectId: string }) {
         </CardHeader>
         <CardContent className="flex flex-wrap items-end gap-6">
           <fieldset className="flex flex-col gap-1">
-            <legend className="mb-1 text-xs text-muted-foreground">It holds</legend>
+            <legend className="mb-1 text-[0.8125rem] text-muted-foreground">It holds</legend>
             <div className="flex gap-4">
               {(Object.keys(KINDS) as Kind[]).map((value) => (
-                <Label key={value} className="text-xs">
+                <Label key={value} className="text-[0.8125rem]">
                   <input
                     type="radio"
                     name="kind"
@@ -188,7 +188,7 @@ function Uploader({ projectId }: { projectId: string }) {
               ))}
             </div>
           </fieldset>
-          <Label className="flex flex-col items-start gap-1 text-xs text-muted-foreground">
+          <Label className="flex flex-col items-start gap-1 text-[0.8125rem] text-muted-foreground">
             File (at most 20 MB)
             <Input
               key={chosen === null ? 'empty' : 'chosen'} // empties the box when starting again
@@ -202,7 +202,7 @@ function Uploader({ projectId }: { projectId: string }) {
       </Card>
       {chosen && preview.isPending && <Skeleton className="h-60" />}
       {preview.isError && (
-        <p role="alert" className="text-xs text-destructive">
+        <p role="alert" className="text-[0.8125rem] text-destructive">
           {errorMessage(preview.error)}
         </p>
       )}
@@ -256,7 +256,7 @@ function PreviewCard({
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <div className="overflow-x-auto">
-          <table aria-label="Fields and columns" className="w-full text-left text-xs">
+          <table aria-label="Fields and columns" className="w-full text-left text-[0.8125rem]">
             <thead className="border-b text-muted-foreground">
               <tr>
                 <th className="py-2 pr-3 font-medium">Field</th>
@@ -295,13 +295,13 @@ function PreviewCard({
           </table>
         </div>
         {unmapped.length > 0 && (
-          <p className="text-xs text-muted-foreground">
+          <p className="text-[0.8125rem] text-muted-foreground">
             {preview.kind === 'logs' ? 'Kept with each line as extra fields: ' : 'Not imported: '}
             {unmapped.join(', ')}
           </p>
         )}
         <div role="status" aria-busy={checking}>
-          {preview.mapping_error && <p className="text-xs text-destructive">{preview.mapping_error}</p>}
+          {preview.mapping_error && <p className="text-[0.8125rem] text-destructive">{preview.mapping_error}</p>}
           {result && <Outcome result={result} />}
         </div>
         <div className="flex flex-col items-start gap-1">
@@ -310,7 +310,7 @@ function PreviewCard({
             {!importing && (result ? `Import ${result.imported.toLocaleString('en')} ${noun(result.imported)}` : 'Import')}
           </Button>
           {error && (
-            <p role="alert" className="text-xs text-destructive">
+            <p role="alert" className="text-[0.8125rem] text-destructive">
               {errorMessage(error)}
             </p>
           )}
@@ -335,7 +335,7 @@ function Outcome({ result, done = false }: { result: Result; done?: boolean }) {
   const { imported, skipped, failed, errors } = result
 
   return (
-    <div className="flex flex-col gap-1 text-xs">
+    <div className="flex flex-col gap-1 text-[0.8125rem]">
       <p>
         {done
           ? `Imported ${n(imported)} ${noun(imported)} from ${result.filename}.`

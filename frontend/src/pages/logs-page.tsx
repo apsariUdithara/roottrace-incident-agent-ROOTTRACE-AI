@@ -49,7 +49,7 @@ export function LogsPage() {
       />
       {isPending && <Skeleton className="h-24" />}
       {isError && (
-        <p role="alert" className="text-xs text-destructive">
+        <p role="alert" className="text-[0.8125rem] text-destructive">
           Couldn't load your projects. Reload the page to try again.
         </p>
       )}
@@ -80,7 +80,7 @@ function ProjectLogs({ projectId }: { projectId: string }) {
   if (facets.isPending) return <Skeleton className="h-40" />
   if (facets.isError) {
     return (
-      <p role="alert" className="text-xs text-destructive">
+      <p role="alert" className="text-[0.8125rem] text-destructive">
         {errorMessage(facets.error)}
       </p>
     )
@@ -130,20 +130,20 @@ function LogExplorer({ projectId, facets }: { projectId: string; facets: Facets 
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-xs text-muted-foreground">
+      <p className="text-[0.8125rem] text-muted-foreground">
         {facets.total.toLocaleString('en')} lines, from {formatUtc(facets.first_ts!)} to{' '}
         {formatUtc(facets.last_ts!)}
       </p>
       <LogFilters facets={facets} update={update} onClear={filtered ? clear : undefined} />
       {backwards ? (
-        <p role="alert" className="text-xs text-destructive">
+        <p role="alert" className="text-[0.8125rem] text-destructive">
           “From” is after “To”, so no line can match.
         </p>
       ) : (
         lines.isPending && <Skeleton className="h-60" />
       )}
       {lines.isError && (
-        <p role="alert" className="text-xs text-destructive">
+        <p role="alert" className="text-[0.8125rem] text-destructive">
           {errorMessage(lines.error)}
         </p>
       )}
@@ -255,7 +255,7 @@ function LogFilters({
 function FilterField({ label, children }: { label: string; children: ReactNode }) {
   // The label wraps its field, so the field is named by it.
   return (
-    <Label className="flex flex-col items-start gap-1 text-xs text-muted-foreground">
+    <Label className="flex flex-col items-start gap-1 text-[0.8125rem] text-muted-foreground">
       {label}
       {children}
     </Label>
@@ -359,7 +359,7 @@ function LogTable({
   return (
     <>
       <div className="overflow-x-auto rounded-lg ring-1 ring-foreground/10">
-        <table aria-label="Log lines" className="w-full text-left text-xs">
+        <table aria-label="Log lines" className="w-full text-left text-[0.8125rem]">
           <thead className="border-b text-muted-foreground">
             <tr>
               <th className="px-3 py-2 font-medium">Time (UTC)</th>
@@ -380,7 +380,7 @@ function LogTable({
           </tbody>
         </table>
       </div>
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+      <div className="flex items-center gap-2 text-[0.8125rem] text-muted-foreground">
         <span>
           {first.toLocaleString('en')}–{last.toLocaleString('en')} of {page.total.toLocaleString('en')}
         </span>

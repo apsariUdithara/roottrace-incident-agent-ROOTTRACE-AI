@@ -32,12 +32,12 @@ export function ProjectSettingsPage() {
 
   return (
     <div className="flex max-w-3xl flex-col gap-6">
-      <Link to="/projects" className="text-xs text-muted-foreground hover:underline">
+      <Link to="/projects" className="text-[0.8125rem] text-muted-foreground hover:underline">
         ← All projects
       </Link>
       {isPending && <Skeleton className="h-32" />}
       {isError && (
-        <p role="alert" className="text-xs text-destructive">
+        <p role="alert" className="text-[0.8125rem] text-destructive">
           Couldn't load this project. Reload the page to try again.
         </p>
       )}
@@ -97,7 +97,7 @@ function ProjectDetailsForm({ project }: { project: Project }) {
             />
           </FormField>
           {save.error && (
-            <p role="alert" className="text-xs text-destructive">
+            <p role="alert" className="text-[0.8125rem] text-destructive">
               {errorMessage(save.error)}
             </p>
           )}
@@ -106,7 +106,7 @@ function ProjectDetailsForm({ project }: { project: Project }) {
           <Button type="submit" disabled={save.isPending}>
             {save.isPending ? 'Saving…' : 'Save'}
           </Button>
-          <p role="status" className="text-xs text-muted-foreground">
+          <p role="status" className="text-[0.8125rem] text-muted-foreground">
             {save.isSuccess && 'Saved.'}
           </p>
         </CardFooter>

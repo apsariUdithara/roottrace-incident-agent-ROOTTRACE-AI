@@ -43,7 +43,7 @@ export function EvaluationPage() {
         description="8 incident scenarios × 2 phrasings, plus healthy versions, run end to end by eval/evaluate.py. Fixes are graded by hidden tests the agent never sees."
       />
       {runs.isPending && <Skeleton className="h-24" />}
-      {runs.isError && <p role="alert" className="text-xs text-destructive">{errorMessage(runs.error)}</p>}
+      {runs.isError && <p role="alert" className="text-[0.8125rem] text-destructive">{errorMessage(runs.error)}</p>}
       {runs.data?.length === 0 && (
         <p className="text-sm text-muted-foreground">No runs yet. Run <code>python eval/evaluate.py</code>.</p>
       )}
@@ -72,12 +72,12 @@ export function EvaluationPage() {
                 <CardHeader>
                   <CardDescription>{tile.label}</CardDescription>
                   <CardTitle className="text-2xl">{pct(run.data.metrics[tile.key])}</CardTitle>
-                  <p className="text-xs text-muted-foreground">{tile.hint}</p>
+                  <p className="text-[0.8125rem] text-muted-foreground">{tile.hint}</p>
                 </CardHeader>
               </Card>
             ))}
           </div>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-[0.8125rem] text-muted-foreground">
             {run.data.metrics.cases} cases · ${run.data.metrics.total_cost_usd?.toFixed(2)} in total ·{' '}
             {Math.round(run.data.metrics.avg_seconds ?? 0)} s per investigation on average · commit{' '}
             <code>{run.data.git_sha?.slice(0, 7) ?? 'unknown'}</code>
@@ -88,7 +88,7 @@ export function EvaluationPage() {
               <CardTitle>Models</CardTitle>
             </CardHeader>
             <CardContent>
-              <ul className="text-xs">
+              <ul className="text-[0.8125rem]">
                 {Object.entries(run.data.models).map(([tier, model]) => (
                   <li key={tier}>
                     <span className="capitalize">{tier}</span>: <code>{String(model)}</code>
@@ -99,7 +99,7 @@ export function EvaluationPage() {
           </Card>
         </>
       )}
-      {run.isError && <p role="alert" className="text-xs text-destructive">{errorMessage(run.error)}</p>}
+      {run.isError && <p role="alert" className="text-[0.8125rem] text-destructive">{errorMessage(run.error)}</p>}
     </div>
   )
 }
@@ -107,7 +107,7 @@ export function EvaluationPage() {
 function Cases({ cases }: { cases: Case[] }) {
   return (
     <div className="overflow-x-auto rounded-lg ring-1 ring-foreground/10">
-      <table aria-label="Cases" className="w-full text-xs">
+      <table aria-label="Cases" className="w-full text-[0.8125rem]">
         <thead className="border-b text-left text-muted-foreground">
           <tr>
             <th className="px-3 py-2">Case</th>

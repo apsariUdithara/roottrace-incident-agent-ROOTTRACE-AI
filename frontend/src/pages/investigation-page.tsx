@@ -10,7 +10,7 @@ import { PageHeader } from '@/components/page-header'
 import { EvidenceChip } from '@/components/source-chip'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { useCurrentProject } from '@/lib/current-project'
@@ -72,7 +72,7 @@ export function InvestigationsPage() {
             Investigate
           </Button>
           {start.isError && (
-            <p role="alert" className="text-xs text-destructive">
+            <p role="alert" className="text-[0.8125rem] text-destructive">
               {errorMessage(start.error)}
             </p>
           )}
@@ -85,8 +85,8 @@ export function InvestigationsPage() {
             <Link to={`/investigations/${item.id}`} className="flex items-center gap-3 rounded-md border p-3 text-sm hover:bg-muted">
               <StatusBadge status={item.status} />
               <span className="flex-1 truncate">{item.question}</span>
-              {item.confidence != null && <span className="text-xs">{pct(item.confidence)}</span>}
-              <span className="text-xs text-muted-foreground">{formatUtc(item.started_at)}</span>
+              {item.confidence != null && <span className="text-[0.8125rem]">{pct(item.confidence)}</span>}
+              <span className="text-[0.8125rem] text-muted-foreground">{formatUtc(item.started_at)}</span>
             </Link>
           </li>
         ))}
@@ -119,7 +119,7 @@ function InvestigationDetail({ investigationId }: { investigationId: string }) {
         title={investigation?.question ?? 'Investigation'}
         description={<RunSummary view={view} investigation={investigation} />}
       />
-      <div className="grid gap-4 lg:grid-cols-[16rem_1fr]">
+      <div className="grid gap-6 lg:grid-cols-[18rem_1fr]">
         <Timeline view={view} />
         <Tabs defaultValue="report" className="min-w-0">
           <TabsList>
@@ -205,19 +205,22 @@ function Timeline({ view }: { view: InvestigationView }) {
         <CardTitle>Steps</CardTitle>
       </CardHeader>
       <CardContent>
-        <ol aria-label="Steps" className="flex flex-col gap-2 text-sm">
+        <ol aria-label="Steps" className="flex flex-col gap-1 text-sm">
           {view.steps.map((step, index) => (
-            <li key={index} className="flex items-start gap-2">
+            <li
+              key={index}
+              className={`flex items-start gap-2.5 rounded-md px-2 py-1.5 ${step.status === 'running' ? 'bg-primary/8 ring-1 ring-primary/20' : ''}`}
+            >
               <StepIcon status={step.status} />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
                   <span className={step.status === 'skipped' ? 'text-muted-foreground' : ''}>{stepLabel(step.step)}</span>
-                  {step.tier && <Badge variant="secondary" className="h-4 px-1 text-[10px]">{step.tier}</Badge>}
+                  {step.tier && <TierBadge tier={step.tier} />}
                   {step.durationMs != null && (
-                    <span className="ml-auto text-xs text-muted-foreground">{(step.durationMs / 1000).toFixed(1)} s</span>
+                    <span className="ml-auto whitespace-nowrap text-[0.8125rem] text-muted-foreground tabular-nums">{(step.durationMs / 1000).toFixed(1)} s</span>
                   )}
                 </div>
-                {step.summary && <p className="truncate text-xs text-muted-foreground" title={step.summary}>{step.summary}</p>}
+                {step.summary && <p className="truncate text-[0.8125rem] text-muted-foreground" title={step.summary}>{step.summary}</p>}
               </div>
             </li>
           ))}
@@ -226,6 +229,17 @@ function Timeline({ view }: { view: InvestigationView }) {
       </CardContent>
     </Card>
   )
+}
+
+/** The model size, coloured so the routing (Nano → Super → Ultra) shows at a glance. */
+const TIER_STYLE: Record<string, string> = {
+  nano: 'bg-sky-500/12 text-sky-700 dark:text-sky-300',
+  super: 'bg-violet-500/12 text-violet-700 dark:text-violet-300',
+  ultra: 'bg-amber-500/15 text-amber-800 dark:text-amber-300',
+}
+
+function TierBadge({ tier }: { tier: string }) {
+  return <Badge className={`h-5 px-1.5 text-xs capitalize ${TIER_STYLE[tier] ?? ''}`}>{tier}</Badge>
 }
 
 function StepIcon({ status }: { status: string }) {
@@ -244,20 +258,27 @@ function ReportTab({ view, projectId }: { view: InvestigationView; projectId?: s
     )
   }
   return (
-    <div className="flex flex-col gap-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Root cause</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          <p className="text-sm">{report.root_cause ?? 'No root cause was established.'}</p>
-          <div className="flex flex-wrap gap-2 text-xs">
-            {report.verdict && <Badge variant="outline">verdict: {report.verdict}</Badge>}
-            <Badge variant={report.fix === 'verified' ? 'default' : 'outline'}>fix: {report.fix}</Badge>
-          </div>
-        </CardContent>
-      </Card>
-      {view.confidence && <ConfidenceCard view={view} />}
+    <div className="flex flex-col gap-5">
+      <div className="grid gap-4 lg:grid-cols-[1fr_20rem]">
+        {/* The answer first, in large type: what judges and on-call engineers look for. */}
+        <Card className="border-l-4 border-l-primary">
+          <CardHeader>
+            <CardDescription className="font-medium tracking-wide uppercase">Root cause</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <p className="text-lg leading-relaxed font-medium">{report.root_cause ?? 'No root cause was established.'}</p>
+            <div className="flex flex-wrap gap-2">
+              {report.verdict && (
+                <Badge variant={report.verdict === 'supported' ? 'default' : 'outline'}>verdict: {report.verdict}</Badge>
+              )}
+              <Badge variant={report.fix === 'verified' ? 'default' : 'outline'}>
+                {report.fix === 'verified' ? 'fix verified in Nebius Sandbox' : `fix: ${report.fix}`}
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
+        {view.confidence && <ConfidenceCard view={view} />}
+      </div>
       <Markdown>{report.summary}</Markdown>
       {report.next_steps.length > 0 && (
         <div>
@@ -278,10 +299,12 @@ function ConfidenceCard({ view }: { view: InvestigationView }) {
   return (
     <Card size="sm">
       <CardHeader>
-        <CardTitle>Confidence {pct(score)}</CardTitle>
+        <CardDescription className="font-medium tracking-wide uppercase">Confidence</CardDescription>
+        <CardTitle className="font-sans text-4xl font-bold text-primary tabular-nums">{pct(score)}</CardTitle>
+        <p className="text-[0.8125rem] text-muted-foreground">computed from the evidence, not guessed</p>
       </CardHeader>
       <CardContent>
-        <table aria-label="Confidence breakdown" className="w-full text-xs">
+        <table aria-label="Confidence breakdown" className="w-full text-[0.8125rem]">
           <tbody>
             {components.map((c) => (
               <tr key={c.name}>
@@ -291,7 +314,7 @@ function ConfidenceCard({ view }: { view: InvestigationView }) {
                     <div className={`h-1.5 rounded ${c.weight < 0 ? 'bg-destructive' : 'bg-primary'}`} style={{ width: pct(c.value) }} />
                   </div>
                 </td>
-                <td className="py-0.5 text-right text-muted-foreground">
+                <td className="py-0.5 pl-2 text-right whitespace-nowrap text-muted-foreground tabular-nums">
                   {c.weight > 0 ? '+' : '−'}
                   {Math.abs(c.weight).toFixed(2)} × {c.value.toFixed(2)}
                 </td>
@@ -322,9 +345,9 @@ function ActivityTab({ view }: { view: InvestigationView }) {
               {call.transport === 'mcp' && <Badge variant="secondary">MCP</Badge>}
               <span className="truncate text-muted-foreground">{call.result?.summary ?? 'running…'}</span>
             </summary>
-            <pre className="mt-2 overflow-x-auto rounded bg-muted p-2 text-xs">{JSON.stringify(call.arguments, null, 2)}</pre>
+            <pre className="mt-2 overflow-x-auto rounded bg-muted p-2 text-[0.8125rem]">{JSON.stringify(call.arguments, null, 2)}</pre>
             {call.result && (
-              <pre className="mt-2 max-h-64 overflow-auto rounded bg-muted p-2 text-xs whitespace-pre-wrap">
+              <pre className="mt-2 max-h-64 overflow-auto rounded bg-muted p-2 text-[0.8125rem] whitespace-pre-wrap">
                 {call.result.error ?? call.result.output_preview}
               </pre>
             )}
@@ -359,7 +382,7 @@ function EvidenceTab({ view, projectId, chipsOnly = false }: { view: Investigati
             )}
           </div>
           <p>{e.statement}</p>
-          {e.excerpt && <pre className="overflow-x-auto rounded bg-muted p-2 text-xs whitespace-pre-wrap">{e.excerpt}</pre>}
+          {e.excerpt && <pre className="overflow-x-auto rounded bg-muted p-2 text-[0.8125rem] whitespace-pre-wrap">{e.excerpt}</pre>}
         </li>
       ))}
       {view.evidence.length === 0 && <p className="text-sm text-muted-foreground">No evidence yet.</p>}
@@ -390,7 +413,7 @@ function PatchTab({ view }: { view: InvestigationView }) {
 /** A unified diff, coloured by line. */
 function Diff({ diff }: { diff: string }) {
   return (
-    <pre aria-label="Diff" className="overflow-x-auto rounded-md border bg-muted/40 p-2 text-xs leading-5">
+    <pre aria-label="Diff" className="overflow-x-auto rounded-md border bg-muted/40 p-2 text-[0.8125rem] leading-5">
       {diff.split('\n').map((line, index) => {
         const tone = line.startsWith('+') && !line.startsWith('+++')
           ? 'bg-primary/15'
@@ -425,7 +448,7 @@ function TestsTab({ view }: { view: InvestigationView }) {
                 )}
                 <span className="capitalize">{run.phase}</span>
                 {r && (
-                  <span className="text-xs font-normal text-muted-foreground">
+                  <span className="text-[0.8125rem] font-normal text-muted-foreground">
                     {r.passed ?? 0} passed · {r.failed ?? 0} failed · {(r.duration_ms / 1000).toFixed(1)} s
                     {r.as_expected && ' · as expected'}
                   </span>
@@ -433,9 +456,9 @@ function TestsTab({ view }: { view: InvestigationView }) {
               </CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-2">
-              {r && <code className="text-xs text-muted-foreground">$ {r.command}</code>}
-              <pre className="max-h-80 overflow-auto rounded bg-black p-2 text-xs text-green-200">{run.lines.join('\n')}</pre>
-              {r?.sandbox_image_id && <p className="text-xs text-muted-foreground">Nebius Sandbox image {r.sandbox_image_id}</p>}
+              {r && <code className="text-[0.8125rem] text-muted-foreground">$ {r.command}</code>}
+              <pre className="max-h-80 overflow-auto rounded bg-black p-2 text-[0.8125rem] text-green-200">{run.lines.join('\n')}</pre>
+              {r?.sandbox_image_id && <p className="text-[0.8125rem] text-muted-foreground">Nebius Sandbox image {r.sandbox_image_id}</p>}
             </CardContent>
           </Card>
         )
@@ -464,7 +487,7 @@ function PrTab({ view, investigationId }: { view: InvestigationView; investigati
             Approve and open draft PR
           </Button>
         )}
-        {approve.isError && <p role="alert" className="text-xs text-destructive">{errorMessage(approve.error)}</p>}
+        {approve.isError && <p role="alert" className="text-[0.8125rem] text-destructive">{errorMessage(approve.error)}</p>}
       </div>
     </div>
   )
@@ -508,7 +531,7 @@ function ChatTab({ investigationId }: { investigationId: string }) {
         ),
       )}
       {ask.isPending && <p className="text-sm text-muted-foreground">Thinking…</p>}
-      {ask.isError && <p role="alert" className="text-xs text-destructive">{errorMessage(ask.error)}</p>}
+      {ask.isError && <p role="alert" className="text-[0.8125rem] text-destructive">{errorMessage(ask.error)}</p>}
       <form onSubmit={handleSubmit} className="flex gap-2">
         <Textarea aria-label="Follow-up question" placeholder="Which commit introduced this?" value={draft} onChange={(e) => setDraft(e.target.value)} />
         <Button type="submit" size="sm" disabled={draft.trim().length < 2 || ask.isPending}>Ask</Button>
@@ -525,7 +548,7 @@ function TraceTab({ investigationId, done }: { investigationId: string; done: bo
     queryFn: () =>
       ok(api.GET('/investigations/{investigation_id}/trace', { params: { path: { investigation_id: investigationId } } })),
   })
-  if (trace.isError) return <p role="alert" className="text-xs text-destructive">{errorMessage(trace.error)}</p>
+  if (trace.isError) return <p role="alert" className="text-[0.8125rem] text-destructive">{errorMessage(trace.error)}</p>
   if (!trace.data) return <p className="text-sm text-muted-foreground">Loading…</p>
   const { spans, totals } = trace.data
   if (spans.length === 0) return <p className="text-sm text-muted-foreground">No calls recorded yet.</p>
@@ -533,12 +556,12 @@ function TraceTab({ investigationId, done }: { investigationId: string; done: bo
   const total = Math.max(totals.duration_ms, 1)
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-xs text-muted-foreground">
+      <p className="text-[0.8125rem] text-muted-foreground">
         {totals.spans} calls · {totals.llm_calls} to Nemotron ·{' '}
         {(totals.prompt_tokens + totals.completion_tokens).toLocaleString()} tokens · ${totals.cost_usd.toFixed(4)} ·{' '}
         {(totals.duration_ms / 1000).toFixed(0)} s
       </p>
-      <table aria-label="Trace" className="w-full text-xs">
+      <table aria-label="Trace" className="w-full text-[0.8125rem]">
         <tbody>
           {spans.map((span) => {
             const left = ((Date.parse(span.started_at) - start) / total) * 100
@@ -546,7 +569,7 @@ function TraceTab({ investigationId, done }: { investigationId: string; done: bo
             return (
               <tr key={span.id} title={span.error ?? span.model ?? undefined}>
                 <td className="w-0 py-0.5 pr-2 whitespace-nowrap">
-                  <Badge variant="outline" className="h-4 px-1 text-[10px]">{span.kind}</Badge>{' '}
+                  <Badge variant="outline" className="h-5 px-1.5 text-xs">{span.kind}</Badge>{' '}
                   <span className={span.status === 'ok' ? '' : 'text-destructive'}>{span.name}</span>
                   {span.tier && <span className="text-muted-foreground"> · {span.tier}</span>}
                   {span.downgraded && <span className="text-muted-foreground"> (fell back to Super)</span>}

@@ -55,7 +55,7 @@ export function KnowledgePage() {
       />
       {isPending && <Skeleton className="h-24" />}
       {isError && (
-        <p role="alert" className="text-xs text-destructive">
+        <p role="alert" className="text-[0.8125rem] text-destructive">
           Couldn't load your projects. Reload the page to try again.
         </p>
       )}
@@ -80,7 +80,7 @@ function ProjectKnowledge({ projectId }: { projectId: string }) {
     <>
       {repositories.isPending && <Skeleton className="h-24" />}
       {repositories.isError && (
-        <p role="alert" className="text-xs text-destructive">
+        <p role="alert" className="text-[0.8125rem] text-destructive">
           Couldn't load the repository. Reload the page to try again.
         </p>
       )}
@@ -132,7 +132,7 @@ function IndexingCard({ projectId, repository }: { projectId: string; repository
           <IndexingDetail repository={repository} />
         </div>
         {ingest.error && (
-          <p role="alert" className="text-xs text-destructive">
+          <p role="alert" className="text-[0.8125rem] text-destructive">
             {errorMessage(ingest.error)}
           </p>
         )}
@@ -152,22 +152,22 @@ function IndexingDetail({ repository }: { repository: Repository }) {
     case 'queued':
     case 'running':
       return (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-[0.8125rem] text-muted-foreground">
           Reading the repository and embedding what changed. This page follows along.
         </p>
       )
     case 'failed':
       return (
         <>
-          <p className="text-xs text-destructive">{repository.ingest_error}</p>
-          {last && <p className="text-xs text-muted-foreground">The agent still searches {last}.</p>}
+          <p className="text-[0.8125rem] text-destructive">{repository.ingest_error}</p>
+          {last && <p className="text-[0.8125rem] text-muted-foreground">The agent still searches {last}.</p>}
         </>
       )
     case 'indexed':
-      return <p className="text-xs text-muted-foreground">At {last}.</p>
+      return <p className="text-[0.8125rem] text-muted-foreground">At {last}.</p>
     case 'not_indexed':
       return (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-[0.8125rem] text-muted-foreground">
           Index it so the agent can search its docs and code.
         </p>
       )
@@ -231,7 +231,7 @@ function KnowledgeList({ projectId, repository }: { projectId: string; repositor
           className="w-64"
         />
         {type === 'incident' && (
-          <Link to="/upload?kind=incidents" className="ml-auto text-xs text-primary hover:underline">
+          <Link to="/upload?kind=incidents" className="ml-auto text-[0.8125rem] text-primary hover:underline">
             Upload incident history
           </Link>
         )}
@@ -239,7 +239,7 @@ function KnowledgeList({ projectId, repository }: { projectId: string; repositor
       <TabsContent value={type} className="flex flex-col gap-3">
         {items.isPending && <Skeleton className="h-40" />}
         {items.isError && (
-          <p role="alert" className="text-xs text-destructive">
+          <p role="alert" className="text-[0.8125rem] text-destructive">
             {errorMessage(items.error)}
           </p>
         )}
@@ -287,7 +287,7 @@ function ItemList({
           <ItemRow key={item.id} item={item} onOpen={() => onOpen(item)} />
         ))}
       </ul>
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+      <div className="flex items-center gap-2 text-[0.8125rem] text-muted-foreground">
         <span>
           {first}–{last} of {page.total}
         </span>
@@ -325,7 +325,7 @@ function ItemRow({ item, onOpen }: { item: Item; onOpen: () => void }) {
       <button
         type="button"
         onClick={onOpen}
-        className="flex w-full items-center gap-3 px-3 py-2 text-left text-xs hover:bg-muted/50"
+        className="flex w-full items-center gap-3 px-3 py-2 text-left text-[0.8125rem] hover:bg-muted/50"
       >
         <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
         <div className="flex min-w-0 flex-1 flex-col">

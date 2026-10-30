@@ -10,24 +10,22 @@ export function LoginPage() {
   const { search } = useLocation() // keeps ?next= when switching to register
 
   return (
-    <div className="flex flex-col items-center gap-4">
-      <AuthForm
-        title="Log in to RootTrace"
-        description="Investigate incidents across code, commits, docs and logs."
-        submitLabel="Log in"
-        passwordAutoComplete="current-password"
-        onSubmit={login}
-        footer={
-          <>
-            No account yet?{' '}
-            <Link to={{ pathname: '/register', search }} className="text-primary hover:underline">
-              Create one
-            </Link>
-          </>
-        }
-      />
-      <TryDemo />
-    </div>
+    <AuthForm
+      title="Log in to RootTrace"
+      description="Investigate incidents across code, commits, docs and logs."
+      submitLabel="Log in"
+      passwordAutoComplete="current-password"
+      onSubmit={login}
+      footer={
+        <>
+          No account yet?{' '}
+          <Link to={{ pathname: '/register', search }} className="text-primary hover:underline">
+            Create one
+          </Link>
+          <TryDemo />
+        </>
+      }
+    />
   )
 }
 
@@ -39,12 +37,18 @@ function TryDemo() {
     onSuccess: () => navigate('/investigations', { replace: true }),
   })
   return (
-    <div className="flex flex-col items-center gap-1.5">
-      <Button variant="outline" onClick={() => start.mutate()} disabled={start.isPending}>
+    <div className="mt-4 flex flex-col gap-3">
+      <div className="flex items-center gap-3 text-[0.8125rem] text-muted-foreground">
+        <span className="h-px flex-1 bg-border" />
+        or
+        <span className="h-px flex-1 bg-border" />
+      </div>
+      {/* Inside the login form: type="button", so it never submits the form. */}
+      <Button type="button" variant="outline" className="w-full" onClick={() => start.mutate()} disabled={start.isPending}>
         Try the demo, no account needed
       </Button>
       {start.isError && (
-        <p role="alert" className="text-xs text-destructive">
+        <p role="alert" className="text-[0.8125rem] text-destructive">
           {errorMessage(start.error)}
         </p>
       )}

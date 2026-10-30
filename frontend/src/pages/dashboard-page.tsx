@@ -28,7 +28,7 @@ export function DashboardPage() {
         description={project ? `Investigations in ${project.name}.` : 'Investigations across your projects.'}
       />
       {stats.isPending && <Skeleton className="h-24" />}
-      {stats.isError && <p role="alert" className="text-xs text-destructive">{errorMessage(stats.error)}</p>}
+      {stats.isError && <p role="alert" className="text-[0.8125rem] text-destructive">{errorMessage(stats.error)}</p>}
       {s && (
         <>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
@@ -49,7 +49,7 @@ export function DashboardPage() {
                   <Link key={inv.id} to={`/investigations/${inv.id}`} className="flex items-center gap-2 rounded-md p-1.5 text-sm hover:bg-muted">
                     <Badge variant={inv.status === 'failed' ? 'destructive' : 'outline'}>{inv.status}</Badge>
                     <span className="flex-1 truncate">{inv.question}</span>
-                    {inv.confidence != null && <span className="text-xs">{pct(inv.confidence)}</span>}
+                    {inv.confidence != null && <span className="text-[0.8125rem]">{pct(inv.confidence)}</span>}
                   </Link>
                 ))}
                 {s.recent_investigations.length === 0 && (
@@ -69,9 +69,9 @@ export function DashboardPage() {
               <CardContent className="flex flex-col gap-2">
                 {s.recent_incidents.map((inc) => (
                   <div key={inc.id} className="flex items-center gap-2 text-sm">
-                    <code className="text-xs">{inc.key}</code>
+                    <code className="text-[0.8125rem]">{inc.key}</code>
                     <span className="flex-1 truncate">{inc.title}</span>
-                    {inc.occurred_at && <span className="text-xs text-muted-foreground">{formatUtc(inc.occurred_at)}</span>}
+                    {inc.occurred_at && <span className="text-[0.8125rem] text-muted-foreground">{formatUtc(inc.occurred_at)}</span>}
                   </div>
                 ))}
                 {s.recent_incidents.length === 0 && <p className="text-sm text-muted-foreground">None yet.</p>}
@@ -90,7 +90,7 @@ function Tile({ label, value, hint }: { label: string; value: string; hint?: str
       <CardHeader>
         <CardDescription>{label}</CardDescription>
         <CardTitle className="text-2xl">{value}</CardTitle>
-        {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+        {hint && <p className="text-[0.8125rem] text-muted-foreground">{hint}</p>}
       </CardHeader>
     </Card>
   )

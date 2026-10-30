@@ -30,7 +30,7 @@ export function MemoriesCard({ projectId }: { projectId: string }) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {memories.isError && <p role="alert" className="text-xs text-destructive">{errorMessage(memories.error)}</p>}
+        {memories.isError && <p role="alert" className="text-[0.8125rem] text-destructive">{errorMessage(memories.error)}</p>}
         <ul aria-label="Memories" className="flex flex-col gap-2">
           {memories.data?.map((memory) => (
             <MemoryRow key={memory.id} memory={memory} projectId={projectId} queryKey={key} />
@@ -98,7 +98,7 @@ function MemoryRow({ memory, projectId, queryKey }: { memory: Memory; projectId:
           </>
         )}
       </div>
-      {error && <p role="alert" className="text-xs text-destructive">{errorMessage(error)}</p>}
+      {error && <p role="alert" className="text-[0.8125rem] text-destructive">{errorMessage(error)}</p>}
     </li>
   )
 }

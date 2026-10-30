@@ -59,7 +59,7 @@ function SourcePanel({ projectId, sourceRef }: Opened) {
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-6">
         {source.isPending && <Skeleton className="h-64" />}
         {source.isError && (
-          <p role="alert" className="text-xs text-destructive">
+          <p role="alert" className="text-[0.8125rem] text-destructive">
             {errorMessage(source.error)}
           </p>
         )}
