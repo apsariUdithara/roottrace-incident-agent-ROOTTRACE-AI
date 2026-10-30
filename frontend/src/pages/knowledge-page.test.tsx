@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, screen, within } from '@testing-library/react'
+import { act, cleanup, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -71,6 +71,8 @@ function fakeBackend({
     projects: [PAYSTREAM],
     handle: (route, _body, query) => {
       switch (route) {
+        case 'GET /projects/p1/memories':
+          return json(200, [])
         case 'GET /projects/p1/repositories':
           if (current[0]?.ingest_status === 'queued' || current[0]?.ingest_status === 'running') {
             current = [states.shift() ?? current[0]]
@@ -126,7 +128,11 @@ afterEach(() => {
 })
 
 const list = () => within(screen.getByRole('list', { name: 'Indexed items' }))
-const titles = () => list().getAllByRole('listitem').map((row) => row.querySelector('span')?.textContent)
+// Plain DOM query, not getAllByRole: that checks every element's computed style (slow on 50 rows).
+const titles = () =>
+  Array.from(screen.getByRole('list', { name: 'Indexed items' }).querySelectorAll(':scope > li'), (row) =>
+    row.querySelector('span')?.textContent,
+  )
 const status = () => screen.getByRole('status')
 
 /** Opens the page, and waits for the first page of items (or, with none, the tabs). */
@@ -185,7 +191,7 @@ describe('knowledge page', () => {
 
     await user.type(screen.getByRole('searchbox', { name: 'Search titles and paths' }), 'pool')
 
-    await vi.waitFor(() => expect(titles()).toEqual(['docs/pool_sizing.md']))
+    await waitFor(() => expect(titles()).toEqual(['docs/pool_sizing.md']))
     expect(queries.filter((query) => query.has('q')).map((query) => query.get('q'))).toEqual([
       'pool',
     ]) // one search, not one per key
@@ -207,9 +213,10 @@ describe('knowledge page', () => {
 
     await user.click(screen.getByRole('button', { name: 'Next' }))
 
-    expect(await screen.findByText('51–100 of 120')).toBeTruthy()
+    // Wait on a cheap check: findByText re-scans this long page on every DOM change.
+    await waitFor(() => expect(titles()[0]).toBe('app/m050.py'))
+    expect(screen.getByText('51–100 of 120')).toBeTruthy()
     expect(queries.at(-1)?.get('offset')).toBe('50')
-    expect(titles()[0]).toBe('app/m050.py')
   })
 
   it('re-indexes, follows the run, and reloads the list when it ends', async () => {
@@ -236,7 +243,7 @@ describe('knowledge page', () => {
     expect(await within(status()).findByText('Indexed')).toBeTruthy()
     expect(status().textContent).toContain('At commit a3f9c21')
     expect((screen.getByRole('button', { name: 'Re-index' }) as HTMLButtonElement).disabled).toBe(false)
-    await vi.waitFor(() => expect(queries.length).toBe(loads + 1)) // the list, reloaded once
+    await waitFor(() => expect(queries.length).toBe(loads + 1)) // the list, reloaded once
   })
 
   it('says why indexing failed, and what the agent still searches', async () => {
