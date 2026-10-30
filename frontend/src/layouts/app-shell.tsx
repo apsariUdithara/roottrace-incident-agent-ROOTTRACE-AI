@@ -38,7 +38,12 @@ export function AppShell() {
                 >
                   {theme === 'dark' ? <Sun /> : <Moon />}
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => void logout()}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="hover:bg-red-500/10 hover:text-red-700 dark:hover:text-red-300"
+                  onClick={() => void logout()}
+                >
                   <LogOut data-icon="inline-start" />
                   Log out
                 </Button>
