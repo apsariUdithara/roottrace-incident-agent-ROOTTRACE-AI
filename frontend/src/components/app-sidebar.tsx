@@ -4,6 +4,7 @@ import {
   FolderGit2,
   LayoutDashboard,
   MessageSquare,
+  Search,
   ScrollText,
   type LucideIcon,
 } from 'lucide-react'
@@ -24,6 +25,7 @@ type NavItem = { to: string; label: string; icon: LucideIcon; end?: boolean }
 
 const NAV: NavItem[] = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
+  { to: '/investigations', label: 'Investigations', icon: Search },
   { to: '/projects', label: 'Projects', icon: FolderGit2 },
   { to: '/knowledge', label: 'Knowledge', icon: BookOpen },
   { to: '/logs', label: 'Logs', icon: ScrollText },

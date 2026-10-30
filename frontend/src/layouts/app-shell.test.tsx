@@ -38,7 +38,7 @@ describe('sidebar', () => {
     await screen.findByRole('heading', { name: 'Dashboard' })
 
     const sections = nav().getAllByRole('link').map((link) => link.textContent)
-    expect(sections).toEqual(['Dashboard', 'Projects', 'Knowledge', 'Logs', 'Evaluation', 'Chat'])
+    expect(sections).toEqual(['Dashboard', 'Investigations', 'Projects', 'Knowledge', 'Logs', 'Evaluation', 'Chat'])
     expect(isCurrent('Dashboard')).toBe(true)
     expect(isCurrent('Knowledge')).toBe(false)
 
