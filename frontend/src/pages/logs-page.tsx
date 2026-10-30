@@ -444,13 +444,13 @@ function LogRow({
 
   return (
     <tr className="align-top">
-      <td className="px-3 py-1.5 font-mono whitespace-nowrap text-muted-foreground">{formatUtc(line.ts)}</td>
+      <td className="px-3 py-1.5 whitespace-nowrap text-muted-foreground tabular-nums">{formatUtc(line.ts)}</td>
       <td className="px-3 py-1.5">
         <LevelBadge level={line.level} />
       </td>
       {showService && <td className="px-3 py-1.5 whitespace-nowrap">{line.service}</td>}
       <td className="px-3 py-1.5 whitespace-nowrap">{line.instance}</td>
-      <td className="px-3 py-1.5 font-mono whitespace-nowrap">{line.route}</td>
+      <td className="px-3 py-1.5 whitespace-nowrap">{line.route}</td>
       <td className={`px-3 py-1.5 text-right ${line.status && line.status >= 500 ? 'text-destructive' : ''}`}>
         {line.status || null}
       </td>
@@ -458,7 +458,7 @@ function LogRow({
         {line.latency_ms ? `${line.latency_ms.toLocaleString('en')} ms` : null}
       </td>
       <td className="min-w-64 px-3 py-1.5 break-words">
-        {label && <span className="mr-1.5 font-mono text-muted-foreground">{label}</span>}
+        {label && <span className="mr-1.5 font-medium text-muted-foreground">{label}</span>}
         {line.message}
         {attrs.length > 0 && (
           <span className="block font-mono text-muted-foreground">

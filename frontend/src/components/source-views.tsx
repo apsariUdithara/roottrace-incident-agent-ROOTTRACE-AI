@@ -184,12 +184,12 @@ function LogView({ source, projectId }: { source: Schemas['LogSource']; projectI
           <tbody className="divide-y">
             {source.entries.map((line) => (
               <tr key={line.id} className="align-top">
-                <td className="px-3 py-1.5 font-mono whitespace-nowrap text-muted-foreground">{formatUtc(line.ts)}</td>
+                <td className="px-3 py-1.5 whitespace-nowrap text-muted-foreground tabular-nums">{formatUtc(line.ts)}</td>
                 <td className="px-3 py-1.5">
                   <LevelBadge level={line.level} />
                 </td>
                 <td className="px-3 py-1.5 whitespace-nowrap">{line.instance}</td>
-                <td className="px-3 py-1.5 font-mono whitespace-nowrap">{line.route}</td>
+                <td className="px-3 py-1.5 whitespace-nowrap">{line.route}</td>
                 <td className={`px-3 py-1.5 text-right ${line.status && line.status >= 500 ? 'text-destructive' : ''}`}>
                   {line.status || null}
                 </td>
@@ -288,7 +288,7 @@ function MemoryView({ memory }: { memory: Schemas['MemoryOut'] }) {
           {memory.created_by === 'agent' ? 'Written by the agent: check it before relying on it' : 'Added by a person'}
         </span>
         <span>· updated {formatUtc(memory.updated_at)} UTC</span>
-        {memory.source_ref && <span className="font-mono">· from {memory.source_ref}</span>}
+        {memory.source_ref && <span>· from {memory.source_ref}</span>}
       </Meta>
     </>
   )

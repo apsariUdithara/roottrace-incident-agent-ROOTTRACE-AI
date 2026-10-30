@@ -331,7 +331,7 @@ function ItemRow({ item, onOpen }: { item: Item; onOpen: () => void }) {
         <div className="flex min-w-0 flex-1 flex-col">
           <span className="truncate font-medium">{title}</span>
           {title !== item.path && (
-            <span className="truncate font-mono text-muted-foreground">{item.path}</span>
+            <span className="truncate text-muted-foreground">{item.path}</span>
           )}
         </div>
         <span className="shrink-0 text-muted-foreground">{chunks}</span>

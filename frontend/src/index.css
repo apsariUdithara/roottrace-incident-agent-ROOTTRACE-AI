@@ -3,15 +3,13 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/inter";
 @import "@fontsource-variable/jetbrains-mono";
-@import "@fontsource-variable/roboto-slab";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-    /* Inter for the UI, the slab only for headings, a mono for code, diffs, SHAs and logs. */
-    --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
-    --font-heading: 'Roboto Slab Variable', serif;
-    --font-serif: 'Roboto Slab Variable', serif;
+    /* One family for the whole UI (Inter, headings included); a mono only for code. */
+    --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --font-heading: var(--font-sans);
     --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
     --color-success: var(--success);
     --color-warning: var(--warning);
@@ -138,6 +136,11 @@
   }
   html {
     @apply font-sans antialiased;
+    /* Inter's clearer forms: open digits, a straight-sided "l" (tells 1, l and I apart). */
+    font-feature-settings: 'cv01', 'cv02', 'cv05', 'cv08';
+  }
+  h1, h2, h3 {
+    @apply tracking-tight;
   }
   body {
     @apply bg-background text-sm text-foreground; /* 14px body text */
@@ -150,5 +153,8 @@
   }
   code, pre, kbd {
     @apply font-mono;
+  }
+  code {
+    font-size: 0.9em; /* a mono looks bigger than Inter at the same size: even them out in a line */
   }
 }

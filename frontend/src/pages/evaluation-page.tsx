@@ -163,7 +163,7 @@ function Cases({ cases }: { cases: Case[] }) {
         <tbody className="divide-y">
           {shown.map((c) => (
             <tr key={String(c.id)} className="align-top">
-              <td className="px-3 py-1.5 font-mono whitespace-nowrap">
+              <td className="px-3 py-1.5 font-medium whitespace-nowrap">
                 {c.investigation_id ? (
                   <Link to={`/investigations/${String(c.investigation_id)}`} className="text-primary hover:underline">
                     {String(c.id)}
