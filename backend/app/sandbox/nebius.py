@@ -12,6 +12,7 @@ Never upload secrets: only the repository snapshot and the patch go into a sandb
 import asyncio
 import hashlib
 import json
+import os
 import re
 import sys
 import time
@@ -66,8 +67,43 @@ def default_setup_command(repo: Path) -> str | None:
     return None
 
 
+def profile_path() -> Path:
+    """Where the ConTree CLI saves its login profile."""
+    config = os.environ.get("XDG_CONFIG_HOME") or str(Path.home() / ".config")
+    return Path(config) / "contree" / "auth.ini"
+
+
+_login = asyncio.Lock()
+
+
+async def ensure_login() -> None:
+    """On a server there is no `contree auth` profile, and the CLI won't read the key from the
+    environment for other commands (found on the free Render deploy: every sandbox call failed).
+    `contree auth` does read NEBIUS_API_KEY and NEBIUS_AI_PROJECT, so save a profile from them
+    once. A machine that already has a profile (a laptop after `contree auth`) is left alone."""
+    async with _login:
+        if profile_path().exists():
+            return
+        if not (os.environ.get("NEBIUS_API_KEY") and os.environ.get("NEBIUS_AI_PROJECT")):
+            return  # nothing to log in with; the CLI's own error will say so
+        proc = await asyncio.create_subprocess_exec(
+            sys.executable,
+            "-m",
+            "contree_cli",
+            "auth",
+            stdin=asyncio.subprocess.DEVNULL,
+            stdout=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        _, err = await asyncio.wait_for(proc.communicate(), 60)
+        if proc.returncode != 0:
+            detail = err.decode("utf-8", "replace").strip().splitlines()[-1:] or ["no output"]
+            raise SandboxError(f"sandbox login failed: {detail[0]}")
+
+
 class NebiusSandbox:
     async def _cli(self, *args: str, timeout: int) -> dict:
+        await ensure_login()
         session = f"rt-{uuid.uuid4().hex[:12]}"  # isolate concurrent runs from each other
         proc = await asyncio.create_subprocess_exec(
             sys.executable,
