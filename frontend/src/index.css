@@ -56,8 +56,8 @@
 }
 
 :root {
-    /* Light, the default: a faint slate page with white cards, so surfaces read apart. */
-    --background: oklch(0.982 0.003 250);
+    /* Light, the default: a cool grey-blue page, a mint sidebar and white cards, so surfaces read apart. */
+    --background: oklch(0.962 0.012 245);
     --foreground: oklch(0.22 0.02 260);
     --card: oklch(1 0 0);
     --card-foreground: oklch(0.22 0.02 260);
@@ -65,16 +65,16 @@
     --popover-foreground: oklch(0.22 0.02 260);
     --primary: oklch(0.55 0.15 152); /* green; white text on it passes WCAG AA */
     --primary-foreground: oklch(1 0 0);
-    --secondary: oklch(0.955 0.006 250);
+    --secondary: oklch(0.94 0.014 245);
     --secondary-foreground: oklch(0.26 0.02 260);
-    --muted: oklch(0.955 0.006 250);
+    --muted: oklch(0.94 0.014 245);
     --muted-foreground: oklch(0.47 0.02 260); /* darker than shadcn's: small captions stay legible */
-    --accent: oklch(0.955 0.006 250);
+    --accent: oklch(0.94 0.014 245);
     --accent-foreground: oklch(0.26 0.02 260);
     --destructive: oklch(0.56 0.21 27);
     --success: oklch(0.55 0.15 152);
     --warning: oklch(0.66 0.15 65);
-    --border: oklch(0.905 0.006 250);
+    --border: oklch(0.89 0.014 245);
     --input: oklch(0.88 0.008 250);
     --ring: oklch(0.55 0.15 152);
     --chart-1: oklch(0.845 0.143 164.978);
@@ -83,18 +83,20 @@
     --chart-4: oklch(0.508 0.118 165.612);
     --chart-5: oklch(0.432 0.095 166.913);
     --radius: 0.6rem;
-    --sidebar: oklch(1 0 0);
+    --glow: 16%; /* the background's colour glows; softer in dark mode */
+    --sidebar: oklch(0.945 0.025 165); /* light mint */
     --sidebar-foreground: oklch(0.26 0.02 260);
     --sidebar-primary: oklch(0.55 0.15 152);
     --sidebar-primary-foreground: oklch(1 0 0);
-    --sidebar-accent: oklch(0.955 0.012 152); /* the current page: a faint green */
-    --sidebar-accent-foreground: oklch(0.36 0.1 152);
-    --sidebar-border: oklch(0.905 0.006 250);
+    --sidebar-accent: oklch(0.885 0.06 160); /* the current page: a deeper mint */
+    --sidebar-accent-foreground: oklch(0.32 0.1 155);
+    --sidebar-border: oklch(0.88 0.03 165);
     --sidebar-ring: oklch(0.55 0.15 152);
 }
 
 .dark {
     /* Soft slate, not near-black, with cards a clear step lighter than the page. */
+    --glow: 8%;
     --background: oklch(0.245 0.012 260);
     --foreground: oklch(0.95 0.005 250);
     --card: oklch(0.285 0.014 260);
@@ -139,6 +141,12 @@
   }
   body {
     @apply bg-background text-sm text-foreground; /* 14px body text */
+    /* A faint green and violet and blue glow at the edges: depth without a busy background. */
+    background-image:
+      radial-gradient(60rem 30rem at 15% -10%, oklch(0.72 0.16 152 / var(--glow)), transparent 70%),
+      radial-gradient(50rem 28rem at 95% -5%, oklch(0.6 0.2 290 / var(--glow)), transparent 70%),
+      radial-gradient(60rem 30rem at 60% 110%, oklch(0.7 0.12 220 / var(--glow)), transparent 70%);
+    background-attachment: fixed;
   }
   code, pre, kbd {
     @apply font-mono;
