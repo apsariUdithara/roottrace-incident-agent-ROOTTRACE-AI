@@ -111,6 +111,23 @@ One PostgreSQL database with pgvector holds application data, embeddings, long-t
 
 ---
 
+## Run it yourself
+
+You need Docker, Python 3.12 with [uv](https://docs.astral.sh/uv/), Node 20+, and a Nebius Token Factory API key. From the repo root:
+
+```bash
+docker compose -f infra/docker-compose.yml up -d --wait   # PostgreSQL 16 + pgvector
+cd backend
+uv sync && cp .env.example .env                           # then set NEBIUS_API_KEY, JWT_SECRET, FERNET_KEY
+uv run alembic upgrade head
+python ../demo-target/scripts/build_history.py            # build the PayStream demo repo (git only, free)
+uv run python scripts/seed_demo.py                        # demo user + PayStream indexed (~$0.0003)
+uv run uvicorn app.main:app                               # API on http://localhost:8000
+cd ../frontend && npm install && npm run dev              # app on http://localhost:5173
+```
+
+From the terminal instead: `uv run python scripts/investigate.py` runs one investigation (~$0.05–0.15). `python eval/evaluate.py` reruns the evaluation (~$1.20). Sandbox runs need `contree auth`, or `NEBIUS_API_KEY` plus `NEBIUS_AI_PROJECT`. Details: [backend/README.md](backend/README.md), [frontend/README.md](frontend/README.md), [infra/README.md](infra/README.md).
+
 ## Tech stack
 
 | Layer | Choice |
